@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+
+# Secrets
+.env
+.env*.local
+
+# Generated from the pinned `stockfish` npm package by scripts/copy-engine.mjs
+public/engine/
