@@ -127,6 +127,28 @@ export function staticMovePoints(move: VariationMove): InsightPoint[] {
     );
   }
 
+  // Uncovered attacks: own long-range pieces that now reach an enemy piece through the vacated square.
+  if (!move.isCastle) {
+    const shown = new Set<Square>();
+    for (const sq of ALL_SQUARES) {
+      const x = after[sq];
+      if (!x || x.color !== me || sq === move.to || !["b", "r", "q"].includes(x.type) || before[sq]?.type !== x.type) continue;
+      const was = new Set(attacksOn(before, sq));
+      const gained = attacksOn(after, sq).filter((t) => !was.has(t) && after[t]?.color === them && !newTargets.includes(t));
+      for (const t of gained.slice(0, 1)) {
+        if (shown.has(t)) continue;
+        shown.add(t);
+        pts.push(
+          point(`Uncovers ${the(after, sq)}: it now hits ${the(after, t)}.`, "opportunity", "rules", {
+            arrows: [{ from: sq, to: t, tone: "opportunity" }],
+            squares: [{ sq: move.from, tone: "opportunity", style: "dashed" }],
+          }),
+        );
+      }
+      if (shown.size >= 1) break;
+    }
+  }
+
   // Prophylaxis: enemy pieces that lose safe squares the moved piece now covers.
   if (!move.captured && !move.isCheck) {
     const covered = new Set(attacksOn(after, move.to));

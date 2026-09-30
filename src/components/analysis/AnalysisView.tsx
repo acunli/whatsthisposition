@@ -9,15 +9,16 @@ import type { Evaluation } from "@/lib/engine/score";
 import { computeFacts, marksForLenses, type Fact, type LensId, type Marks } from "@/lib/facts";
 import { buildAdvice } from "@/lib/facts/advice";
 import { threatFact } from "@/lib/facts/engineFacts";
-import { explainMove, explainWhyNot, staticMovePoints } from "@/lib/facts/explain";
+import { explainWhyNot, staticMovePoints } from "@/lib/facts/explain";
 import { buildLedger, labelOf, polarityOf } from "@/lib/facts/ledger";
 import { materialSummary } from "@/lib/facts/material";
 import { findPlans } from "@/lib/facts/plans";
 import { buildTour, type Scene } from "@/lib/facts/tour";
+import { deepScenes } from "@/lib/deep/scenes";
 import { traceSquare } from "@/lib/facts/trace";
 import { emptyMarks } from "@/lib/facts/types";
 import { buildVariation, fenAtPly, moveAtPly, navigate, type NavAction } from "@/lib/variation";
-import { Caption, sideName, type CaptionData } from "./bits";
+import { Caption, EvalBar, sideName, type CaptionData } from "./bits";
 import { ComparePanel } from "./ComparePanel";
 import { LayersPanel } from "./LayersPanel";
 import { LedgerPanel } from "./LedgerPanel";
@@ -124,37 +125,22 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     [ledger, displayFacts, displayTurn, atRoot, done, bestFirst, turn, lines],
   );
 
-  // The guided tour, finishing with the engine's move once it's known.
+  // Deep understanding of the best move, started automatically once the search settles.
+  const { requestDeep, deepFor } = a;
+  useEffect(() => {
+    if (!done || !lines[0]) return;
+    requestDeep(lines[0], { isBest: true, alternatives: lines.slice(1) });
+  }, [done, lines, requestDeep]);
+  const bestDeep = done && lines[0] ? deepFor(lines[0].pv[0]) : null;
+
+  // The guided tour: the best move and its ideas first, then the position's findings.
   const scenes: Scene[] = useMemo(() => {
     const base = buildTour(rootLedger, turn, 6);
     if (!done || !lines[0]) return base;
-    const w = explainMove(fen, { pv: lines[0].pv, eval: lines[0].eval, depth: lines[0].depth });
-    const m = buildVariation(fen, lines[0].pv.slice(0, 1)).moves[0];
-    if (!w || !m) return base;
-    const first = w.move.points[0];
-    const marks = emptyMarks();
-    marks.arrows.push({ from: m.from, to: m.to, tone: "opportunity" });
-    if (first) {
-      marks.squares.push(...first.marks.squares);
-      marks.arrows.push(...first.marks.arrows);
-    }
-    const fact: Fact = {
-      id: "engine-best",
-      lens: "threats",
-      kind: "engine-best",
-      side: turn,
-      tone: "opportunity",
-      anchor: m.to,
-      title: `The engine's choice: ${m.san}. ${first?.text ?? ""}`.trim(),
-      detail: "Open the Moves tab to play the line out and ask why.",
-      evidence: "engine",
-      polarity: "strength",
-      label: `Best move: ${m.san}`,
-      marks,
-      priority: 0,
-    };
-    return [...base, { id: fact.id, fact, label: fact.label!, polarity: "strength" as const, side: turn }];
-  }, [rootLedger, turn, done, lines, fen]);
+    const dm = bestDeep?.status === "done" ? bestDeep.data : bestDeep?.status === "failed" ? null : "pending";
+    return [...deepScenes(fen, lines[0], dm), ...base];
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deepVersion signals cache updates
+  }, [rootLedger, turn, done, lines, fen, a.deepVersion]);
 
   const safeScene = Math.min(sceneIdx, Math.max(0, scenes.length - 1));
 
@@ -207,7 +193,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     setTab("moves");
     setMovesMode("lines");
     selectLine(l, 1);
-    setWhy({ kind: "why", line: l, data: explainMove(fen, { pv: l.pv, eval: l.eval, depth: l.depth }) });
+    setWhy({ kind: "why", line: l });
+    requestDeep(l, { isBest: l.pv[0] === lines[0]?.pv[0], alternatives: lines.filter((x) => x.pv[0] !== l.pv[0]), bestLine: lines[0] });
   };
 
   const openWhyNot = (l: LineRef) => {
@@ -237,7 +224,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     if (best && best.pv[0] !== uci) {
       setWhy({ kind: "whynot", line: ref, data: explainWhyNot(fen, { pv: best.pv, eval: best.eval, depth: best.depth }, { pv: ref.pv, eval: ref.eval, depth: ref.depth }) });
     } else {
-      setWhy({ kind: "why", line: ref, data: explainMove(fen, { pv: ref.pv, eval: ref.eval, depth: ref.depth }) });
+      setWhy({ kind: "why", line: ref });
+      requestDeep(ref, { isBest: true, alternatives: lines.filter((x) => x.pv[0] !== uci) });
     }
   };
 
@@ -249,6 +237,21 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     }
     setPlaying(false);
     setSelected((cur) => (cur === sq ? null : sq));
+  };
+
+  /** Play a line from the analysed position; an empty pv means "the line of the open explanation". */
+  const playLine = (pv: string[], toPly: number) => {
+    if (!pv.length) {
+      const l = why?.line;
+      if (l && line?.key !== l.key) selectLine(l, toPly);
+      else {
+        setPly(toPly);
+        setAnimKey((k) => k + 1);
+      }
+      return;
+    }
+    const ref: LineRef = { key: `side-${pv.join("")}`, kind: "side", pv, eval: rootEval ?? { kind: "cp", cp: 0 }, depth: 0 };
+    selectLine(ref, toPly);
   };
 
   const closeLine = () => {
@@ -315,7 +318,10 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     };
     if (tab === "story" && atRoot) {
       const s = scenes[safeScene];
-      if (s) return { marks: s.fact.marks, key: `scene-${s.id}`, caption: factCaption(s.fact, s.polarity) };
+      if (s) {
+        const cap = factCaption(s.fact, s.polarity);
+        return { marks: s.fact.marks, key: `scene-${s.id}`, caption: s.kicker ? { ...cap, kind: s.kicker, tag: s.id === "deep-move" ? "★" : cap.tag } : cap };
+      }
     }
     if (tab === "ledger" && pinned) return { marks: pinned.marks, key: `pin-${pinned.id}`, caption: factCaption(pinned, labelOf(pinned, displayFacts)) };
     if (tab === "layers") {
@@ -374,7 +380,16 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
       ? `After ${lastMove.color === "w" ? `${lastMove.moveNumber}.` : `${lastMove.moveNumber}…`}${lastMove.san} · ${sideName(displayTurn)} to move`
       : `${sideName(turn)} to move · move ${fen.split(" ")[5]}`;
   const progress = settings.depth ? Math.min(1, (a.snapshot?.depth ?? 0) / settings.depth) : Math.min(1, (a.snapshot?.elapsedMs ?? 0) / (settings.movetimeMs ?? 1));
-  const placement = useMemo(() => placementFromFen(displayFen), [displayFen]);
+  // Story chapters can preview a position inside a line (e.g. "if the pawn is taken…").
+  const storyScene = tab === "story" && atRoot ? scenes[safeScene] : undefined;
+  const preview = useMemo(() => {
+    if (!storyScene?.preview) return null;
+    const pv = buildVariation(fen, storyScene.preview.pv, 24);
+    return { fen: fenAtPly(pv, storyScene.preview.ply), move: moveAtPly(pv, storyScene.preview.ply) };
+  }, [storyScene, fen]);
+  const boardFen = preview?.fen ?? displayFen;
+  const boardMove = preview ? preview.move : lastMove;
+  const placement = useMemo(() => placementFromFen(boardFen), [boardFen]);
   const rootPlacement = useMemo(() => placementFromFen(fen), [fen]);
   const threatCount = [...rootLedger.w.weaknesses, ...rootLedger.b.weaknesses].filter((e) => THREAT_KINDS.includes(e.fact.kind)).length;
 
@@ -420,13 +435,14 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
             </button>
           </div>
           <div className="board-wrap">
+            <EvalBar e={shown?.e ?? null} orientation={orientation} />
             <BoardStage
               placement={placement}
               orientation={orientation}
               marks={spot.marks}
               revealKey={`${spot.key}-${animKey}`}
-              lastMove={lastMove ? { from: lastMove.from, to: lastMove.to } : null}
-              animate={lastMove ? { from: lastMove.from, to: lastMove.to, key: String(animKey) } : null}
+              lastMove={boardMove ? { from: boardMove.from, to: boardMove.to } : null}
+              animate={boardMove ? { from: boardMove.from, to: boardMove.to, key: `${animKey}-${storyScene?.id ?? ""}` } : null}
               selected={selected}
               targets={targets}
               onSquareClick={onSquare}
@@ -446,7 +462,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
               ply={ply}
               onNav={nav}
               evals={stripEvals}
-              title={line?.kind === "try" ? "Your move, played out" : `Engine line ${line?.rank ?? ""}`}
+              title={line?.kind === "try" ? "Your move, played out" : line?.kind === "side" ? "Side line" : `Engine line ${line?.rank ?? ""}`}
               onClose={closeLine}
             />
           )}
@@ -490,7 +506,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
                 setSceneIdx(i);
                 setSelected(null);
               }}
-              playing={playing && introDone}
+              playing={playing && introDone && bestDeep?.status !== "pending"}
               onPlaying={setPlaying}
               offRoot={!atRoot}
               onBackToRoot={closeLine}
@@ -542,6 +558,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
                   why={why}
                   onCloseWhy={() => setWhy(null)}
                   onHoverPoint={setHoverPoint}
+                  deepFor={deepFor}
+                  onPlay={playLine}
                   onShowPly={(p) => {
                     setPly(p);
                     setAnimKey((k) => k + 1);

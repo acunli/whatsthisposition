@@ -2,21 +2,24 @@
 
 import type { EngineLine } from "@/lib/engine/client";
 import type { Evaluation } from "@/lib/engine/score";
-import type { InsightPoint, MoveInsight, WhyNot, WhyThis } from "@/lib/facts/explain";
+import { classifyLoss } from "@/lib/deep/deep";
+import type { InsightPoint, MoveInsight, WhyNot } from "@/lib/facts/explain";
 import type { Marks } from "@/lib/facts/types";
 import { buildVariation, formatLine } from "@/lib/variation";
 import { EvalChip, EvidenceTag } from "./bits";
+import { DeepCard } from "./DeepCard";
+import type { DeepEntry } from "./useAnalysis";
 
 export interface LineRef {
   key: string;
-  kind: "engine" | "try";
+  kind: "engine" | "try" | "side";
   rank?: number;
   pv: string[];
   eval: Evaluation;
   depth: number;
 }
 
-export type WhyState = { kind: "why"; line: LineRef; data: WhyThis | null } | { kind: "whynot"; line: LineRef; data: WhyNot | null; loading?: boolean };
+export type WhyState = { kind: "why"; line: LineRef } | { kind: "whynot"; line: LineRef; data: WhyNot | null; loading?: boolean };
 
 interface Props {
   fen: string;
@@ -31,6 +34,8 @@ interface Props {
   onCloseWhy: () => void;
   onHoverPoint: (m: Marks | null) => void;
   onShowPly: (ply: number) => void;
+  deepFor: (uci: string | undefined) => DeepEntry | null;
+  onPlay: (pv: string[], ply: number, title: string) => void;
 }
 
 export function toRef(l: EngineLine): LineRef {
@@ -83,7 +88,8 @@ export function LinesPanel(p: Props) {
           );
         })}
       </ol>
-      {p.why && <WhyCard fen={fen} why={p.why} onClose={p.onCloseWhy} onHoverPoint={p.onHoverPoint} onShowPly={p.onShowPly} />}
+      {p.why?.kind === "why" && <DeepCard entry={p.deepFor(p.why.line.pv[0])} onHoverMarks={p.onHoverPoint} onPlay={p.onPlay} onClose={p.onCloseWhy} />}
+      {p.why?.kind === "whynot" && <WhyCard fen={fen} why={p.why} onClose={p.onCloseWhy} onHoverPoint={p.onHoverPoint} onShowPly={p.onShowPly} />}
     </div>
   );
 }
@@ -149,25 +155,23 @@ function WhyCard({
     <aside className="why" aria-live="polite">
       <header className="why-head">
         <h3>
-          {why.kind === "why" ? `Why ${why.data?.move.san ?? "this move"}?` : `Why not ${why.data?.move.san ?? "this move"}?`}
+          {why.kind === "whynot" && why.data ? (
+            <>
+              <span className={`cls cls-${classifyLoss(why.data.loss).kind}`}>
+                {classifyLoss(why.data.loss).symbol && <b>{classifyLoss(why.data.loss).symbol}</b>}
+                {classifyLoss(why.data.loss).label}
+              </span>{" "}
+              Why not {why.data.move.san}?
+            </>
+          ) : (
+            "Why not this move?"
+          )}
         </h3>
         <button className="linkish" onClick={onClose} aria-label="Close explanation">
           Close
         </button>
       </header>
       {why.kind === "whynot" && why.loading && <p className="muted">Asking the engine about this move…</p>}
-      {why.kind === "why" && why.data && (
-        <>
-          <MoveBlock label="What it does" m={why.data.move} ply={1} onHoverPoint={onHoverPoint} onShowPly={onShowPly} />
-          {why.data.reply && (
-            <MoveBlock label={`Best reply: ${why.data.reply.san}`} m={why.data.reply} ply={2} onHoverPoint={onHoverPoint} onShowPly={onShowPly} />
-          )}
-          <div className="moveblock">
-            <div className="kicker">Where the line goes</div>
-            <Points pts={why.data.engine} onHoverPoint={onHoverPoint} />
-          </div>
-        </>
-      )}
       {why.kind === "whynot" && why.data && (
         <>
           <p className={`verdict ${why.data.loss >= 30 ? "verdict-bad" : ""}`}>{why.data.verdict}</p>

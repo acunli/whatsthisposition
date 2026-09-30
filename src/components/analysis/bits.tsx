@@ -1,7 +1,7 @@
 "use client";
 
 import type { Color } from "@/lib/chess/types";
-import { formatEval, type Evaluation } from "@/lib/engine/score";
+import { evalBarShare, formatEval, type Evaluation } from "@/lib/engine/score";
 import type { Evidence, LegendItem, Tone } from "@/lib/facts/types";
 
 const EVIDENCE_LABEL: Record<Evidence, string> = { rules: "Board fact", engine: "Engine", idea: "Idea" };
@@ -42,6 +42,20 @@ export function EvalChip({ e }: { e: Evaluation }) {
   const mate = e.kind === "mate";
   const lead = e.kind === "mate" ? e.winner : e.cp > 0 ? "w" : e.cp < 0 ? "b" : null;
   return <span className={`evalchip ${mate ? "evalchip-mate" : lead ? `evalchip-${lead}` : ""}`}>{formatEval(e)}</span>;
+}
+
+/** Vertical evaluation bar that sits beside the board; White's share grows from White's side. */
+export function EvalBar({ e, orientation }: { e: Evaluation | null; orientation: Color }) {
+  const share = e ? evalBarShare(e) : 0.5;
+  const text = e ? formatEval(e).replace("+", "") : "…";
+  const whiteAhead = share >= 0.5;
+  return (
+    <div className={`vbar vbar-${orientation} ${e ? "" : "vbar-pending"} ${e?.kind === "mate" ? "vbar-mate" : ""}`} role="meter" aria-label={`Evaluation ${e ? formatEval(e) : "pending"}`} aria-valuenow={Math.round(share * 100)} aria-valuemin={0} aria-valuemax={100}>
+      <div className="vbar-white" style={{ ["--share" as string]: `${share * 100}%` }} />
+      <div className="vbar-mid" />
+      <span className={`vbar-label ${whiteAhead ? "vbar-label-w" : "vbar-label-b"}`}>{text}</span>
+    </div>
+  );
 }
 
 export interface CaptionData {

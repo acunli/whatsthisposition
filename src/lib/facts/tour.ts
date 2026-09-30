@@ -13,6 +13,10 @@ export interface Scene {
   label: string;
   polarity: "strength" | "weakness";
   side: Color;
+  /** Short line above the label, e.g. "Brilliant · the move". Defaults to side · polarity. */
+  kicker?: string;
+  /** Show this position during the scene: a line from the analysed position, played to `ply`. */
+  preview?: { pv: string[]; ply: number };
 }
 
 const URGENT = new Set(["check", "mate-in-one", "engine-threat", "hanging", "attacked-by-cheaper", "fork", "skewer", "back-rank"]);
