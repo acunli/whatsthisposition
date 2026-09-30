@@ -32,7 +32,7 @@ export default function Credits() {
 
         <h2>Privacy</h2>
         <p>
-          Analysis runs entirely in your browser. If you upload a photo, it goes to this site&apos;s server and on to Anthropic&apos;s API
+          Analysis runs entirely in your browser. If you upload a photo, it goes to this site&apos;s server and on to the configured vision API (the NUS SoCLaaS gateway, or Anthropic&apos;s API)
           to read the pieces. It&apos;s held in memory for that request only, and WhatsThisPosition doesn&apos;t store it. FEN and hand
           setup never leave your device.
         </p>

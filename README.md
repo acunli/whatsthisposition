@@ -1,5 +1,7 @@
 # WhatsThisPosition
 
+> Working on this repo? Start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md).
+
 An X-ray for chess positions, built for **whatsthisposition.com**. Snap a photo, paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
 
 **What you get after analysing a position**
@@ -38,19 +40,22 @@ Requires Node.js 20.9 or newer.
 | `npm run build` / `npm start` | Production build / server |
 | `npm test` | Vitest suite, including a real Stockfish integration test |
 | `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
+| `npm run vision:check` | Checks the SoCLaaS key, lists models, tests image input |
 | `npm run typecheck` | `tsc --noEmit` |
 
 ## Environment variables
 
-Only photo recognition needs configuration. Without it, the photo tab explains that it isn't set up, and FEN and manual setup keep working.
+Only photo recognition needs configuration. Without it, the photo tab says it isn't set up, and FEN and hand setup keep working. Copy `.env.example` to `.env.local` and fill it in:
 
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `ANTHROPIC_API_KEY` | For photo upload | Server-side key for the vision provider. Never sent to the browser. |
-| `VISION_PROVIDER` | No (default `anthropic`) | Selects the provider in `src/lib/vision/provider.ts`. |
-| `VISION_MODEL` | No (default `claude-opus-5-5`) | Model used to read the board. |
+| Variable | Purpose |
+| --- | --- |
+| `VISION_PROVIDER` | `soclaas` (default when `SOCLAAS_API_KEY` is set) or `anthropic` |
+| `SOCLAAS_BASE_URL` | NUS SoCLaaS OpenAI-compatible gateway, `https://soclaas-api.comp.nus.edu.sg/v1` |
+| `SOCLAAS_API_KEY` | Your SoCLaaS key. Server-side only. |
+| `SOCLAAS_MODEL` | Model id. It **must accept images**. Check with `npm run vision:check` (lists models and runs a tiny image test). |
+| `ANTHROPIC_API_KEY`, `VISION_MODEL` | Optional alternative provider |
 
-The provider sends one structured-output request per photo (JSON schema: 8×8 cells, each with `piece` and `confident`). It opts into Anthropic's server-side refusal fallback (`fallbacks: "default"`), and the result is re-validated with zod before use.
+The OpenAI-compatible provider asks for a compact answer: 8 rows of 8 characters plus the unsure squares. It strips `<think>` blocks, validates the answer with zod, and retries once if it's malformed.
 
 ## How it's organised
 

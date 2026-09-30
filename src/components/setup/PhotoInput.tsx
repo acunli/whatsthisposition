@@ -73,6 +73,7 @@ function cropToBlob(src: HTMLCanvasElement, crop: Crop): Promise<Blob> {
 
 export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Props) {
   const [configured, setConfigured] = useState<boolean | null>(null);
+  const [provider, setProvider] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("empty");
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -92,7 +93,11 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
     let alive = true;
     fetch("/api/recognize")
       .then((r) => r.json())
-      .then((j: { configured: boolean }) => alive && setConfigured(j.configured))
+      .then((j: { configured: boolean; provider: string | null }) => {
+        if (!alive) return;
+        setConfigured(j.configured);
+        setProvider(j.provider);
+      })
       .catch(() => alive && setConfigured(false));
     return () => {
       alive = false;
@@ -232,7 +237,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
     return (
       <div className="pane">
         <div className="notice">
-          <b>Photo reading isn&apos;t set up on this server.</b> It needs a vision API key (see the README: <code>ANTHROPIC_API_KEY</code>). Meanwhile, paste a FEN or set up the position by hand. Both work fully offline.
+          <b>Photo reading isn&apos;t set up on this server.</b> It needs a vision API key: put your key in <code>SOCLAAS_API_KEY</code> in <code>.env.local</code> and restart the server. Meanwhile, paste a FEN or set up the position by hand. Both work fully offline.
         </div>
       </div>
     );
@@ -398,7 +403,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
       )}
 
       <p className="privacy">
-        Your photo is sent to this site&apos;s server and on to Anthropic&apos;s API to read the pieces, then discarded. We don&apos;t save it.
+        Your photo is sent to this site&apos;s server and on to {provider === "anthropic" ? "Anthropic's API" : "the NUS SoCLaaS AI gateway"} to read the pieces, then discarded. We don&apos;t save it.
       </p>
     </div>
   );
