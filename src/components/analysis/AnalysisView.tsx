@@ -1,28 +1,37 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Board } from "../Board";
+import { BoardStage } from "../BoardStage";
 import { placementFromFen } from "@/lib/chess/fen";
 import { other, type Color, type Square } from "@/lib/chess/types";
 import type { EngineLine } from "@/lib/engine/client";
 import type { Evaluation } from "@/lib/engine/score";
-import { computeFacts, marksForLenses, type LensId, type Marks } from "@/lib/facts";
-import { explainMove, explainWhyNot } from "@/lib/facts/explain";
+import { computeFacts, marksForLenses, type Fact, type LensId, type Marks } from "@/lib/facts";
+import { buildAdvice } from "@/lib/facts/advice";
 import { threatFact } from "@/lib/facts/engineFacts";
+import { explainMove, explainWhyNot, staticMovePoints } from "@/lib/facts/explain";
+import { buildLedger, labelOf, polarityOf } from "@/lib/facts/ledger";
+import { materialSummary } from "@/lib/facts/material";
 import { findPlans } from "@/lib/facts/plans";
+import { buildTour, type Scene } from "@/lib/facts/tour";
 import { traceSquare } from "@/lib/facts/trace";
 import { emptyMarks } from "@/lib/facts/types";
 import { buildVariation, fenAtPly, moveAtPly, navigate, type NavAction } from "@/lib/variation";
-import { EvalBar, EvalHeadline } from "./bits";
+import { Caption, sideName, type CaptionData } from "./bits";
 import { ComparePanel } from "./ComparePanel";
-import { LensPanel } from "./LensPanel";
+import { LayersPanel } from "./LayersPanel";
+import { LedgerPanel } from "./LedgerPanel";
 import { LinesPanel, type LineRef, type WhyState } from "./LinesPanel";
 import { PlansPanel } from "./PlansPanel";
 import { QuizPanel } from "./QuizPanel";
+import { ScanIntro } from "./ScanIntro";
+import { Scoreboard } from "./Scoreboard";
+import { StoryPanel } from "./StoryPanel";
 import { SEARCH_PRESETS, useAnalysis } from "./useAnalysis";
 import { VariationBar } from "./VariationBar";
 
-type Panel = "lines" | "compare" | "quiz" | "plans";
+type Tab = "story" | "ledger" | "moves" | "layers" | "plans";
+type MovesMode = "lines" | "compare" | "quiz";
 
 interface Props {
   fen: string;
@@ -31,20 +40,38 @@ interface Props {
   onEdit: () => void;
 }
 
+const THREAT_KINDS = ["hanging", "attacked-by-cheaper", "engine-threat", "check", "fork", "skewer", "pin-absolute", "back-rank"];
+
+const factCaption = (f: Fact, label?: string): CaptionData => {
+  const pol = polarityOf(f);
+  return {
+    key: f.id,
+    tone: pol === "strength" ? "opportunity" : pol === "weakness" ? "danger" : f.tone,
+    tag: pol === "strength" ? "+" : pol === "weakness" ? "−" : "•",
+    kind: `${sideName(f.side)} · ${label ?? (pol === "neutral" ? "note" : pol)}`,
+    text: f.title,
+  };
+};
+
 export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props) {
   const [presetIdx, setPresetIdx] = useState(1);
   const [multipv, setMultipv] = useState(3);
   const settings = SEARCH_PRESETS[presetIdx];
   const a = useAnalysis(fen, settings, multipv);
 
+  const [introDone, setIntroDone] = useState(false);
+  const [tab, setTab] = useState<Tab>("story");
+  const [movesMode, setMovesMode] = useState<MovesMode>("lines");
   const [lenses, setLenses] = useState<LensId[]>(["threats"]);
   const [savedLenses, setSavedLenses] = useState<LensId[]>(["threats"]);
   const [focus, setFocus] = useState<string | null>(null);
-  const [hoverFact, setHoverFact] = useState<string | null>(null);
+  const [hoverFact, setHoverFact] = useState<Fact | null>(null);
+  const [pinned, setPinned] = useState<Fact | null>(null);
+  const [sceneIdx, setSceneIdx] = useState(0);
+  const [playing, setPlaying] = useState(true);
   const [selected, setSelected] = useState<Square | null>(null);
   const [line, setLine] = useState<LineRef | null>(null);
   const [ply, setPly] = useState(0);
-  const [panel, setPanel] = useState<Panel>("lines");
   const [why, setWhy] = useState<WhyState | null>(null);
   const [hoverPoint, setHoverPoint] = useState<Marks | null>(null);
   const [hoverLine, setHoverLine] = useState<EngineLine | null>(null);
@@ -60,41 +87,86 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
 
   const variation = useMemo(() => (line ? buildVariation(fen, line.pv, 24) : null), [fen, line]);
   const displayFen = variation ? fenAtPly(variation, ply) : fen;
-  const atRoot = displayFen === fen && ply === 0;
+  const atRoot = displayFen === fen;
   const lastMove = variation ? moveAtPly(variation, ply) : null;
+  const displayTurn = displayFen.split(" ")[1] as Color;
 
-  // Ask for quick evaluations of every position along the selected line.
   const lineFens = useMemo(() => (variation ? variation.moves.map((m) => m.fenAfter) : []), [variation]);
   const { requestPlyEvals } = a;
   useEffect(() => requestPlyEvals(lineFens), [lineFens, requestPlyEvals]);
 
-  // Facts for whatever is on the board right now.
-  const hints = useMemo(() => {
-    if (atRoot) return lines.length ? { firstMoves: lines.map((l) => l.pv[0]) } : undefined;
-    const pe = a.plyEval(displayFen);
-    return pe?.best ? { firstMoves: [pe.best] } : undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- plyVersion signals cache updates
-  }, [atRoot, lines, displayFen, a.plyVersion]);
-  const facts = useMemo(() => computeFacts(displayFen, hints), [displayFen, hints]);
-  const ctx = facts.ctx;
-
+  // Root facts use engine hints only once the search has settled, so the tour doesn't reshuffle mid-search.
+  const rootHints = useMemo(() => (done && lines.length ? { firstMoves: lines.map((l) => l.pv[0]) } : undefined), [done, lines]);
+  const rootFacts = useMemo(() => computeFacts(fen, rootHints), [fen, rootHints]);
   const rootEval: Evaluation | null = lines[0]?.eval ?? null;
   const extraThreats = useMemo(() => {
-    if (!atRoot || !a.threat || !rootEval || !done) return [];
+    if (!a.threat || !rootEval || !done) return [];
     const f = threatFact(fen, rootEval, a.threat);
     return f ? [f] : [];
-  }, [atRoot, a.threat, rootEval, done, fen]);
+  }, [a.threat, rootEval, done, fen]);
+  const rootLedger = useMemo(() => buildLedger(rootFacts, extraThreats), [rootFacts, extraThreats]);
 
-  const plans = useMemo(() => (atRoot ? findPlans(ctx, lines) : findPlans(ctx, [])), [atRoot, ctx, lines]);
+  const displayFacts = useMemo(() => {
+    if (atRoot) return rootFacts;
+    const pe = a.plyEval(displayFen);
+    return computeFacts(displayFen, pe?.best ? { firstMoves: [pe.best] } : undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- plyVersion signals cache updates
+  }, [atRoot, rootFacts, displayFen, a.plyVersion]);
+  const ledger = useMemo(() => (atRoot ? rootLedger : buildLedger(displayFacts)), [atRoot, rootLedger, displayFacts]);
 
-  // Evaluation shown next to the board follows the board.
+  const bestFirst = useMemo(() => (lines[0] ? buildVariation(fen, lines[0].pv.slice(0, 1)).moves[0] : undefined), [fen, lines]);
+  const advice = useMemo(
+    () =>
+      buildAdvice(ledger, displayFacts.ctx.p, displayTurn, {
+        best: atRoot && done && bestFirst ? { san: bestFirst.san, side: turn } : undefined,
+        engineFirstMoves: atRoot && done ? lines.map((l) => l.pv[0]) : undefined,
+      }),
+    [ledger, displayFacts, displayTurn, atRoot, done, bestFirst, turn, lines],
+  );
+
+  // The guided tour, finishing with the engine's move once it's known.
+  const scenes: Scene[] = useMemo(() => {
+    const base = buildTour(rootLedger, turn, 6);
+    if (!done || !lines[0]) return base;
+    const w = explainMove(fen, { pv: lines[0].pv, eval: lines[0].eval, depth: lines[0].depth });
+    const m = buildVariation(fen, lines[0].pv.slice(0, 1)).moves[0];
+    if (!w || !m) return base;
+    const first = w.move.points[0];
+    const marks = emptyMarks();
+    marks.arrows.push({ from: m.from, to: m.to, tone: "opportunity" });
+    if (first) {
+      marks.squares.push(...first.marks.squares);
+      marks.arrows.push(...first.marks.arrows);
+    }
+    const fact: Fact = {
+      id: "engine-best",
+      lens: "threats",
+      kind: "engine-best",
+      side: turn,
+      tone: "opportunity",
+      anchor: m.to,
+      title: `The engine's choice: ${m.san}. ${first?.text ?? ""}`.trim(),
+      detail: "Open the Moves tab to play the line out and ask why.",
+      evidence: "engine",
+      polarity: "strength",
+      label: `Best move: ${m.san}`,
+      marks,
+      priority: 0,
+    };
+    return [...base, { id: fact.id, fact, label: fact.label!, polarity: "strength" as const, side: turn }];
+  }, [rootLedger, turn, done, lines, fen]);
+
+  const safeScene = Math.min(sceneIdx, Math.max(0, scenes.length - 1));
+
+  const plans = useMemo(() => findPlans(displayFacts.ctx, atRoot ? lines : []), [displayFacts, atRoot, lines]);
+  const material = useMemo(() => materialSummary(displayFacts.ctx.p), [displayFacts]);
+
   const shown = useMemo(() => {
-    if (atRoot && !variation) return rootEval ? { e: rootEval, depth: lines[0]?.depth } : null;
-    if (ply === 0) return rootEval ? { e: rootEval, depth: lines[0]?.depth } : null;
+    if (atRoot) return rootEval ? { e: rootEval, depth: lines[0]?.depth } : null;
     const pe = a.plyEval(displayFen);
     return pe ? { e: pe.eval, depth: pe.depth } : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- plyVersion signals cache updates
-  }, [atRoot, variation, ply, rootEval, lines, displayFen, a.plyVersion]);
+  }, [atRoot, rootEval, lines, displayFen, a.plyVersion]);
 
   const stripEvals = useMemo(() => {
     if (!variation) return [];
@@ -102,13 +174,11 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- plyVersion signals cache updates
   }, [variation, rootEval, a.plyVersion]);
 
-  // Legal destinations when trying your own move from the root position.
   const targets = useMemo(() => {
     if (!selected || !atRoot || line) return [];
-    return [...new Set(ctx.legal.filter((m) => m.from === selected).map((m) => m.to))];
-  }, [selected, atRoot, line, ctx]);
-
-  const trace = useMemo(() => (selected ? traceSquare(ctx, selected) : null), [selected, ctx]);
+    return [...new Set(displayFacts.ctx.legal.filter((m) => m.from === selected).map((m) => m.to))];
+  }, [selected, atRoot, line, displayFacts]);
+  const trace = useMemo(() => (selected ? traceSquare(displayFacts.ctx, selected) : null), [selected, displayFacts]);
 
   const selectLine = useCallback((l: LineRef, startPly = 1) => {
     setLine(l);
@@ -116,6 +186,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     setAnimKey((k) => k + 1);
     setSelected(null);
     setFocus(null);
+    setPinned(null);
+    setPlaying(false);
   }, []);
 
   const nav = useCallback(
@@ -126,33 +198,31 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
         if (next !== p) setAnimKey((k) => k + 1);
         return next;
       });
-      setFocus(null);
       setSelected(null);
     },
     [variation],
   );
 
   const openWhy = (l: LineRef) => {
-    setPanel("lines");
+    setTab("moves");
+    setMovesMode("lines");
     selectLine(l, 1);
     setWhy({ kind: "why", line: l, data: explainMove(fen, { pv: l.pv, eval: l.eval, depth: l.depth }) });
   };
 
   const openWhyNot = (l: LineRef) => {
-    setPanel("lines");
+    setTab("moves");
+    setMovesMode("lines");
     selectLine(l, 1);
     const best = lines[0];
     if (!best) return;
-    setWhy({
-      kind: "whynot",
-      line: l,
-      data: explainWhyNot(fen, { pv: best.pv, eval: best.eval, depth: best.depth }, { pv: l.pv, eval: l.eval, depth: l.depth }),
-    });
+    setWhy({ kind: "whynot", line: l, data: explainWhyNot(fen, { pv: best.pv, eval: best.eval, depth: best.depth }, { pv: l.pv, eval: l.eval, depth: l.depth }) });
   };
 
   const tryMove = async (uci: string) => {
     setSelected(null);
-    setPanel("lines");
+    setTab("moves");
+    setMovesMode("lines");
     const placeholder: LineRef = { key: `try-${uci}`, kind: "try", pv: [uci], eval: rootEval ?? { kind: "cp", cp: 0 }, depth: 0 };
     selectLine(placeholder, 1);
     setWhy({ kind: "whynot", line: placeholder, data: null, loading: true });
@@ -164,9 +234,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     const ref: LineRef = { key: `try-${uci}`, kind: "try", pv: res.pv, eval: res.eval, depth: res.depth };
     setLine((cur) => (cur?.key === ref.key ? ref : cur));
     const best = lines[0];
-    if (best && best.pv[0] === uci) {
-      setWhy({ kind: "why", line: ref, data: explainMove(fen, { pv: ref.pv, eval: ref.eval, depth: ref.depth }) });
-    } else if (best) {
+    if (best && best.pv[0] !== uci) {
       setWhy({ kind: "whynot", line: ref, data: explainWhyNot(fen, { pv: best.pv, eval: best.eval, depth: best.depth }, { pv: ref.pv, eval: ref.eval, depth: ref.depth }) });
     } else {
       setWhy({ kind: "why", line: ref, data: explainMove(fen, { pv: ref.pv, eval: ref.eval, depth: ref.depth }) });
@@ -175,12 +243,12 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
 
   const onSquare = (sq: Square) => {
     if (selected && targets.includes(sq)) {
-      const m = ctx.legal.find((x) => x.from === selected && x.to === sq);
+      const m = displayFacts.ctx.legal.find((x) => x.from === selected && x.to === sq);
       if (m) void tryMove(m.lan);
       return;
     }
+    setPlaying(false);
     setSelected((cur) => (cur === sq ? null : sq));
-    setFocus(null);
   };
 
   const closeLine = () => {
@@ -189,7 +257,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     setWhy(null);
   };
 
-  // Keyboard: arrows step through the line, Escape clears.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
@@ -201,6 +268,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
       else if (e.key === "Escape") {
         setSelected(null);
         setFocus(null);
+        setPinned(null);
         setHoverPoint(null);
       } else return;
       e.preventDefault();
@@ -209,37 +277,83 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     return () => window.removeEventListener("keydown", onKey);
   }, [nav]);
 
-  // What to draw on the board, most specific first.
-  const marks: Marks = useMemo(() => {
-    if (hoverPoint) return hoverPoint;
-    if (panel === "compare" && atRoot && lines.length >= 2) {
-      const m = emptyMarks();
-      const la = lines.find((l) => l.multipv === pair[0]);
-      const lb = lines.find((l) => l.multipv === pair[1]);
-      if (la?.pv[0]) m.arrows.push({ from: la.pv[0].slice(0, 2) as Square, to: la.pv[0].slice(2, 4) as Square, tone: "opportunity" });
-      if (lb?.pv[0]) m.arrows.push({ from: lb.pv[0].slice(0, 2) as Square, to: lb.pv[0].slice(2, 4) as Square, tone: "info" });
-      return m;
-    }
-    if (panel === "plans" && (planHover || planFocus)) {
-      const p = plans.find((x) => x.id === (planHover ?? planFocus));
-      if (p) return p.marks;
-    }
+  // One spotlight decides what the board shows, most specific first.
+  const spot = useMemo((): { marks: Marks; key: string; caption: CaptionData | null } => {
+    if (hoverPoint) return { marks: hoverPoint, key: "point", caption: null };
+    if (hoverFact) return { marks: hoverFact.marks, key: `h-${hoverFact.id}`, caption: factCaption(hoverFact) };
     if (hoverLine && atRoot) {
       const m = emptyMarks();
       const u = hoverLine.pv[0];
       if (u) m.arrows.push({ from: u.slice(0, 2) as Square, to: u.slice(2, 4) as Square, tone: "opportunity" });
+      return { marks: m, key: `line-${u}`, caption: null };
+    }
+    if (trace) {
+      return {
+        marks: trace.marks,
+        key: `trace-${trace.sq}`,
+        caption: { key: `trace-${trace.sq}`, tone: "white", tag: "◎", kind: "Tracing", text: trace.lines.join(" ") },
+      };
+    }
+    const nextHint = (m: Marks) => {
+      if (variation && ply < variation.moves.length) {
+        const nx = variation.moves[ply];
+        m.arrows.push({ from: nx.from, to: nx.to, tone: "info", thin: true, dashed: true });
+      }
       return m;
+    };
+    const moveCaption = (): CaptionData | null => {
+      if (!lastMove) return null;
+      const pts = staticMovePoints(lastMove);
+      const num = lastMove.color === "w" ? `${lastMove.moveNumber}.` : `${lastMove.moveNumber}…`;
+      return {
+        key: `mv-${ply}-${line?.key}`,
+        tone: pts[0]?.tone ?? "info",
+        tag: `${ply}`,
+        kind: `${sideName(lastMove.color)} plays ${num}${lastMove.san}`,
+        text: pts[0]?.text ?? "A quiet move: its point comes later in the line.",
+      };
+    };
+    if (tab === "story" && atRoot) {
+      const s = scenes[safeScene];
+      if (s) return { marks: s.fact.marks, key: `scene-${s.id}`, caption: factCaption(s.fact, s.polarity) };
     }
-    if (trace) return trace.marks;
-    const withExtras = { ...facts, byLens: { ...facts.byLens, threats: [...extraThreats, ...facts.byLens.threats] } };
-    const base = marksForLenses(withExtras, lenses, hoverFact ?? focus);
-    // Hint at the next move of the line.
-    if (variation && ply < variation.moves.length) {
-      const nx = variation.moves[ply];
-      base.arrows.push({ from: nx.from, to: nx.to, tone: "info", thin: true, dashed: true });
+    if (tab === "ledger" && pinned) return { marks: pinned.marks, key: `pin-${pinned.id}`, caption: factCaption(pinned, labelOf(pinned, displayFacts)) };
+    if (tab === "layers") {
+      const all = { ...displayFacts, byLens: { ...displayFacts.byLens, threats: atRoot ? [...extraThreats, ...displayFacts.byLens.threats] : displayFacts.byLens.threats } };
+      const m = marksForLenses(all, lenses, focus);
+      const f = focus ? Object.values(all.byLens).flat().find((x) => x.id === focus) : null;
+      const n = lenses.reduce((s2, l) => s2 + all.byLens[l].length, 0);
+      return {
+        marks: nextHint(m),
+        key: `layers-${lenses.join("")}-${focus}-${displayFen}`,
+        caption: f
+          ? factCaption(f)
+          : lenses.length
+            ? { key: `l-${lenses.join("")}`, tone: "info", tag: String(n), kind: `${lenses.length} layer${lenses.length > 1 ? "s" : ""} on`, text: "Hover a finding to isolate it on the board, or tap a piece to trace it." }
+            : moveCaption(),
+      };
     }
-    return base;
-  }, [hoverPoint, panel, atRoot, lines, pair, planHover, planFocus, plans, hoverLine, trace, facts, extraThreats, lenses, hoverFact, focus, variation, ply]);
+    if (tab === "plans" && (planHover || planFocus)) {
+      const p = plans.find((x) => x.id === (planHover ?? planFocus));
+      if (p) {
+        const unmet = p.conditions.filter((c) => !c.met);
+        return {
+          marks: p.marks,
+          key: `plan-${p.id}`,
+          caption: { key: p.id, tone: "idea", tag: "?", kind: `${sideName(p.side)} · idea`, text: `${p.title} ${unmet.length ? `Needs: ${unmet.map((c) => c.text).join("; ")}.` : "Conditions hold now."}` },
+        };
+      }
+    }
+    if (tab === "moves" && movesMode === "compare" && atRoot && lines.length >= 2) {
+      const m = emptyMarks();
+      const la = lines.find((l) => l.multipv === pair[0]);
+      const lb = lines.find((l) => l.multipv === pair[1]);
+      if (la?.pv[0]) m.arrows.push({ from: la.pv[0].slice(0, 2) as Square, to: la.pv[0].slice(2, 4) as Square, tone: "opportunity" });
+      if (lb?.pv[0]) m.arrows.push({ from: lb.pv[0].slice(0, 2) as Square, to: lb.pv[0].slice(2, 4) as Square, tone: "white" });
+      return { marks: m, key: `cmp-${pair.join("")}`, caption: null };
+    }
+    return { marks: nextHint(emptyMarks()), key: `plain-${ply}`, caption: moveCaption() };
+  }, [hoverPoint, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, pinned, displayFacts, extraThreats, lenses, focus, displayFen, planHover, planFocus, plans, movesMode, lines, pair]);
 
   const toggleLens = (id: LensId) => {
     setFocus(null);
@@ -255,189 +369,222 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     setSelected(null);
   };
 
-  const context = variation
-    ? ply === 0
-      ? "Starting position"
-      : `After ${lastMove?.color === "w" ? `${lastMove.moveNumber}.` : `${lastMove?.moveNumber}…`}${lastMove?.san} in this line`
-    : `${turn === "w" ? "White" : "Black"} to move`;
-
+  const context =
+    variation && ply > 0 && lastMove
+      ? `After ${lastMove.color === "w" ? `${lastMove.moveNumber}.` : `${lastMove.moveNumber}…`}${lastMove.san} · ${sideName(displayTurn)} to move`
+      : `${sideName(turn)} to move · move ${fen.split(" ")[5]}`;
   const progress = settings.depth ? Math.min(1, (a.snapshot?.depth ?? 0) / settings.depth) : Math.min(1, (a.snapshot?.elapsedMs ?? 0) / (settings.movetimeMs ?? 1));
-
   const placement = useMemo(() => placementFromFen(displayFen), [displayFen]);
-  const displayTurn = displayFen.split(" ")[1] as Color;
+  const rootPlacement = useMemo(() => placementFromFen(fen), [fen]);
+  const threatCount = [...rootLedger.w.weaknesses, ...rootLedger.b.weaknesses].filter((e) => THREAT_KINDS.includes(e.fact.kind)).length;
+
+  const TABS: [Tab, string, number | null][] = [
+    ["story", "Story", scenes.length],
+    ["ledger", "Strengths & weaknesses", null],
+    ["moves", "Moves", lines.length || null],
+    ["layers", "Layers", null],
+    ["plans", "Plans", plans.length || null],
+  ];
 
   return (
-    <main className="studio">
-      <section className="stage" aria-label="Board">
-        <EvalHeadline
-          e={shown?.e ?? null}
+    <>
+      {!introDone && (
+        <ScanIntro placement={rootPlacement} orientation={orientation} ledger={rootLedger} threats={threatCount} depth={a.snapshot?.depth ?? 0} onDone={() => setIntroDone(true)} />
+      )}
+      <main className="arena">
+        <Scoreboard
+          ledger={ledger}
+          material={material}
+          turn={displayTurn}
+          orientation={orientation}
+          evaluation={shown?.e ?? null}
           depth={shown?.depth}
           context={context}
-          pending={a.status === "error" ? "The engine isn't available, but the board lenses still work." : ply > 0 ? "Checking this position…" : undefined}
+          status={a.status}
+          snapshot={a.snapshot}
+          error={a.error}
+          presetIdx={presetIdx}
+          onPreset={setPresetIdx}
+          multipv={multipv}
+          onMultipv={setMultipv}
+          onStop={a.cancel}
+          onRerun={a.rerun}
+          progress={running ? progress : done ? 1 : 0}
         />
-        <div className="board-wrap">
-          <EvalBar e={shown?.e ?? null} orientation={orientation} pending={!shown} />
-          <div className="board-frame">
-            <Board
+
+        <section className="board-col" aria-label="Board">
+          <div className="board-bar">
+            <span className="board-title">{context}</span>
+            <button className="btn btn-sm btn-ghost" onClick={() => onOrientation(other(orientation))}>
+              Flip ⇅
+            </button>
+          </div>
+          <div className="board-wrap">
+            <BoardStage
               placement={placement}
               orientation={orientation}
-              marks={marks}
+              marks={spot.marks}
+              revealKey={`${spot.key}-${animKey}`}
               lastMove={lastMove ? { from: lastMove.from, to: lastMove.to } : null}
               animate={lastMove ? { from: lastMove.from, to: lastMove.to, key: String(animKey) } : null}
               selected={selected}
               targets={targets}
               onSquareClick={onSquare}
-              label={`Chess position, ${displayTurn === "w" ? "White" : "Black"} to move`}
+              label={`Chess position, ${sideName(displayTurn)} to move`}
               dimPieces={!!hoverPoint}
             />
           </div>
-        </div>
-        <div className="board-side">
-          <span className={`turn-flag turn-${displayTurn}`}>{displayTurn === "w" ? "White" : "Black"} to move</span>
-          <button className="btn btn-ghost btn-sm" onClick={() => onOrientation(other(orientation))}>
-            Flip ⇅
-          </button>
-        </div>
-        {trace && (
-          <div className="trace" aria-live="polite">
-            {trace.lines.map((l, i) => (
-              <p key={i} className={i === 0 ? "trace-head" : undefined}>
-                {l}
-              </p>
-            ))}
-            {targets.length > 0 && <p className="muted small">Tap a dotted square to try that move and ask the engine about it.</p>}
-          </div>
-        )}
-        <VariationBar
-          variation={variation}
-          ply={ply}
-          onNav={nav}
-          evals={stripEvals}
-          title={line?.kind === "try" ? "Your move, played out" : line ? `Engine line ${line.rank}` : ""}
-          onClose={variation ? closeLine : undefined}
-        />
-      </section>
-
-      <aside className="rail" aria-label="What to look at">
-        <LensPanel
-          facts={facts}
-          active={lenses}
-          onToggle={toggleLens}
-          onClean={cleanBoard}
-          focus={focus}
-          onFocus={(id) => {
-            setFocus(id);
-            setSelected(null);
-          }}
-          onHover={setHoverFact}
-          extraThreats={extraThreats}
-        />
-        {!atRoot && <p className="muted small pad">These lenses describe the board as it stands in the line, not the starting position.</p>}
-      </aside>
-
-      <section className="desk" aria-label="Engine">
-        <div className="engine-bar">
-          <div className="engine-status">
-            <span className={`dot dot-${a.status}`} aria-hidden />
-            <span>
-              {a.status === "starting" && "Starting Stockfish…"}
-              {a.status === "running" && `Thinking · depth ${a.snapshot?.depth ?? 0}${settings.depth ? ` of ${settings.depth}` : ""}`}
-              {a.status === "done" && `Stockfish · depth ${a.snapshot?.depth ?? 0}`}
-              {a.status === "stopped" && `Stopped at depth ${a.snapshot?.depth ?? 0}`}
-              {a.status === "error" && "Engine unavailable"}
-            </span>
-            {a.snapshot?.nps ? <span className="muted mono small">{Math.round(a.snapshot.nps / 1000)}k nodes/s</span> : null}
-          </div>
-          <div className="engine-controls">
-            <select className="select select-sm" value={presetIdx} onChange={(e) => setPresetIdx(Number(e.target.value))} aria-label="Search depth or time">
-              {SEARCH_PRESETS.map((p, i) => (
-                <option key={p.label} value={i}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-            <select className="select select-sm" value={multipv} onChange={(e) => setMultipv(Number(e.target.value))} aria-label="Number of candidate lines">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <option key={n} value={n}>
-                  {n} line{n > 1 ? "s" : ""}
-                </option>
-              ))}
-            </select>
-            {running ? (
-              <button className="btn btn-sm" onClick={a.cancel}>
-                Stop
-              </button>
-            ) : (
-              <button className="btn btn-ghost btn-sm" onClick={a.rerun}>
-                {a.status === "error" ? "Retry" : "Re-run"}
-              </button>
-            )}
-          </div>
-          <div className="progress" aria-hidden>
-            <span style={{ width: `${(running ? progress : done ? 1 : 0) * 100}%` }} className={running ? "progress-run" : ""} />
-          </div>
-        </div>
-
-        {a.status === "error" && (
-          <div className="notice notice-error" role="alert">
-            <p>
-              <b>Stockfish couldn&apos;t run:</b> {a.error}
+          <Caption c={spot.caption} />
+          {targets.length > 0 && (
+            <p className="hint" style={{ textAlign: "center" }}>
+              Tap a dotted square to try that move and ask the engine about it.
             </p>
-            <p className="small">The lenses on the left still work because they come from the board itself. Try Retry, or a current version of Chrome, Firefox, Safari or Edge.</p>
+          )}
+          {variation && (
+            <VariationBar
+              variation={variation}
+              ply={ply}
+              onNav={nav}
+              evals={stripEvals}
+              title={line?.kind === "try" ? "Your move, played out" : `Engine line ${line?.rank ?? ""}`}
+              onClose={closeLine}
+            />
+          )}
+        </section>
+
+        <aside className="desk" aria-label="Analysis">
+          <div className="tabs" role="tablist">
+            {TABS.map(([id, label, count]) => (
+              <button
+                key={id}
+                role="tab"
+                aria-selected={tab === id}
+                className={tab === id ? "tab tab-on" : "tab"}
+                onClick={() => {
+                  setTab(id);
+                  setHoverFact(null);
+                }}
+              >
+                {label}
+                {count ? <span className="count">{count}</span> : null}
+              </button>
+            ))}
           </div>
-        )}
 
-        <div className="tabs" role="tablist">
-          {(
-            [
-              ["lines", "Best moves"],
-              ["compare", "Compare"],
-              ["quiz", "Try it first"],
-              ["plans", "Plans"],
-            ] as [Panel, string][]
-          ).map(([id, label]) => (
-            <button key={id} role="tab" aria-selected={panel === id} className={panel === id ? "tab tab-on" : "tab"} onClick={() => setPanel(id)}>
-              {label}
+          {a.status === "error" && (
+            <div className="notice notice-error" role="alert">
+              <p>
+                <b>Stockfish couldn&apos;t run.</b> {a.error}
+              </p>
+              <p className="small muted" style={{ margin: 0 }}>
+                The story, ledger, layers and plans still work: they come from the board itself. Try Re-run, or a current browser.
+              </p>
+            </div>
+          )}
+
+          {tab === "story" && (
+            <StoryPanel
+              scenes={scenes}
+              index={safeScene}
+              onIndex={(i) => {
+                setSceneIdx(i);
+                setSelected(null);
+              }}
+              playing={playing && introDone}
+              onPlaying={setPlaying}
+              offRoot={!atRoot}
+              onBackToRoot={closeLine}
+            />
+          )}
+
+          {tab === "ledger" && (
+            <LedgerPanel
+              ledger={ledger}
+              advice={advice}
+              selected={pinned?.id ?? null}
+              onHover={setHoverFact}
+              onSelect={(f) => {
+                setPinned(f);
+                setSelected(null);
+              }}
+              turn={displayTurn}
+            />
+          )}
+
+          {tab === "moves" && (
+            <div className="desk-body" style={{ display: "grid", gap: 10 }}>
+              <div className="tabs" role="tablist" aria-label="Moves view">
+                {(
+                  [
+                    ["lines", "Best lines"],
+                    ["compare", "Compare"],
+                    ["quiz", "Try it first"],
+                  ] as [MovesMode, string][]
+                ).map(([id, label]) => (
+                  <button key={id} role="tab" aria-selected={movesMode === id} className={movesMode === id ? "tab tab-on" : "tab"} onClick={() => setMovesMode(id)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {movesMode === "lines" && (
+                <LinesPanel
+                  fen={fen}
+                  lines={lines}
+                  running={running}
+                  selectedKey={line?.key ?? null}
+                  onSelect={(l) => {
+                    setWhy(null);
+                    selectLine(l, 1);
+                  }}
+                  onHoverLine={setHoverLine}
+                  onWhy={openWhy}
+                  onWhyNot={openWhyNot}
+                  why={why}
+                  onCloseWhy={() => setWhy(null)}
+                  onHoverPoint={setHoverPoint}
+                  onShowPly={(p) => {
+                    setPly(p);
+                    setAnimKey((k) => k + 1);
+                  }}
+                />
+              )}
+              {movesMode === "compare" && <ComparePanel fen={fen} lines={lines} orientation={orientation} pair={pair} onPair={setPair} />}
+              {movesMode === "quiz" && <QuizPanel fen={fen} lines={lines} done={done} onWhy={openWhy} onWhyNot={openWhyNot} />}
+            </div>
+          )}
+
+          {tab === "layers" && (
+            <LayersPanel
+              facts={displayFacts}
+              active={lenses}
+              onToggle={toggleLens}
+              onClean={cleanBoard}
+              focus={focus}
+              onFocus={(id) => {
+                setFocus(id);
+                setSelected(null);
+              }}
+              onHover={setHoverFact}
+              extraThreats={atRoot ? extraThreats : []}
+            />
+          )}
+
+          {tab === "plans" && (
+            <div className="desk-body">
+              <PlansPanel plans={plans} focus={planFocus} onFocus={setPlanFocus} onHover={setPlanHover} />
+            </div>
+          )}
+
+          <footer className="desk-foot">
+            <button className="linkish" onClick={onEdit}>
+              Edit this position
             </button>
-          ))}
-        </div>
-
-        {panel === "lines" && (
-          <LinesPanel
-            fen={fen}
-            lines={lines}
-            running={running}
-            selectedKey={line?.key ?? null}
-            onSelect={(l) => {
-              setWhy(null);
-              selectLine(l, 1);
-            }}
-            onHoverLine={setHoverLine}
-            onWhy={openWhy}
-            onWhyNot={openWhyNot}
-            why={why}
-            onCloseWhy={() => setWhy(null)}
-            onHoverPoint={setHoverPoint}
-            onShowPly={(p) => {
-              setPly(p);
-              setAnimKey((k) => k + 1);
-            }}
-          />
-        )}
-        {panel === "compare" && <ComparePanel fen={fen} lines={lines} orientation={orientation} pair={pair} onPair={setPair} />}
-        {panel === "quiz" && <QuizPanel fen={fen} lines={lines} done={done} onWhy={openWhy} onWhyNot={openWhyNot} />}
-        {panel === "plans" && <PlansPanel plans={plans} focus={planFocus} onFocus={setPlanFocus} onHover={setPlanHover} />}
-
-        <footer className="desk-foot">
-          <button className="linkish" onClick={onEdit}>
-            Edit this position
-          </button>
-          <span className="muted small mono fen-mini" title={fen}>
-            {fen}
-          </span>
-        </footer>
-      </section>
-    </main>
+            <span className="fen-mini" title={fen}>
+              {fen}
+            </span>
+          </footer>
+        </aside>
+      </main>
+    </>
   );
 }
-

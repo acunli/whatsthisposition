@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Board } from "../Board";
+import { BoardStage } from "../BoardStage";
 import type { EngineLine } from "@/lib/engine/client";
 import { placementFromFen } from "@/lib/chess/fen";
 import type { Color } from "@/lib/chess/types";
@@ -102,7 +102,7 @@ export function ComparePanel({ fen, lines, orientation, pair, onPair }: Props) {
                 <span className="compare-tag">{tag}</span>
                 <EvalChip e={l.eval} />
               </div>
-              <Board placement={placementFromFen(f)} orientation={orientation} coordinates={false} lastMove={last ? { from: last.from, to: last.to } : null} label={`Line ${tag} after ${n} moves`} />
+              <BoardStage placement={placementFromFen(f)} orientation={orientation} coordinates={false} lastMove={last ? { from: last.from, to: last.to } : null} label={`Line ${tag} after ${n} moves`} />
               <figcaption className="mono">
                 {formatLine(v, n)
                   .map((t) => t.label)

@@ -1,21 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { Big_Shoulders, Hanken_Grotesk, Martian_Mono } from "next/font/google";
 import "./globals.css";
 
-const display = Fraunces({ subsets: ["latin"], variable: "--font-display", axes: ["opsz", "SOFT"], display: "swap" });
-const sans = Instrument_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
+const display = Big_Shoulders({ subsets: ["latin"], variable: "--font-display", display: "swap" });
+const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
+const mono = Martian_Mono({ subsets: ["latin"], variable: "--font-mono", display: "swap" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://whatsthisposition.com"),
-  title: "WhatsThisPosition — see why the engine likes a side",
+  title: "WhatsThisPosition: an X-ray for chess positions",
   description:
-    "Snap or paste a chess position and explore it on the board: threats, king safety, pawn structure, activity and the engine's candidate lines, explained with the pieces themselves.",
+    "Snap or paste any chess position. See the threats, weaknesses, strengths and plans for both sides light up on the board, with Stockfish checking every claim.",
   icons: { icon: "/icon.svg" },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f3ede1",
+  themeColor: "#0b0d10",
   width: "device-width",
   initialScale: 1,
 };

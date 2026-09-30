@@ -107,7 +107,7 @@ export function labelOf(f: Fact, facts: PositionFacts): string {
     case "doubled":
       return `Doubled ${sq[0]}-pawns`;
     case "undeveloped":
-      return `Undeveloped ${piece} ${sq}`;
+      return "Undeveloped pieces";
     case "restricted":
       return `Stuck ${piece} ${sq}`;
     case "bad-bishop":

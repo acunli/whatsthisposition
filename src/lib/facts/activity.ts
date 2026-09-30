@@ -1,5 +1,5 @@
 import { ALL_SQUARES, FILES, attackersOf, between, fileIndex, isLightSquare, rankIndex, toSquare } from "../chess/board";
-import { PIECE_NAME, other, type Color, type Placement, type Square } from "../chess/types";
+import { other, type Color, type Placement, type Square } from "../chess/types";
 import { describe, sideName, type Ctx } from "./context";
 import { emptyMarks, type Fact } from "./types";
 
@@ -49,7 +49,6 @@ export function fileState(p: Placement, f: number): { w: boolean; b: boolean } {
 export function activityFacts(ctx: Ctx): Fact[] {
   const { p } = ctx;
   const facts: Fact[] = [];
-  const fullmove = Number(ctx.fen.split(" ")[5]) || 1;
 
   for (const sq of ALL_SQUARES) {
     const piece = p[sq];
@@ -61,19 +60,8 @@ export function activityFacts(ctx: Ctx): Fact[] {
       (piece.color === "w" ? rankIndex(sq) === 0 : rankIndex(sq) === 7) &&
       ((piece.type === "n" && ["b", "g"].includes(sq[0])) || (piece.type === "b" && ["c", "f"].includes(sq[0])));
 
-    if (onHome && fullmove <= 20 && piece.type !== "r") {
-      facts.push({
-        id: `undeveloped-${sq}`,
-        lens: "activity",
-        kind: "undeveloped",
-        side: piece.color,
-        tone: "info",
-        anchor: sq,
-        title: `${owner}'s ${PIECE_NAME[piece.type]} on ${sq} hasn't moved yet.`,
-        evidence: "rules",
-        marks: { ...emptyMarks(), squares: [{ sq, tone: "info", style: "dashed" }] },
-        priority: 20,
-      });
+    if (onHome) {
+      // Undeveloped pieces are summarised per side in pieces.ts (development lead).
     } else if (mob.length <= limit && !((piece.type === "r" || piece.type === "q") && rankIndex(sq) === (piece.color === "w" ? 0 : 7))) {
       const ownBlockers = ctx.attacks(sq).filter((t) => p[t]?.color === piece.color && p[t]?.type === "p");
       facts.push({

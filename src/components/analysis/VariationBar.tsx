@@ -34,16 +34,16 @@ export function VariationBar({ variation, ply, onNav, evals, title, onClose }: P
       </div>
       <div className="varbar-row">
         <div className="stepper" role="group" aria-label="Step through the line">
-          <button className="step" onClick={() => onNav("first")} disabled={ply === 0} aria-label="Start of line">
+          <button className="step-btn" onClick={() => onNav("first")} disabled={ply === 0} aria-label="Start of line">
             ⏮
           </button>
-          <button className="step" onClick={() => onNav("prev")} disabled={ply === 0} aria-label="Previous move">
+          <button className="step-btn" onClick={() => onNav("prev")} disabled={ply === 0} aria-label="Previous move">
             ◀
           </button>
-          <button className="step step-main" onClick={() => onNav("next")} disabled={ply === n} aria-label="Next move">
+          <button className="step-btn step-main" onClick={() => onNav("next")} disabled={ply === n} aria-label="Next move">
             ▶
           </button>
-          <button className="step" onClick={() => onNav("last")} disabled={ply === n} aria-label="End of line">
+          <button className="step-btn" onClick={() => onNav("last")} disabled={ply === n} aria-label="End of line">
             ⏭
           </button>
         </div>

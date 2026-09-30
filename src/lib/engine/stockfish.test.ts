@@ -64,13 +64,6 @@ describe("Stockfish via EngineClient", () => {
     expect(only.lines[0].pv[0]).toBe("g1h3");
   });
 
-  it("returns a White-relative static eval, and none when in check", async () => {
-    const up = await client.staticEval("4k3/8/8/8/8/8/8/3QK3 b - - 0 1");
-    expect(up).not.toBeNull();
-    expect(up!).toBeGreaterThan(3);
-    expect(await client.staticEval("4k3/8/8/8/8/8/8/4R1K1 b - - 0 1")).toBeNull();
-  });
-
   it("can cancel a long search and still returns partial lines", async () => {
     const handle = client.analyze({ fen: "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3", multipv: 1, depth: 40 });
     await new Promise((r) => setTimeout(r, 400));

@@ -60,7 +60,6 @@ show and animate, with honest evidence behind it.
 | Back-rank weakness | king on back rank, no free square, enemy heavy piece can reach the rank (rules) | back rank strip flashes red |
 | King danger | attackers on the king zone (Stockfish-style attack units), missing shield pawns, open files (rules) | king-zone squares heat up red by intensity; shield pawns get shields; escape squares dotted |
 | Piece dominance | squares a piece controls (rules) | squares **flood in the side's colour**, spreading outward from the piece |
-| Piece worth (engine) | static NNUE evaluation with the piece removed (engine) | value badge on each piece; "star" and "weakest" pieces labelled |
 | Restricted / bad piece | safe mobility, bishop blocked by own pawns (rules) | red ring, few exit dots |
 | Outpost | pawn-supported, never attackable by enemy pawns (rules) | gold square with a flag; knight route as dashed hops |
 | Hole / weak square | in own half, no own pawn can ever cover it (rules) | red hatched "pit" |
@@ -78,6 +77,13 @@ show and animate, with honest evidence behind it.
 | Material & imbalances | counts, bishop pair, exchange, opposite bishops (rules) | material strip and highlighted pieces |
 | Plans | pawn breaks, piece routes, rook lifts, pushing passers, castling, attacking targets (idea, upgraded to engine when a line plays it) | dashed idea arrows, conditions ticked or open |
 | Best moves | Stockfish multi-PV (engine) | line plays out move by move; per-move eval strip |
+
+## Tried and rejected
+
+- **Engine "piece worth"** (static evaluation with each piece removed). Stockfish 19's
+  evaluation is normalised to winning chances, so removing a piece produces numbers
+  like "queen 5.7, bishop 8.9". That's not a value a player can trust, so the app
+  doesn't show it. Piece quality comes from mobility and structure instead.
 
 ## Colour meanings (fixed everywhere)
 

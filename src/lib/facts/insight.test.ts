@@ -9,7 +9,6 @@ import { pieceFacts, dominanceMarks } from "./pieces";
 import { buildLedger, ledgerBalance, polarityOf } from "./ledger";
 import { buildAdvice } from "./advice";
 import { buildTour } from "./tour";
-import { parseFinalEval, pieceValuesFrom, removalProbes } from "../engine/pieceValues";
 
 describe("structure", () => {
   it("has no holes in the starting position", () => {
@@ -120,33 +119,5 @@ describe("ledger, advice and tour", () => {
     expect(tour.length).toBeGreaterThan(1);
     expect(["hanging", "attacked-by-cheaper"]).toContain(tour[0].fact.kind);
     expect(new Set(tour.map((s) => s.id)).size).toBe(tour.length);
-  });
-});
-
-describe("engine piece values", () => {
-  it("builds one probe per non-king piece and drops lost castling rights", () => {
-    const probes = removalProbes("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
-    expect(probes).toHaveLength(4);
-    expect(probes.find((p) => p.sq === "h1")?.fen.split(" ")[2]).toBe("Qkq");
-  });
-
-  it("converts removal evals into per-piece values from the owner's side", () => {
-    const [wn, bb] = [
-      { sq: "d4", color: "w", type: "n", fen: "" },
-      { sq: "c8", color: "b", type: "b", fen: "" },
-    ] as const;
-    const values = pieceValuesFrom(0.5, [
-      { probe: { ...wn }, eval: -3.7 }, // without White's knight, White is 3.7 worse → worth 4.2
-      { probe: { ...bb }, eval: 2.3 }, // without Black's bishop, White is 1.8 better → worth 1.8
-    ]);
-    expect(values[0].value).toBeCloseTo(4.2);
-    expect(values[0].delta).toBeCloseTo(1.2);
-    expect(values[1].value).toBeCloseTo(1.8);
-  });
-
-  it("parses Stockfish's final evaluation line", () => {
-    expect(parseFinalEval("Final evaluation       +0.24 (white side) [with scaled NNUE, ...]")).toBeCloseTo(0.24);
-    expect(parseFinalEval("Final evaluation: none (in check)")).toBeNull();
-    expect(parseFinalEval("NNUE evaluation +0.19 (white side)")).toBeUndefined();
   });
 });

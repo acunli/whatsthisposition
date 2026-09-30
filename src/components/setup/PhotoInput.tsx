@@ -6,6 +6,9 @@ import type { Placement, Square } from "@/lib/chess/types";
 
 interface Props {
   onRecognized: (placement: Placement, uncertain: Square[], notes: string, whiteAtBottom: boolean) => void;
+  /** A file picked on the home page, opened straight into the cropper. */
+  initialFile?: File | null;
+  onInitialConsumed?: () => void;
 }
 
 type Stage = "empty" | "crop" | "reading" | "done" | "error";
@@ -68,7 +71,7 @@ function cropToBlob(src: HTMLCanvasElement, crop: Crop): Promise<Blob> {
   return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn't prepare the image."))), "image/jpeg", 0.9));
 }
 
-export function PhotoInput({ onRecognized }: Props) {
+export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Props) {
   const [configured, setConfigured] = useState<boolean | null>(null);
   const [stage, setStage] = useState<Stage>("empty");
   const [error, setError] = useState<string | null>(null);
@@ -124,6 +127,14 @@ export function PhotoInput({ onRecognized }: Props) {
       setStage("error");
     }
   };
+
+  useEffect(() => {
+    if (!initialFile) return;
+    // Defer so the handed-over file is processed outside the effect body.
+    queueMicrotask(() => void accept(initialFile));
+    onInitialConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for the handed-over file
+  }, [initialFile]);
 
   const rotate = (q: number, f: number) => {
     setQuarter(q);
@@ -231,7 +242,7 @@ export function PhotoInput({ onRecognized }: Props) {
     <div className="pane">
       {(stage === "empty" || (stage === "error" && !preview)) && (
         <div
-          className={dragging ? "dropzone dropzone-on" : "dropzone"}
+          className={dragging ? "drop drop-on" : "drop"}
           onDragOver={(e) => {
             e.preventDefault();
             setDragging(true);
@@ -247,13 +258,17 @@ export function PhotoInput({ onRecognized }: Props) {
           tabIndex={0}
           onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && inputRef.current?.click()}
         >
-          <svg viewBox="0 0 48 48" className="dropzone-icon" aria-hidden>
-            <rect x="6" y="10" width="36" height="28" rx="3" />
-            <path d="M6 30l10-9 8 7 6-5 12 10" />
-            <circle cx="33" cy="18" r="3" />
-          </svg>
-          <span className="dropzone-title">Drop a photo or screenshot of the board</span>
-          <span className="dropzone-sub">or tap to choose one · JPEG, PNG, WebP</span>
+          <span className="drop-icon">
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+              <circle cx="12" cy="13" r="3.5" />
+            </svg>
+          </span>
+          <span>
+            <span className="drop-title">Drop a photo or screenshot</span>
+            <span className="drop-sub">or tap to choose · JPEG, PNG, WebP</span>
+          </span>
+          <span />
           <input
             ref={inputRef}
             type="file"
@@ -293,7 +308,7 @@ export function PhotoInput({ onRecognized }: Props) {
           {stage === "crop" && (
             <>
               <p className="field-note">Drag the frame to the board&apos;s edges. The grid should line up with the squares.</p>
-              <div className="row">
+              <div className="row" style={{ margin: "10px 0 14px" }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => rotate((quarter + 3) % 4, fine)}>
                   ↺ 90°
                 </button>
@@ -308,7 +323,7 @@ export function PhotoInput({ onRecognized }: Props) {
               </div>
               <fieldset className={`field ${whiteAtBottom === null ? "field-required" : ""}`}>
                 <legend className="field-label">Which side is at the bottom of the photo?</legend>
-                <div className="segmented">
+                <div className="seg-group">
                   <button className={whiteAtBottom === true ? "seg seg-on" : "seg"} onClick={() => setWhiteAtBottom(true)} aria-pressed={whiteAtBottom === true}>
                     <span className="side-dot side-w" aria-hidden /> White&apos;s side
                   </button>
@@ -318,7 +333,7 @@ export function PhotoInput({ onRecognized }: Props) {
                 </div>
               </fieldset>
               <div className="row">
-                <button className="btn btn-primary" disabled={whiteAtBottom === null} onClick={() => void read()}>
+                <button className="btn btn-gold" disabled={whiteAtBottom === null} onClick={() => void read()}>
                   Read the board
                 </button>
                 <button className="btn btn-ghost" onClick={reset}>
@@ -341,7 +356,7 @@ export function PhotoInput({ onRecognized }: Props) {
               <p className="pane-text">
                 <b>Board read.</b> Compare it with your photo and fix anything that&apos;s off. Squares marked <b>?</b> were hard to read.
               </p>
-              <div className="row">
+              <div className="row" style={{ marginTop: 10 }}>
                 <button
                   className="btn btn-ghost btn-sm"
                   onClick={() => {

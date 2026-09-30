@@ -3,7 +3,7 @@
  * (Silman's "improve your worst piece"), rooks on the seventh, knights on the rim.
  */
 import { ALL_SQUARES, fileIndex, rankIndex } from "../chess/board";
-import { PIECE_NAME, type Color, type Square } from "../chess/types";
+import { PIECE_NAME, type Color, type Placement, type Square } from "../chess/types";
 import { safeMobility } from "./activity";
 import { describe, sideName, type Ctx } from "./context";
 import { emptyMarks, type Fact, type Marks, type Tone } from "./types";
@@ -38,6 +38,20 @@ export function mobilityOf(ctx: Ctx, color: Color): Mobility[] {
 /** Mobility relative to what that piece type typically has, so a queen isn't always "best". */
 const TYPICAL: Record<string, number> = { n: 5, b: 7, r: 8, q: 14 };
 
+const MINOR_HOMES: Record<Color, Square[]> = { w: ["b1", "c1", "f1", "g1"], b: ["b8", "c8", "f8", "g8"] };
+
+/** Minor pieces still on their starting squares, and whether the king has castled. */
+export function development(p: Placement, c: Color) {
+  const home = MINOR_HOMES[c].filter((sq) => {
+    const x = p[sq];
+    return x && x.color === c && (x.type === "n" || x.type === "b") && ((x.type === "n") === (sq[0] === "b" || sq[0] === "g"));
+  });
+  const minors = ALL_SQUARES.filter((s) => p[s]?.color === c && (p[s]!.type === "n" || p[s]!.type === "b")).length;
+  const k = ALL_SQUARES.find((s) => p[s]?.type === "k" && p[s]?.color === c);
+  const castled = !!k && (c === "w" ? ["g1", "c1", "b1", "h1"] : ["g8", "c8", "b8", "h8"]).includes(k);
+  return { home, out: minors - home.length + (castled ? 1 : 0), castled };
+}
+
 export function pieceFacts(ctx: Ctx): Fact[] {
   const { p } = ctx;
   const facts: Fact[] = [];
@@ -55,7 +69,7 @@ export function pieceFacts(ctx: Ctx): Fact[] {
       return true;
     });
     const worst = candidates[candidates.length - 1] ?? best;
-    if (score(best) >= 1.1) {
+    if (score(best) >= 1) {
       facts.push({
         id: `star-${best.sq}`,
         lens: "activity",
@@ -91,6 +105,52 @@ export function pieceFacts(ctx: Ctx): Fact[] {
         },
         priority: 50,
       });
+    }
+
+    // Development: only a factor in the opening phase.
+    const fullmove = Number(ctx.fen.split(" ")[5]) || 1;
+    if (fullmove <= 20) {
+      const me = development(p, c);
+      const them = development(p, c === "w" ? "b" : "w");
+      if (me.out - them.out >= 2) {
+        facts.push({
+          id: `devlead-${c}`,
+          lens: "activity",
+          kind: "development-lead",
+          side: c,
+          tone: "opportunity",
+          anchor: ALL_SQUARES.find((s) => p[s]?.color === c && (p[s]!.type === "n" || p[s]!.type === "b") && !me.home.includes(s)) ?? them.home[0] ?? "e4",
+          title: `${sideName(c)} leads in development: ${me.out} pieces in play${me.castled ? " (castled)" : ""} against ${them.out}.`,
+          detail: "A development lead is a temporary edge: it usually needs to be used by opening the position before the opponent catches up.",
+          evidence: "rules",
+          label: "Development lead",
+          polarity: "strength",
+          marks: {
+            ...emptyMarks(),
+            squares: [
+              ...ALL_SQUARES.filter((s) => p[s]?.color === c && (p[s]!.type === "n" || p[s]!.type === "b") && !me.home.includes(s)).map((s, i) => ({ sq: s, tone: "opportunity" as const, style: "ring" as const, order: i })),
+              ...them.home.map((s, i) => ({ sq: s, tone: "danger" as const, style: "dashed" as const, order: i + 4 })),
+            ],
+          },
+          priority: 54,
+        });
+      }
+      if (me.home.length && (fullmove >= 10 || me.home.length >= 3) && fullmove >= 6) {
+        facts.push({
+          id: `undeveloped-${c}`,
+          lens: "activity",
+          kind: "undeveloped",
+          side: c,
+          tone: "danger",
+          anchor: me.home[0],
+          title: `${sideName(c)} still has ${me.home.length} minor piece${me.home.length > 1 ? "s" : ""} at home (${me.home.join(", ")}) on move ${fullmove}.`,
+          evidence: "rules",
+          label: me.home.length === 1 ? `Undeveloped ${PIECE_NAME[p[me.home[0]]!.type]} ${me.home[0]}` : `${me.home.length} pieces undeveloped`,
+          polarity: "weakness",
+          marks: { ...emptyMarks(), squares: me.home.map((s, i) => ({ sq: s, tone: "danger" as const, style: "dashed" as const, order: i })) },
+          priority: 42,
+        });
+      }
     }
 
     // Rooks on the seventh (the opponent's second rank)
