@@ -97,7 +97,7 @@ Explanations are written from templates over these facts. **No language model wr
 
 ## Licences
 
-Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Big Shoulders, Hanken Grotesk and Martian Mono (SIL OFL). chess.js is BSD-2-Clause.
+Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Clash Display and Satoshi (Indian Type Foundry via Fontshare, ITF Free Font License, self-hosted in `src/fonts/`), plus Instrument Serif and Geist Mono (SIL OFL). The 3D hero uses three.js and React Three Fiber (MIT). chess.js is BSD-2-Clause.
 
 ## Known limitations
 

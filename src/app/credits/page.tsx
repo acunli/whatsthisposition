@@ -49,7 +49,8 @@ export default function Credits() {
         <h2>Pieces, type and libraries</h2>
         <p>
           Piece set: “mpchess” by Maxime Chupin (GPL-3.0+), as distributed with <a href="https://github.com/lichess-org/lila">Lichess</a>.
-          Type: Big Shoulders, Hanken Grotesk and Martian Mono (SIL Open Font License). Move generation:{" "}
+          Type: Clash Display and Satoshi by Indian Type Foundry via Fontshare (ITF Free Font License); Instrument Serif and Geist Mono (SIL Open Font License).
+          3D: three.js and React Three Fiber (MIT). Move generation:{" "}
           <a href="https://github.com/jhlywa/chess.js">chess.js</a> (BSD-2-Clause).
         </p>
       </main>

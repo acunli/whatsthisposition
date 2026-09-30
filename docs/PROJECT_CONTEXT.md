@@ -29,6 +29,7 @@ Non-negotiables from the original brief:
   - v1 (warm paper, Fraunces serif) was called "extremely AI generated".
   - v2 (dark "X-ray" theme, Big Shoulders condensed font, pixel "?" logo) was called "pathetic": the font, the logo and a "pathetically basic" landing page.
   - The owner wants a **design marvel**: exciting, premium, lots of purposeful animation, with a strong logo.
+  - v3 (current) responds with Clash Display + Instrument Serif italic accents + Satoshi + Geist Mono, a knight-in-a-lens logo, a **three.js 3D hero**, a scroll-driven story and a ticker. Awaiting the owner's verdict.
 - **Analysis feedback:** the explanations must come from **looking deep into the engine's lines**, not one-move static checks. The **best move comes first** in the story. Brilliant or sacrificial moves must be explained: what happens if the sacrifice is accepted, what the move threatens, what it takes away from the opponent. Reference test position: `7r/1pp1nk2/2n2p2/1bPp2q1/3P3p/rPB2RP1/5Q1P/2NBR1K1 w - - 3 43`, where **43.g4!!** is best (Stockfish lite, depth 22: g4 +2.66, Kh1 +2.02, h3 +1.59). If ...Qxg4+ then Kh1 and White's rooks use the g-file (+3.68). After ...h3, Rg3 follows. g4 takes f5 and h5 from the queen and opens f2–h4 for the white queen.
 - **Eval bar:** vertical, next to the board.
 - **Vision provider:** the owner uses the **NUS SoCLaaS gateway** (OpenAI-compatible, Qwen) with a school key.
@@ -36,6 +37,8 @@ Non-negotiables from the original brief:
 ## 3. Stack and commands
 
 - Next.js 16 (App Router, Turbopack), React 19, TypeScript (strict), plain CSS (`src/app/globals.css`), no CSS framework.
+- 3D: `three` 0.186 + `@react-three/fiber` 9 (landing hero only; dynamically imported, no SSR).
+- Fonts: self-hosted **Clash Display** and **Satoshi** (`src/fonts/*.woff2`, from Fontshare, ITF Free Font License, commercial use OK) via `next/font/local`; **Instrument Serif** and **Geist Mono** via `next/font/google`.
 - `chess.js` 1.4 for rules and move generation. `stockfish` 19.0.0 npm package (Stockfish.js, **lite single-threaded WASM**, about 1.8 MB) copied to `public/engine/` by `scripts/copy-engine.mjs` (on postinstall, predev and prebuild; `public/engine/` is gitignored).
 - Vision: `openai` SDK (OpenAI-compatible providers such as SoCLaaS) and `@anthropic-ai/sdk` (optional). `zod` validates model output.
 - Tests: Vitest (`src/**/*.test.ts`), including a **real Stockfish integration test** run in Node.
@@ -66,15 +69,18 @@ src/app/
   globals.css               → the whole design system (tokens, board overlays, pages)
 src/components/
   Studio.tsx                → top bar, stage switching, ?fen= deep links
-  Logo.tsx                  → logo mark and wordmark
+  Logo.tsx                  → knight-in-a-lens mark (animated: ring draws, ticks snap, knight rises, scan sweeps) + "whatsthis*position*?" wordmark
   BoardStage.tsx            → THE board: 64 div squares + overlay spans (fill/flood/pulse/ring/dashed/dot/hatch/pit),
                                file/rank bands, sliding pieces, SVG arrows (knight arrows bend), links, icons, badges
-  home/                     → Home (hero, dock, sections), Showcase (looping demo tour), Concepts (8 animated tiles)
+  home/                     → Home (3D hero + dock + live caption, ticker, story, concepts, CTA), Hero3D (three.js board: lathe pieces,
+                               extruded knights, glowing tiles, light pillars, arcing tube arrows, scan beam, camera rig, lite mode and
+                               off-screen pause), Story (sticky-board scroll story on the g4 position), Concepts (8 animated tiles)
   setup/                    → SetupView (editor + details + validation), PhotoInput (drop/crop/rotate/orientation/recognise), PiecePalette
   analysis/                 → AnalysisView (orchestrator and spotlight logic), Scoreboard, ScanIntro (3D scan animation),
                                StoryPanel (guided tour), LedgerPanel (strengths/weaknesses and advice), LayersPanel,
                                LinesPanel (candidates + why/why-not), ComparePanel, QuizPanel ("try it first"),
-                               PlansPanel, VariationBar (+eval strip), useAnalysis (all engine work), bits
+                               PlansPanel, VariationBar (+eval strip), DeepCard ("Why this move?" from deep analysis),
+                               useAnalysis (all engine work incl. requestDeep/deepFor), bits (EvalBar vertical, Caption, tags)
 src/lib/
   chess/        board.ts (geometry, attack maps), fen.ts (parse/serialise/validate with square-tagged issues), types.ts
   engine/       uci.ts (parsing), score.ts (side-to-move → White-view normalisation, mate kept separate),
@@ -112,6 +118,8 @@ docs/
    - **Story:** chapters about the best move come first (the move, "what if it's taken" with a board preview of the refutation, the threat, what it does, where it leads), then the position's findings.
 8. **Move explanations** (`explain.ts`): captures, checks, new targets, rescues, concessions, prophylaxis ("takes b4 away from…"), opening lines ("opens the way for the bishop on c1"), outposts, open files, structure changes, castling rights; material swing along the line; why-not compares against the best line.
 
+Design tokens live at the top of `globals.css`: night `#07080a` surfaces, bone text, board `#eae6d6` / `#5e8a6f`. The v3 section at the bottom of the file holds the logo, hero, ticker, story, CTA and the heading overrides.
+
 Colour meanings (fixed): red = danger/weakness, gold = strength/opportunity, sky = White's influence, violet = Black's influence, lime (dashed) = idea, ink = neutral.
 
 ## 7. Decisions and rejected ideas
@@ -132,7 +140,9 @@ Colour meanings (fixed): red = danger/weakness, gold = strength/opportunity, sky
 
 ## 9. Backlog (owner requests not yet done)
 
-- [ ] Complete design overhaul, round 3: premium fonts, a real logo, a rich landing page with 3D and scroll storytelling.
+- [ ] Owner to verify SoCLaaS photo reading with a real key (`npm run vision:check`); the default model may be text-only.
+- [ ] Deep "why not" (currently the lighter comparison).
+- [ ] Owner feedback on design v3 (fonts, logo, 3D hero).
 
 ## 10. Progress log
 
@@ -143,3 +153,4 @@ Colour meanings (fixed): red = danger/weakness, gold = strength/opportunity, sky
 - **2026-09-30** · Quiet-move explanations (prophylaxis, opening lines); README refresh. (`c76e372`)
 - **2026-09-30** · Added this context doc, `AGENTS.md`/`CLAUDE.md` pointers; SoCLaaS (OpenAI-compatible, Qwen) vision provider with compact 8-row format, `<think>` stripping, one retry, typed errors; `.env.example`/`.env.local` templates; `npm run vision:check`.
 - **2026-09-30** · Deep move understanding (`lib/deep`): classification (brilliant/only/great/best, ?!/?/??), poisoned-offer and "tactically protected" detection with refutation lines, concrete threats, key moments, settled outcome, comparison; the story now **starts with the best move** and previews positions inside lines; "Why X?" shows the new DeepCard; explanations gained "uncovers the queen on f2: it now hits h4". **Vertical eval bar beside the board** (horizontal tug removed). Real-engine test on the g4 reference position. tsconfig excludes iCloud "… 2.*" duplicates.
+- **2026-09-30** · **Design v3**: self-hosted Clash Display + Satoshi, Instrument Serif italics, Geist Mono; new knight-in-lens logo and favicon; new landing page with a **three.js 3D hero** (live findings as glowing tiles, light pillars and arcing arrows; scan beam; camera rig; lite mode on phones; paused off screen), concept ticker, **scroll story** reading the g4 position five ways (threats, weaknesses, strengths, plans, 43.g4!!), and a closing CTA. Headings across the app switched to sentence-case Clash. The move caption uses the deep headline for the analysed move.
