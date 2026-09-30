@@ -57,6 +57,10 @@ export function kingFacts(ctx: Ctx): Fact[] {
     const zone = kingZone(k);
     const escapes = escapeSquares(p, color);
     const attackedZone = zone.filter((s) => ctx.attackers(s, enemy).length > 0);
+    const enemyPieces = Object.values(p).filter((x) => x && x.color === enemy && ["n", "b", "r", "q"].includes(x.type)).length;
+    const zoneAttackers = new Set(attackedZone.flatMap((s) => ctx.attackers(s, enemy)));
+    const inCheck = ctx.attackers(k, enemy).length > 0;
+    const boxedIn = (escapes.length === 0 && zoneAttackers.size >= 2) || (escapes.length <= 1 && inCheck);
 
     // Escape squares
     facts.push({
@@ -64,7 +68,7 @@ export function kingFacts(ctx: Ctx): Fact[] {
       lens: "king",
       kind: "escape-squares",
       side: color,
-      tone: escapes.length <= 1 ? "danger" : "info",
+      tone: boxedIn ? "danger" : "info",
       anchor: k,
       title:
         escapes.length === 0
@@ -78,7 +82,7 @@ export function kingFacts(ctx: Ctx): Fact[] {
       marks: {
         ...emptyMarks(),
         squares: [
-          { sq: k, tone: escapes.length <= 1 ? "danger" : "info", style: "ring" },
+          { sq: k, tone: boxedIn ? "danger" : "info", style: "ring" },
           ...escapes.map((s) => ({ sq: s, tone: "info" as const, style: "dot" as const })),
         ],
       },
@@ -127,7 +131,7 @@ export function kingFacts(ctx: Ctx): Fact[] {
         if (!shield) missing.push(f);
       }
       const flank = kf <= 2 || kf >= 5;
-      if (flank && missing.length) {
+      if (flank && missing.length && enemyPieces > 0) {
         facts.push({
           id: `shield-${color}`,
           lens: "king",

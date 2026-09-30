@@ -12,9 +12,10 @@ export function controlMarks(p: Placement): Marks {
   for (const sq of ALL_SQUARES) {
     const { w, b } = map[sq];
     if (!w && !b) continue;
-    if (w > b) marks.squares.push({ sq, tone: "white", style: "fill" });
-    else if (b > w) marks.squares.push({ sq, tone: "black", style: "fill" });
-    else marks.squares.push({ sq, tone: "info", style: "hatch" });
+    const order = 7 - rankIndex(sq) + fileIndex(sq);
+    if (w > b) marks.squares.push({ sq, tone: "white", style: "flood", order });
+    else if (b > w) marks.squares.push({ sq, tone: "black", style: "flood", order });
+    else marks.squares.push({ sq, tone: "info", style: "hatch", order });
   }
   return marks;
 }
@@ -35,6 +36,7 @@ function findBatteries(p: Placement): Battery[] {
       ...BISHOP_DIRS.map((d) => [d, false] as [number[], boolean]),
     ];
     for (const [[df, dr], straight] of dirs) {
+      if (dr === 0) continue; // side-by-side on a rank is just "connected", not a battery
       const fits = (t: string) => t === "q" || (straight ? t === "r" : t === "b");
       if (!fits(piece.type)) continue;
       let f = fileIndex(sq) + df;
@@ -155,7 +157,7 @@ export function controlFacts(ctx: Ctx): Fact[] {
       marks: {
         ...emptyMarks(),
         squares: b.squares.map((s) => ({ sq: s, tone: "opportunity" as const, style: "ring" as const })),
-        arrows: [{ from: b.squares[1], to: b.squares[0], tone: "opportunity", thin: true }],
+        links: [{ from: b.squares[1], to: b.squares[0], tone: "opportunity", kind: "link" }],
       },
       priority: 32,
     });

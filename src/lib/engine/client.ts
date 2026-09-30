@@ -7,6 +7,7 @@
  */
 import type { Color } from "../chess/types";
 import { normalizeScore, type Evaluation } from "./score";
+import { parseFinalEval } from "./pieceValues";
 import { parseBestMove, parseInfoLine } from "./uci";
 
 export interface EngineTransport {
@@ -24,6 +25,8 @@ export interface SearchOptions {
   movetimeMs?: number;
   /** Restrict the search to these UCI moves (for "why not this move?"). */
   searchmoves?: string[];
+  /** Run the static `eval` command instead of a search. */
+  staticEval?: boolean;
 }
 
 export interface EngineLine {
@@ -43,6 +46,8 @@ export interface AnalysisSnapshot {
   done: boolean;
   cancelled?: boolean;
   bestMove: string | null;
+  /** Static evaluation (White's view, pawns) for `staticEval` jobs; null if the engine declined (e.g. in check). */
+  staticEval?: number | null;
 }
 
 export interface SearchHandle {
@@ -133,6 +138,11 @@ export class EngineClient {
     return { promise, cancel: () => this.cancel(job) };
   }
 
+  /** Static NNUE evaluation of a position, in pawns from White's view (null if unavailable). */
+  staticEval(fen: string): Promise<number | null> {
+    return this.analyze({ fen, multipv: 1, staticEval: true }).promise.then((s) => s.staticEval ?? null);
+  }
+
   /** Cancels every queued and running search. */
   cancelAll(): void {
     for (const job of [...this.queue]) this.cancel(job);
@@ -154,7 +164,7 @@ export class EngineClient {
       job.resolve(this.snapshot(job, true));
       return;
     }
-    if (this.active === job && job.phase === "searching") this.transport.post("stop");
+    if (this.active === job && job.phase === "searching" && !job.opts.staticEval) this.transport.post("stop");
     // A job still syncing is stopped right after its `go` is sent (see pump).
   }
 
@@ -172,6 +182,10 @@ export class EngineClient {
     if (this.failed) return;
     job.started = Date.now();
     job.phase = "searching";
+    if (opts.staticEval) {
+      this.transport.post("eval");
+      return;
+    }
     const limit = opts.movetimeMs ? `movetime ${Math.round(opts.movetimeMs)}` : `depth ${opts.depth ?? 16}`;
     const moves = opts.searchmoves?.length ? ` searchmoves ${opts.searchmoves.join(" ")}` : "";
     this.transport.post(`go ${limit}${moves}`);
@@ -189,6 +203,14 @@ export class EngineClient {
     }
     const job = this.active;
     if (!job || job.phase !== "searching") return;
+    if (job.opts.staticEval) {
+      const v = parseFinalEval(line);
+      if (v === undefined) return;
+      this.active = null;
+      job.resolve({ ...this.snapshot(job, true), staticEval: v });
+      void this.pump();
+      return;
+    }
     const info = parseInfoLine(line);
     if (info) {
       if (info.bound) return;

@@ -83,9 +83,10 @@ export function pawnFacts(ctx: Ctx): Fact[] {
           ...emptyMarks(),
           squares: [
             { sq: pi.sq, tone: "opportunity", style: "ring" },
-            ...path.map((s) => ({ sq: s, tone: "opportunity" as const, style: "dot" as const })),
-            ...(pi.blockader ? [{ sq: pi.blockader, tone: "info" as const, style: "ring" as const }] : []),
+            ...path.map((s, i) => ({ sq: s, tone: "opportunity" as const, style: "flood" as const, order: i })),
+            ...(pi.blockader ? [{ sq: pi.blockader, tone: "danger" as const, style: "ring" as const }] : []),
           ],
+          icons: [{ sq: path[path.length - 1] ?? pi.sq, icon: "crown", tone: "opportunity" }],
         },
         priority: 60 + (7 - toGo) * 3,
       });
@@ -140,7 +141,7 @@ export function pawnFacts(ctx: Ctx): Fact[] {
         evidence: "rules",
         marks: {
           ...emptyMarks(),
-          squares: [{ sq: pi.sq, tone: "danger", style: "fill" }],
+          squares: [{ sq: pi.sq, tone: "danger", style: "pulse" }],
           arrows: atk.map((a) => ({ from: a, to: pi.sq, tone: "danger" as const, thin: true })),
         },
         priority: 45,

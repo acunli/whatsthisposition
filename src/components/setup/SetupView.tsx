@@ -22,7 +22,7 @@ import { clonePlacement } from "@/lib/chess/board";
 import type { CastlingRights, Color, Placement, PositionSetup, Square } from "@/lib/chess/types";
 
 const SAMPLES = [
-  { name: "Isolated queen's pawn", fen: "r1bq1rk1/pp2bppp/2n1pn2/3p4/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 4 9" },
+  { name: "Isolated queen's pawn", fen: "r1bq1rk1/pp2bppp/2n1pn2/8/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10" },
   { name: "Is the e5 pawn free?", fen: "r1bqkbnr/pppp1ppp/8/4p3/2BnP3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4" },
   { name: "Trouble on f7", fen: "r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 4 4" },
   { name: "Outside passed pawn", fen: "8/5pk1/6p1/1P6/8/6P1/5PK1/8 w - - 0 1" },

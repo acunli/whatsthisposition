@@ -141,7 +141,7 @@ export function threatFacts(ctx: Ctx, hints?: EngineHints): Fact[] {
             : "Counting only direct attackers and defenders.",
       evidence: engineTakes ? "engine" : "rules",
       marks: marks({
-        squares: [{ sq, tone: "danger", style: "ring" }],
+        squares: [{ sq, tone: "danger", style: "pulse" }],
         arrows: ep.capturers.map((c) => ({ from: c, to: sq, tone: ownerToMove ? ("danger" as const) : ("opportunity" as const) })),
       }),
       priority: 80 + PIECE_VALUE[piece.type],
@@ -168,10 +168,12 @@ export function threatFacts(ctx: Ctx, hints?: EngineHints): Fact[] {
       evidence: "rules",
       marks: marks({
         squares: [
-          { sq: pin.pinned, tone: "danger", style: "ring" },
-          { sq: pin.behind, tone: "info", style: "dot" },
+          { sq: pin.pinned, tone: "danger", style: "pulse" },
+          { sq: pin.behind, tone: "danger", style: "ring" },
         ],
-        arrows: [{ from: pin.pinner, to: pin.behind, tone: "danger", thin: true }],
+        arrows: [],
+        links: [{ from: pin.pinner, to: pin.behind, tone: "danger", kind: "pin" }],
+        icons: [{ sq: pin.pinned, icon: "lock", tone: "danger" }],
       }),
       priority: pin.absolute ? 70 : 55,
     });

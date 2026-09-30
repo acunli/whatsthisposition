@@ -74,7 +74,7 @@ export function activityFacts(ctx: Ctx): Fact[] {
         marks: { ...emptyMarks(), squares: [{ sq, tone: "info", style: "dashed" }] },
         priority: 20,
       });
-    } else if (mob.length <= limit) {
+    } else if (mob.length <= limit && !((piece.type === "r" || piece.type === "q") && rankIndex(sq) === (piece.color === "w" ? 0 : 7))) {
       const ownBlockers = ctx.attacks(sq).filter((t) => p[t]?.color === piece.color && p[t]?.type === "p");
       facts.push({
         id: `restricted-${sq}`,
@@ -146,7 +146,7 @@ export function activityFacts(ctx: Ctx): Fact[] {
           anchor: sq,
           title: `${describe(p, sq)} sits on an outpost: pawn-supported, and no ${sideName(other(color))} pawn can chase it.`,
           evidence: "rules",
-          marks: { ...emptyMarks(), squares: [{ sq, tone: "opportunity", style: "fill" }] },
+          marks: { ...emptyMarks(), squares: [{ sq, tone: "opportunity", style: "flood" }], icons: [{ sq, icon: "flag", tone: "opportunity" }] },
           priority: 50,
         });
         continue;
@@ -194,7 +194,11 @@ export function activityFacts(ctx: Ctx): Fact[] {
           ? `The ${FILES[f]}-file is open and ${users.join(" and ")} ${heavy.length > 1 ? "use" : "uses"} it.`
           : `The ${FILES[f]}-file is open (no pawns) and no rook or queen is on it yet.`,
         evidence: "rules",
-        marks: { ...emptyMarks(), squares: fileSquares.filter((s) => !p[s]).map((s) => ({ sq: s, tone: "info" as const, style: "hatch" as const })) },
+        marks: {
+          ...emptyMarks(),
+          bands: [{ kind: "file", index: f, tone: heavy.length ? "opportunity" : "info" }],
+          squares: heavy.map((s) => ({ sq: s, tone: "opportunity" as const, style: "ring" as const })),
+        },
         priority: heavy.length ? 38 : 22,
       });
     } else {
@@ -254,7 +258,7 @@ export function activityFacts(ctx: Ctx): Fact[] {
           anchor: a,
           title: `${sideName(color)}'s rooks on ${a} and ${b} are connected and protect each other.`,
           evidence: "rules",
-          marks: { ...emptyMarks(), arrows: [{ from: a, to: b, tone: "info", thin: true }] },
+          marks: { ...emptyMarks(), links: [{ from: a, to: b, tone: "opportunity", kind: "link" }], squares: [a, b].map((s) => ({ sq: s, tone: "opportunity" as const, style: "ring" as const })) },
           priority: 24,
         });
       }

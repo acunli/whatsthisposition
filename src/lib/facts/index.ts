@@ -5,6 +5,10 @@ import { kingFacts } from "./king";
 import { materialFacts } from "./material";
 import { pawnFacts } from "./pawns";
 import { threatFacts, type EngineHints } from "./threats";
+import { structureFacts } from "./structure";
+import { spaceFacts } from "./space";
+import { tacticFacts } from "./tactics";
+import { pieceFacts } from "./pieces";
 import { emptyMarks, type Fact, type LegendItem, type LensId, type Marks } from "./types";
 
 export * from "./types";
@@ -99,15 +103,17 @@ export interface PositionFacts {
 export function computeFacts(fen: string, hints?: EngineHints): PositionFacts {
   const ctx = makeCtx(fen);
   const sort = (f: Fact[]) => [...f].sort((a, b) => b.priority - a.priority);
+  const extra = [...tacticFacts(ctx), ...structureFacts(ctx), ...spaceFacts(ctx), ...pieceFacts(ctx)];
+  const of = (lens: LensId) => extra.filter((f) => f.lens === lens);
   return {
     ctx,
     byLens: {
-      threats: sort(threatFacts(ctx, hints)),
-      king: sort(kingFacts(ctx)),
-      pawns: sort(pawnFacts(ctx)),
-      activity: sort(activityFacts(ctx)),
-      control: sort(controlFacts(ctx)),
-      material: sort(materialFacts(ctx)),
+      threats: sort([...threatFacts(ctx, hints), ...of("threats")]),
+      king: sort([...kingFacts(ctx), ...of("king")]),
+      pawns: sort([...pawnFacts(ctx), ...of("pawns")]),
+      activity: sort([...activityFacts(ctx), ...of("activity")]),
+      control: sort([...controlFacts(ctx), ...of("control")]),
+      material: sort([...materialFacts(ctx), ...of("material")]),
     },
     baseMarks: { control: controlMarks(ctx.p) },
   };
@@ -123,6 +129,9 @@ export function marksForLenses(facts: PositionFacts, lenses: LensId[], focused?:
       out.squares.push(...f.marks.squares);
       out.arrows.push(...f.marks.arrows);
       out.badges.push(...f.marks.badges);
+      out.links!.push(...(f.marks.links ?? []));
+      out.icons!.push(...(f.marks.icons ?? []));
+      out.bands!.push(...(f.marks.bands ?? []));
     }
   }
   return out;

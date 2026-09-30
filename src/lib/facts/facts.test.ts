@@ -74,10 +74,12 @@ describe("king safety facts", () => {
     expect(escapeSquares(p, "w").sort()).toEqual(["d2", "e2", "f2"]);
   });
 
-  it("flags missing pawn cover in front of a castled king", () => {
-    const fen = "6k1/8/8/8/8/8/5P1P/6K1 w - - 0 1";
+  it("flags missing pawn cover in front of a castled king (only while enemy pieces remain)", () => {
+    const fen = "6k1/3q4/8/8/8/8/5P1P/6K1 w - - 0 1";
     const facts = computeFacts(fen).byLens.king;
     expect(facts.find((f) => f.kind === "pawn-shield" && f.side === "w")?.title).toMatch(/g-file/);
+    const ending = computeFacts("6k1/8/8/8/8/8/5P1P/6K1 w - - 0 1").byLens.king;
+    expect(ending.some((f) => f.kind === "pawn-shield")).toBe(false);
   });
 });
 
@@ -95,7 +97,10 @@ describe("pawn structure facts", () => {
 
   it("maps a passed pawn to its path squares", () => {
     const f = computeFacts("4k3/8/8/3P4/8/8/8/4K3 w - - 0 1").byLens.pawns.find((x) => x.kind === "passed");
-    expect(f?.marks.squares.filter((s) => s.style === "dot").map((s) => s.sq)).toEqual(["d6", "d7", "d8"]);
+    const path = f?.marks.squares.filter((s) => s.style === "flood");
+    expect(path?.map((s) => s.sq)).toEqual(["d6", "d7", "d8"]);
+    expect(path?.map((s) => s.order)).toEqual([0, 1, 2]);
+    expect(f?.marks.icons).toEqual([{ sq: "d8", icon: "crown", tone: "opportunity" }]);
   });
 });
 
