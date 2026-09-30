@@ -1,6 +1,17 @@
 # WhatsThisPosition
 
-An analysis desk for intermediate chess players, built for **whatsthisposition.com**. Load a position from a photo, a FEN or a hand setup, then explore it on the board. Switchable lenses show threats, king safety, pawn structure, piece activity, control and material. Stockfish's candidate lines play out move by move, and explanations for the moves point at pieces and squares instead of producing an essay.
+An X-ray for chess positions, built for **whatsthisposition.com**. Snap a photo, paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
+
+**What you get after analysing a position**
+
+- **Scoreboard:** the verdict in words, the eval (mate shown separately), a tug-of-war eval bar, and each side's strength and weakness counts.
+- **Story:** a guided tour of the most important findings, animated one by one on the board. It ends with the engine's move.
+- **Strengths & weaknesses:** a Silman-style ledger for both sides, plus "what each side should try". Every item points at its squares.
+- **Moves:** Stockfish's candidate lines played out move by move, with a per-move eval strip, "Why this move?", "Why not?", Compare, and "Try it first". You can also play your own move and ask about it.
+- **Layers:** stackable overlays for threats, king safety, pawn structure, pieces, space & control, and material.
+- **Plans:** conditional ideas (pawn breaks, knight routes, rook lifts, pushing passers, castling), each with what it depends on.
+
+How each concept is detected and drawn, with sources, is in [`docs/position-understanding.md`](docs/position-understanding.md).
 
 ## Quick start
 
@@ -46,10 +57,13 @@ The provider sends one structured-output request per photo (JSON schema: 8×8 ce
 ```
 src/lib/chess/      board geometry, attack maps, FEN parsing + validation
 src/lib/engine/     UCI parsing, score normalization, EngineClient (Web Worker transport)
-src/lib/facts/      visual facts per lens, tracing, move explanations, plans
+src/lib/facts/      visual facts per lens (threats, king, pawns, structure, space, tactics,
+                    pieces, control, material), ledger, advice, tour, tracing,
+                    move explanations, plans
 src/lib/vision/     recognition schema, grid→board mapping, provider adapter (server-only)
 src/lib/variation.ts  engine lines → verified moves, navigation
-src/components/     Board (SVG), setup flow, analysis studio
+src/components/     BoardStage (animated board), home, setup flow, analysis arena,
+                    scan intro
 src/app/api/recognize  POST photo → recognized grid (nothing is stored)
 ```
 
@@ -78,7 +92,7 @@ Explanations are written from templates over these facts. **No language model wr
 
 ## Licences
 
-Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the cburnett set (Colin M.L. Burnett), extracted from Lichess's chessground package (GPL-3.0+). chess.js is BSD-2-Clause.
+Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Big Shoulders, Hanken Grotesk and Martian Mono (SIL OFL). chess.js is BSD-2-Clause.
 
 ## Known limitations
 

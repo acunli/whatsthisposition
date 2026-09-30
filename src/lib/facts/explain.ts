@@ -127,6 +127,49 @@ export function staticMovePoints(move: VariationMove): InsightPoint[] {
     );
   }
 
+  // Prophylaxis: enemy pieces that lose safe squares the moved piece now covers.
+  if (!move.captured && !move.isCheck) {
+    const covered = new Set(attacksOn(after, move.to));
+    const robbed = new Map<Square, Square[]>();
+    for (const sq of ALL_SQUARES) {
+      const x = before[sq];
+      if (!x || x.color !== them || x.type === "k" || x.type === "p" || !after[sq]) continue;
+      const was = safeMobility(before, sq, attacksOn(before, sq));
+      const now = new Set(safeMobility(after, sq, attacksOn(after, sq)));
+      const lost = was.filter((t) => !now.has(t) && covered.has(t));
+      if (lost.length) robbed.set(sq, lost);
+    }
+    const bySquare = new Map<Square, Square[]>();
+    for (const [piece, lost] of robbed) for (const t of lost) bySquare.set(t, [...(bySquare.get(t) ?? []), piece]);
+    const top = [...bySquare.entries()].sort((x, y) => y[1].length - x[1].length).slice(0, 2);
+    for (const [t, pieces] of top) {
+      pts.push(
+        point(`Takes ${t} away from ${pieces.map((q) => the(before, q)).join(" and ")}.`, "opportunity", "rules", {
+          squares: [{ sq: t, tone: "danger", style: "pit" }, ...pieces.map((q) => ({ sq: q, tone: "danger" as const, style: "ring" as const }))],
+          arrows: [{ from: move.to, to: t, tone: "opportunity", thin: true }],
+        }),
+      );
+    }
+  }
+
+  // Opening lines: own pieces (other than the mover) that gain safe squares.
+  if (!move.isCastle) {
+    const freed: { sq: Square; gain: number }[] = [];
+    for (const sq of ALL_SQUARES) {
+      const x = after[sq];
+      if (!x || x.color !== me || sq === move.to || x.type === "k" || x.type === "p" || before[sq]?.type !== x.type) continue;
+      const gain = safeMobility(after, sq, attacksOn(after, sq)).length - safeMobility(before, sq, attacksOn(before, sq)).length;
+      if (gain >= 2) freed.push({ sq, gain });
+    }
+    for (const f of freed.sort((x, y) => y.gain - x.gain).slice(0, 1)) {
+      pts.push(
+        point(`Opens the way for ${the(after, f.sq)}: ${f.gain} more safe squares.`, "opportunity", "rules", {
+          squares: [{ sq: f.sq, tone: "opportunity", style: "ring" }, { sq: move.from, tone: "opportunity", style: "dashed" }],
+        }),
+      );
+    }
+  }
+
   // Piece improvement
   if (["n", "b", "r", "q"].includes(move.piece) && !move.captured) {
     const bm = safeMobility(before, move.from, attacksOn(before, move.from)).length;

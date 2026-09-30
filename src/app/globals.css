@@ -274,6 +274,13 @@ a {
   border-color: #ffd46b;
 }
 
+.btn-gold:disabled {
+  opacity: 1;
+  background: var(--slab-2);
+  border-color: var(--line-2);
+  color: var(--dim-2);
+}
+
 .btn-big {
   padding: 16px 26px;
   font-size: 16px;

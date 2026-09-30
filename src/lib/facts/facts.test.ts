@@ -201,3 +201,17 @@ describe("engine threat (null move)", () => {
     expect(threatFact(fen, { kind: "cp", cp: 30 }, { pv: ["h5f7"], eval: { kind: "cp", cp: 90 }, depth: 12 })).toBeNull();
   });
 });
+
+describe("quiet move explanations", () => {
+  it("explains prophylaxis: a3 takes b4 away from Black's pieces", () => {
+    const fen = "r1bq1rk1/pp2bppp/2n1pn2/8/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10";
+    const v = buildVariation(fen, ["a2a3"]);
+    const texts = staticMovePoints(v.moves[0]).map((p) => p.text);
+    expect(texts.join(" ")).toMatch(/Takes b4 away from (the knight on c6|the bishop on e7)/);
+  });
+
+  it("explains a move that opens a line for another piece", () => {
+    const v = buildVariation("4k3/8/8/8/8/8/3P4/2B1K3 w - - 0 1", ["d2d4"]);
+    expect(staticMovePoints(v.moves[0]).map((p) => p.text)).toContain("Opens the way for the bishop on c1: 5 more safe squares.");
+  });
+});
