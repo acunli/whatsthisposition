@@ -52,7 +52,7 @@ export function StoryPanel({ scenes, index, onIndex, playing, onPlaying, offRoot
         <div key={s.id} className={`tour-card ${tone}`}>
           <span className="tour-kind">
             <span className={`side-dot side-${s.side}`} aria-hidden />
-            {sideName(s.side)} · {s.polarity}
+            {s.kicker ?? `${sideName(s.side)} · ${s.polarity}`}
           </span>
           <h3 className="tour-label">{s.label}</h3>
           <p className="tour-text">{s.fact.title}</p>

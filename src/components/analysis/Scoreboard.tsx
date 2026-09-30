@@ -2,7 +2,7 @@
 
 import type { Color } from "@/lib/chess/types";
 import type { AnalysisSnapshot } from "@/lib/engine/client";
-import { describeEval, evalBarShare, formatEval, type Evaluation } from "@/lib/engine/score";
+import { describeEval, formatEval, type Evaluation } from "@/lib/engine/score";
 import type { Ledger } from "@/lib/facts/ledger";
 import { MATERIAL_ORDER, type MaterialSummary } from "@/lib/facts/material";
 import { SEARCH_PRESETS, type MainStatus } from "./useAnalysis";
@@ -70,7 +70,6 @@ function SideCard({ c, ledger, material, turn }: { c: Color; ledger: Ledger; mat
 export function Scoreboard(p: Props) {
   const e = p.evaluation;
   const v = e ? describeEval(e) : null;
-  const share = e ? evalBarShare(e) : 0.5;
   const running = p.status === "running" || p.status === "starting";
   return (
     <section className="score" aria-label="Scoreboard">
@@ -81,10 +80,6 @@ export function Scoreboard(p: Props) {
             <h1 className="verdict-head">{v ? v.headline : p.status === "error" ? "Engine offline" : "Reading the position…"}</h1>
           </div>
           <span className="verdict-num">{e ? formatEval(e) : "…"}</span>
-        </div>
-        <div className={`tug ${p.orientation === "b" ? "tug-flip" : ""} ${!e ? "tug-pending" : ""}`} aria-hidden>
-          <div className="tug-white" style={{ ["--share" as string]: `${share * 100}%` }} />
-          <div className="tug-mid" />
         </div>
         <div className="verdict-sub">
           <span>{e?.kind === "mate" ? "Forced mate: there's no escape." : "White's view: + favours White · 1.00 ≈ a pawn"}</span>

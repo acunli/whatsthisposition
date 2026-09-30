@@ -5,6 +5,9 @@ import { Chess } from "chess.js";
 import type { AnalysisSnapshot, EngineLine, SearchHandle } from "@/lib/engine/client";
 import { getBrowserEngine, resetBrowserEngine } from "@/lib/engine/browser";
 import type { Evaluation } from "@/lib/engine/score";
+import { analyzeMoveDeep, type DeepMove, type LineInput, type Searcher } from "@/lib/deep/deep";
+
+export type DeepEntry = { status: "pending"; step: string } | { status: "done"; data: DeepMove } | { status: "failed" };
 
 export interface SearchSettings {
   label: string;
@@ -64,6 +67,8 @@ export function useAnalysis(fen: string, settings: SearchSettings, multipv: numb
   const [wanted, setWanted] = useState<string[]>([]);
   const [busyMove, setBusyMove] = useState(false);
   const cache = useRef(new Map<string, PlyEval>());
+  const deepCache = useRef(new Map<string, DeepEntry>());
+  const [deepVersion, setDeepVersion] = useState(0);
   const mainHandle = useRef<SearchHandle | null>(null);
   const bgHandle = useRef<SearchHandle | null>(null);
   const bgToken = useRef(0);
@@ -80,6 +85,7 @@ export function useAnalysis(fen: string, settings: SearchSettings, multipv: numb
       return;
     }
     engine.cancelAll();
+    deepCache.current.clear();
     setError(null);
     setStatus("starting");
     setSnapshot(null);
@@ -189,6 +195,41 @@ export function useAnalysis(fen: string, settings: SearchSettings, multipv: numb
 
   const plyEval = useCallback((f: string) => cache.current.get(f) ?? null, []);
 
+  /**
+   * Deep understanding of one move: extra searches for "what if they take", the threat
+   * and the line's key moments. Side searches run at depth 16–20 (shallower searches
+   * misjudge sacrifices).
+   */
+  const requestDeep = useCallback(
+    (line: LineInput, opts: { isBest: boolean; alternatives: LineInput[]; bestLine?: LineInput }) => {
+      const key = line.pv[0];
+      if (!key || deepCache.current.has(key)) return;
+      let engine;
+      try {
+        engine = getBrowserEngine();
+      } catch {
+        return;
+      }
+      const set = (e: DeepEntry) => {
+        deepCache.current.set(key, e);
+        setDeepVersion((v) => v + 1);
+      };
+      set({ status: "pending", step: "Reading the engine's line" });
+      const depth = Math.max(16, Math.min(20, (settings.depth ?? 18) - 1));
+      const search: Searcher = (r) =>
+        engine.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves }).promise.then((snap) => {
+          if (snap.cancelled) throw new Error("cancelled");
+          return snap.lines;
+        });
+      analyzeMoveDeep(fen, line, search, { ...opts, depth, onProgress: (step) => set({ status: "pending", step }) }).then(
+        (d) => set(d ? { status: "done", data: d } : { status: "failed" }),
+        () => set({ status: "failed" }),
+      );
+    },
+    [fen, settings],
+  );
+  const deepFor = useCallback((uci: string | undefined) => (uci ? (deepCache.current.get(uci) ?? null) : null), []);
+
   return {
     status,
     snapshot,
@@ -200,6 +241,9 @@ export function useAnalysis(fen: string, settings: SearchSettings, multipv: numb
     busyMove,
     plyEval,
     plyVersion,
+    requestDeep,
+    deepFor,
+    deepVersion,
     requestPlyEvals: setWanted,
   };
 }

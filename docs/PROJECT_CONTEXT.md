@@ -86,6 +86,9 @@ src/lib/
                 engineFacts.ts (null-move threat), ledger.ts (strength/weakness sorting and labels), advice.ts, tour.ts, index.ts (LENSES)
   vision/       grid.ts (schema, grid→board mapping), compact.ts (8-row compact format for OpenAI-compatible models),
                 openaiCompatible.ts (SoCLaaS), anthropic.ts, provider.ts (selection), types.ts
+  deep/         deep.ts (line-based move understanding: classification, offers/sacrifices incl. "looks loose but
+                tactically protected", concrete threats via null move, key moments, settled outcome, comparison),
+                scenes.ts (story chapters about the best move, with in-line position previews)
   variation.ts  UCI line → verified SAN moves with FENs, navigation
 docs/
   PROJECT_CONTEXT.md        (this file)
@@ -100,7 +103,14 @@ docs/
 4. **Ledger** (`buildLedger`): facts sorted into strengths and weaknesses per side (polarity rules in `ledger.ts`).
 5. **Advice** (`buildAdvice`): now / fix / attack / use, per side. It is engine-aware: it won't advise grabbing material the engine declines, and a mate in one comes first.
 6. **Tour** (`buildTour`): urgent tactics, then alternating sides. The analysis view appends the engine's best move.
-7. **Move explanations** (`explain.ts`): captures, checks, new targets, rescues, concessions, prophylaxis ("takes b4 away from…"), opening lines ("opens the way for the bishop on c1"), outposts, open files, structure changes, castling rights; material swing along the line; why-not compares against the best line.
+7. **Deep move understanding** (`lib/deep/deep.ts`, run by `useAnalysis.requestDeep`). This runs automatically for the best move once the search settles, and on demand for "Why X?". Side searches are injected (`Searcher`) and run at **depth 16–20**, because shallower searches misjudge sacrifices (on the g4 position, depth 12–14 still thinks ...Qxg4 is fine). The steps:
+   - One multi-PV search of the position after the move. That gives the opponent's best replies and a deeper main line, which **overrides the root PV when they disagree**.
+   - **Offers:** material that becomes takeable because of the move (the moved piece, or newly loose pieces). Each is searched on its own and compared like for like with the best non-capture reply. "Poisoned" means taking is at least 0.35 worse for the taker. Pieces that were **already loose** are also tested and reported as "looks loose but tactically protected".
+   - **Threat:** a null-move search after the move, kept only if concrete (mate, a capture, a check, or material won).
+   - **Key moments:** loud moves in the deeper line. **Outcome:** material at a settled point (not mid-exchange) plus the eval.
+   - **Classification:** brilliant (best, a real sacrifice, not already crushing), only move (gap ≥ 1.5), great (≥ 0.6), best; non-best moves as inaccuracy (?!), mistake (?) or blunder (??).
+   - **Story:** chapters about the best move come first (the move, "what if it's taken" with a board preview of the refutation, the threat, what it does, where it leads), then the position's findings.
+8. **Move explanations** (`explain.ts`): captures, checks, new targets, rescues, concessions, prophylaxis ("takes b4 away from…"), opening lines ("opens the way for the bishop on c1"), outposts, open files, structure changes, castling rights; material swing along the line; why-not compares against the best line.
 
 Colour meanings (fixed): red = danger/weakness, gold = strength/opportunity, sky = White's influence, violet = Black's influence, lime (dashed) = idea, ink = neutral.
 
@@ -117,12 +127,11 @@ Colour meanings (fixed): red = danger/weakness, gold = strength/opportunity, sky
 - Recognition accuracy depends on the model. There is no perspective (keystone) correction when cropping.
 - Static facts use attacker/defender counts, not full exchange evaluation.
 - The lite engine is weaker than full Stockfish. Eval-strip checks are depth 12.
-- Explanations are still largely one-move-static except where noted in the log (deep line analysis is being added; see the backlog).
+- Deep analysis explains the best move (and any "Why X?"). "Why not" still uses the lighter comparison (`explainWhyNot`) plus a classification badge.
+- Deep analysis takes a few seconds in the browser (3–5 extra searches at depth 16+). The story holds autoplay until it finishes.
 
 ## 9. Backlog (owner requests not yet done)
 
-- [ ] Deep, line-based move understanding: sacrifice acceptance lines, threats created, key moments, brilliant/only-move classification. Best move first in the story.
-- [ ] Vertical eval bar beside the board.
 - [ ] Complete design overhaul, round 3: premium fonts, a real logo, a rich landing page with 3D and scroll storytelling.
 
 ## 10. Progress log
@@ -133,3 +142,4 @@ Colour meanings (fixed): red = danger/weakness, gold = strength/opportunity, sky
 - **2026-09-30** · Redesign v2 (dark X-ray theme, BoardStage, scan intro, story/ledger/layers/moves/plans, mpchess pieces); piece-worth idea rejected. (`7534ed4`)
 - **2026-09-30** · Quiet-move explanations (prophylaxis, opening lines); README refresh. (`c76e372`)
 - **2026-09-30** · Added this context doc, `AGENTS.md`/`CLAUDE.md` pointers; SoCLaaS (OpenAI-compatible, Qwen) vision provider with compact 8-row format, `<think>` stripping, one retry, typed errors; `.env.example`/`.env.local` templates; `npm run vision:check`.
+- **2026-09-30** · Deep move understanding (`lib/deep`): classification (brilliant/only/great/best, ?!/?/??), poisoned-offer and "tactically protected" detection with refutation lines, concrete threats, key moments, settled outcome, comparison; the story now **starts with the best move** and previews positions inside lines; "Why X?" shows the new DeepCard; explanations gained "uncovers the queen on f2: it now hits h4". **Vertical eval bar beside the board** (horizontal tug removed). Real-engine test on the g4 reference position. tsconfig excludes iCloud "… 2.*" duplicates.
