@@ -306,14 +306,21 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     };
     const moveCaption = (): CaptionData | null => {
       if (!lastMove) return null;
-      const pts = staticMovePoints(lastMove);
       const num = lastMove.color === "w" ? `${lastMove.moveNumber}.` : `${lastMove.moveNumber}…`;
+      // The first move of a line with a finished deep analysis gets the deep headline, not a one-move guess.
+      const deep = ply === 1 && lastMove.fenBefore === fen ? deepFor(lastMove.uci) : null;
+      if (deep?.status === "done") {
+        const d = deep.data;
+        return { key: `mv-${ply}-${line?.key}-deep`, tone: "opportunity", tag: d.classification.symbol || `${ply}`, kind: `${d.classification.label} · ${num}${lastMove.san}`, text: d.headline };
+      }
+      const pts = staticMovePoints(lastMove);
+      const best = pts.find((p) => p.tone === "opportunity") ?? pts[0];
       return {
         key: `mv-${ply}-${line?.key}`,
-        tone: pts[0]?.tone ?? "info",
+        tone: best?.tone ?? "info",
         tag: `${ply}`,
         kind: `${sideName(lastMove.color)} plays ${num}${lastMove.san}`,
-        text: pts[0]?.text ?? "A quiet move: its point comes later in the line.",
+        text: best?.text ?? "A quiet move: its point comes later in the line.",
       };
     };
     if (tab === "story" && atRoot) {
@@ -359,7 +366,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
       return { marks: m, key: `cmp-${pair.join("")}`, caption: null };
     }
     return { marks: nextHint(emptyMarks()), key: `plain-${ply}`, caption: moveCaption() };
-  }, [hoverPoint, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, pinned, displayFacts, extraThreats, lenses, focus, displayFen, planHover, planFocus, plans, movesMode, lines, pair]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deepVersion signals deep-cache updates
+  }, [hoverPoint, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, pinned, displayFacts, extraThreats, lenses, focus, displayFen, planHover, planFocus, plans, movesMode, lines, pair, fen, deepFor, a.deepVersion]);
 
   const toggleLens = (id: LensId) => {
     setFocus(null);
