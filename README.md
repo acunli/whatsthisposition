@@ -2,11 +2,15 @@
 
 > Working on this repo? Start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md).
 
-An X-ray for chess positions, built for **whatsthisposition.com**. Snap a photo, paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
+An X-ray for chess games and positions, built for **whatsthisposition.com**.
+
+**Game review.** Bring a game from Chess.com (username), Lichess (game link) or a PGN. Stockfish reviews every move in your browser, and each move gets a Chess.com-style label: **Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder** or **Forced**. Each label comes with an explanation drawn from the engine's lines. The review also shows accuracy for both players, an eval graph, key moments and a per-player label table. From any move you can play out the better line, or **deep-analyse that position**. The labels follow the same rules for every game; see [How moves are labelled](docs/position-understanding.md#game-review-how-moves-are-labelled).
+
+**Position analysis.** Snap a photo, paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
 
 **What you get after analysing a position**
 
-- **Scoreboard:** the verdict in words, the eval (mate shown separately), a tug-of-war eval bar, and each side's strength and weakness counts.
+- **Scoreboard:** the verdict in words, the eval (mate shown separately), a vertical eval bar beside the board, and each side's strength and weakness counts.
 - **Story:** a guided tour of the most important findings, animated one by one on the board. It ends with the engine's move.
 - **Strengths & weaknesses:** a Silman-style ledger for both sides, plus "what each side should try". Every item points at its squares.
 - **Moves:** Stockfish's candidate lines played out move by move, with a per-move eval strip, "Why this move?", "Why not?", Compare, and "Try it first". You can also play your own move and ask about it.
@@ -54,6 +58,7 @@ Only photo recognition needs configuration. Without it, the photo tab says it is
 | `SOCLAAS_API_KEY` | Your SoCLaaS key. Server-side only. |
 | `SOCLAAS_MODEL` | Model id. It **must accept images**. Check with `npm run vision:check` (lists models and runs a tiny image test). |
 | `ANTHROPIC_API_KEY`, `VISION_MODEL` | Optional alternative provider |
+| `LICHESS_TOKEN` | Optional. Lets "Lichess username" list a player's games: Lichess only lists games to signed-in apps. A free personal token with no scopes is enough. Game links work without it. |
 
 The OpenAI-compatible provider asks for a compact answer: 8 rows of 8 characters plus the unsure squares. It strips `<think>` blocks, validates the answer with zod, and retries once if it's malformed.
 
@@ -62,14 +67,18 @@ The OpenAI-compatible provider asks for a compact answer: 8 rows of 8 characters
 ```
 src/lib/chess/      board geometry, attack maps, FEN parsing + validation
 src/lib/engine/     UCI parsing, score normalization, EngineClient (Web Worker transport)
+src/lib/review/     game review: PGN parsing, opening book, piece safety (SEE), move labels,
+                    accuracy, two-pass review, explanations, Chess.com/Lichess import
 src/lib/facts/      visual facts per lens (threats, king, pawns, structure, space, tactics,
                     pieces, control, material), ledger, advice, tour, tracing,
                     move explanations, plans
 src/lib/vision/     recognition schema, grid→board mapping, provider adapter (server-only)
 src/lib/variation.ts  engine lines → verified moves, navigation
-src/components/     BoardStage (animated board), home, setup flow, analysis arena,
-                    scan intro
+src/components/     BoardStage (animated board), home, game review, setup flow,
+                    analysis arena, scan intro
 src/app/api/recognize  POST photo → recognized grid (nothing is stored)
+src/app/api/games      GET recent Chess.com games / a Lichess game (nothing is stored)
+scripts/build-openings.mjs  rebuilds src/data/openings.json from lichess-org/chess-openings
 ```
 
 ### Engine
@@ -91,13 +100,13 @@ Explanations are written from templates over these facts. **No language model wr
 
 ## Privacy
 
-- Analysis runs locally in the browser.
+- Analysis and game review run locally in the browser. Imported games are fetched through this site's server from the public Chess.com and Lichess APIs, and are never stored.
 - Photos are held in memory for the recognition request, forwarded to Anthropic's API, and discarded. They are never written to disk or logged. The UI says this next to the upload control.
 - The side to move, castling rights and en passant are never inferred from a photo. The player sets them, and analysis stays blocked until they're valid.
 
 ## Licences
 
-Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Clash Display and Satoshi (Indian Type Foundry via Fontshare, ITF Free Font License, self-hosted in `src/fonts/`), plus Instrument Serif and Geist Mono (SIL OFL). The 3D hero uses three.js and React Three Fiber (MIT). chess.js is BSD-2-Clause.
+Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Clash Display and Satoshi (Indian Type Foundry via Fontshare, ITF Free Font License, self-hosted in `src/fonts/`), plus Instrument Serif and Geist Mono (SIL OFL). The 3D hero uses three.js and React Three Fiber (MIT). chess.js is BSD-2-Clause. The opening book comes from the Lichess [chess-openings](https://github.com/lichess-org/chess-openings) dataset (CC0). The Brilliant/Great logic was informed by [WintrChess](https://github.com/WintrCat/wintrchess) (GPL-3.0); it is an independent reimplementation.
 
 ## Known limitations
 
@@ -106,3 +115,5 @@ Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licen
 - Static facts use direct attacker/defender counts, not a full exchange evaluation. Where that matters, the text points to the engine line.
 - The lite engine is weaker than full Stockfish (still far beyond human strength). Deep settings on slow phones can take a while.
 - The eval strip uses quick depth-12 checks per move, which are shallower than the main analysis.
+- Game review labels depend on depth. Very deep combinations may only show as Brilliant on "Thorough". Labels won't always match Chess.com's, which uses a stronger server engine.
+- Chess.com game links can't be fetched (no per-game endpoint in the public API): enter the username or paste the PGN.

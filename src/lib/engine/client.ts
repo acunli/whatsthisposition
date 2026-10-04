@@ -24,6 +24,8 @@ export interface SearchOptions {
   movetimeMs?: number;
   /** Restrict the search to these UCI moves (for "why not this move?"). */
   searchmoves?: string[];
+  /** Clear the hash first, so the result doesn't depend on earlier searches (reproducible reviews). */
+  fresh?: boolean;
 }
 
 export interface EngineLine {
@@ -165,6 +167,7 @@ export class EngineClient {
     this.active = job;
     job.phase = "syncing";
     const { opts } = job;
+    if (opts.fresh) this.transport.post("ucinewgame");
     this.transport.post(`setoption name MultiPV value ${Math.max(1, Math.min(5, opts.multipv))}`);
     this.transport.post(`position fen ${opts.fen}`);
     this.transport.post("isready");

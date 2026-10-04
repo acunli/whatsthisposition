@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, type ReactNode } from "react";
 import { ALL_SQUARES, fileIndex, isLightSquare, rankIndex } from "@/lib/chess/board";
 import { pieceToChar } from "@/lib/chess/fen";
 import type { Color, Placement, Square } from "@/lib/chess/types";
@@ -24,6 +24,8 @@ export interface BoardStageProps {
   revealKey?: string | number;
   dimPieces?: boolean;
   className?: string;
+  /** An icon pinned to a square's top-right corner (e.g. a move-classification badge). */
+  stamp?: { sq: Square; node: ReactNode; key: string } | null;
 }
 
 const col = (sq: Square, o: Color) => (o === "w" ? fileIndex(sq) : 7 - fileIndex(sq));
@@ -215,6 +217,11 @@ function BoardStageImpl(props: BoardStageProps) {
             {b.text}
           </span>
         ))}
+        {props.stamp && (
+          <span key={`stamp-${props.stamp.key}`} className="bs-stamp" style={{ left: `${(col(props.stamp.sq, o) + 1) * 12.5}%`, top: `${row(props.stamp.sq, o) * 12.5}%` }}>
+            {props.stamp.node}
+          </span>
+        )}
         {uncertain?.map((sq) => (
           <span key={`u-${sq}`} className="bs-unsure" style={{ left: `${col(sq, o) * 12.5}%`, top: `${row(sq, o) * 12.5}%` }}>
             <b>?</b>

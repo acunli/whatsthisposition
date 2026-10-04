@@ -2,12 +2,13 @@
 
 import type { EngineLine } from "@/lib/engine/client";
 import type { Evaluation } from "@/lib/engine/score";
-import { classifyLoss } from "@/lib/deep/deep";
+import { classification } from "@/lib/deep/deep";
+import { lossClass } from "@/lib/review/classify";
 import type { InsightPoint, MoveInsight, WhyNot } from "@/lib/facts/explain";
 import type { Marks } from "@/lib/facts/types";
 import { buildVariation, formatLine } from "@/lib/variation";
 import { EvalChip, EvidenceTag } from "./bits";
-import { DeepCard } from "./DeepCard";
+import { ClassBadge, DeepCard } from "./DeepCard";
 import type { DeepEntry } from "./useAnalysis";
 
 export interface LineRef {
@@ -157,10 +158,7 @@ function WhyCard({
         <h3>
           {why.kind === "whynot" && why.data ? (
             <>
-              <span className={`cls cls-${classifyLoss(why.data.loss).kind}`}>
-                {classifyLoss(why.data.loss).symbol && <b>{classifyLoss(why.data.loss).symbol}</b>}
-                {classifyLoss(why.data.loss).label}
-              </span>{" "}
+              <ClassBadge d={{ classification: classification(lossClass(why.data.bestEval, why.data.candidateEval, why.data.move.color)) }} />{" "}
               Why not {why.data.move.san}?
             </>
           ) : (

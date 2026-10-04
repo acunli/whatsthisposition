@@ -3,7 +3,7 @@
  * static snapshot. Given the move's own engine line and the other candidate lines,
  * it runs a few extra searches to answer the questions a coach would:
  *
- *  - How good is it compared with the alternatives? (classification, "only move")
+ *  - How good is it compared with the alternatives? (the same labels as game review)
  *  - Does it offer material, and what happens if the opponent takes? (sacrifice lines)
  *  - What does it threaten if the opponent ignores it? (null-move search)
  *  - Where does the line go, and what are the key moments? (walk the PV)
@@ -20,6 +20,7 @@ import { enPrise, makeCtx } from "../facts/context";
 import { materialSwing, staticMovePoints, type InsightPoint } from "../facts/explain";
 import { materialSummary } from "../facts/material";
 import { emptyMarks, type Marks, type Tone } from "../facts/types";
+import { ANNOTATION, CLASS_INFO, classifyCandidate, type MoveClass } from "../review/classify";
 import { buildVariation, type VariationMove } from "../variation";
 
 export interface SearchRequest {
@@ -27,6 +28,7 @@ export interface SearchRequest {
   depth: number;
   multipv?: number;
   searchmoves?: string[];
+  fresh?: boolean;
 }
 
 /** Anything that can run a search: the browser worker, or the Node engine in tests. */
@@ -38,13 +40,14 @@ export interface LineInput {
   depth: number;
 }
 
-export type ClassKind = "brilliant" | "only" | "great" | "best" | "good" | "inaccuracy" | "mistake" | "blunder";
-
 export interface Classification {
-  kind: ClassKind;
+  kind: MoveClass;
   symbol: string;
   label: string;
 }
+
+/** `symbol` is the annotation mark ("!!", "?" …), empty for plain good moves. */
+export const classification = (kind: MoveClass): Classification => ({ kind, symbol: ANNOTATION[kind] ?? "", label: CLASS_INFO[kind].label });
 
 export interface Offer {
   /** The capture the opponent could make. */
@@ -141,21 +144,6 @@ function materialWords(diff: number): string {
   if (n === 5) return "a rook";
   if (n === 9) return "a queen";
   return `${n} points of material`;
-}
-
-export function classify(best: boolean, gapToNext: number | null, sacrifice: boolean, moverEval: number): Classification {
-  if (best && sacrifice && moverEval > -50 && moverEval < 900) return { kind: "brilliant", symbol: "!!", label: "Brilliant" };
-  if (best && gapToNext !== null && gapToNext >= 150) return { kind: "only", symbol: "!", label: "Only move" };
-  if (best && gapToNext !== null && gapToNext >= 60) return { kind: "great", symbol: "!", label: "Great move" };
-  if (best) return { kind: "best", symbol: "", label: "Best move" };
-  return { kind: "good", symbol: "", label: "Good move" };
-}
-
-export function classifyLoss(loss: number): Classification {
-  if (loss < 30) return { kind: "good", symbol: "", label: "About as good" };
-  if (loss < 80) return { kind: "inaccuracy", symbol: "?!", label: "Inaccuracy" };
-  if (loss < 200) return { kind: "mistake", symbol: "?", label: "Mistake" };
-  return { kind: "blunder", symbol: "??", label: "Blunder" };
 }
 
 export interface DeepOptions {
@@ -304,7 +292,6 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
 
   // 3. The line itself: key moments and where it ends up.
   const moments = notable(dv.moves, 1, 4, 0);
-  const swing = materialSwing(fen, deepPv, mover, 14);
   const startDiff = materialSummary(placementFromFen(fen)).diff;
   // Measure material at a settled point: the last ply (up to 14) not in the middle of an exchange.
   let settle = Math.min(dv.moves.length, 14);
@@ -343,11 +330,11 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
     };
   }
 
-  const sacrifice = offers.some((o) => o.poisoned && !o.existing) || (swing.swing < 0 && evalFor(line.eval, mover) > -50);
-  const moverEval = clampCp(evalFor(line.eval, mover));
-  let classification: Classification;
-  if (opts.isBest) classification = classify(true, comparison ? comparison.gap : null, sacrifice, moverEval);
-  else classification = opts.bestLine ? classifyLoss(Math.max(0, gap(opts.bestLine.eval, line.eval, mover))) : classify(false, null, false, moverEval);
+  // Same labelling rules as game review: expected-score bands, and Brilliant only for a real (exchange-checked) sacrifice.
+  const bestRef = opts.isBest ? line : (opts.bestLine ?? line);
+  const secondRef = opts.isBest ? (alts[0] ?? null) : null;
+  const cls = classifyCandidate(fen, line, bestRef, secondRef)?.cls ?? (opts.isBest ? "best" : "good");
+  const cl = classification(cls);
 
   const poisoned = offers.find((o) => o.poisoned && !o.existing);
   const moverName = COLOR_NAME[mover];
@@ -355,9 +342,9 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
   if (m.san.includes("#")) headline = `${m.san} is checkmate.`;
   else if (line.eval.kind === "mate" && line.eval.winner === mover) headline = `${m.san} forces mate in ${line.eval.moves}.`;
   else if (poisoned)
-    headline = `${m.san} offers the ${PIECE_NAME[poisoned.captured]} on ${poisoned.capturedOn}, but taking it walks into ${poisoned.sans[1] ?? "a strong reply"}. ${classification.kind === "brilliant" ? "A real sacrifice." : ""}`.trim();
+    headline = `${m.san} offers the ${PIECE_NAME[poisoned.captured]} on ${poisoned.capturedOn}, but taking it walks into ${poisoned.sans[1] ?? "a strong reply"}. ${cl.kind === "brilliant" ? "A real sacrifice." : ""}`.trim();
   else if (threat) headline = `${m.san} sets up a threat: ${threat.san}.`;
-  else if (classification.kind === "only") headline = `${m.san} is the only move that keeps ${moverName}'s advantage.`;
+  else if (cl.kind === "great" && comparison && comparison.gap >= 150) headline = `${m.san} is the only move that keeps ${moverName}'s chances.`;
   else headline = points.find((p) => p.tone === "opportunity")?.text ?? `${m.san} improves ${moverName}'s position; the point shows up later in the line.`;
 
   const r = dv.moves[1];
@@ -375,7 +362,7 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
     mover,
     eval: line.eval,
     depth: line.depth,
-    classification,
+    classification: cl,
     headline,
     points: cleanedPoints,
     offers,

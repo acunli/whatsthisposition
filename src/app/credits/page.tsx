@@ -30,9 +30,23 @@ export default function Credits() {
           each is drawn are documented in <code>docs/position-understanding.md</code>.
         </p>
 
+        <h2>Game review</h2>
+        <p>
+          Every position of the game is searched by Stockfish in your browser, and each move is judged by how much of the mover&apos;s winning
+          chances it gives up compared with the engine&apos;s best move. The bands follow Chess.com&apos;s published expected-points model, and
+          winning chances use Lichess&apos;s win-percentage curve. <b>Brilliant</b> needs a real sacrifice: material left or put where it can be
+          taken, checked with exchange arithmetic on the board, not guessed from the score. Moves that decide those labels are searched a second
+          time, deeper, before the label is final. Accuracy uses Lichess&apos;s published formula.
+        </p>
+        <p>
+          Games you import from Chess.com or Lichess are fetched through this site from their free public APIs and aren&apos;t stored. The opening
+          book is the Lichess <a href="https://github.com/lichess-org/chess-openings">chess-openings</a> dataset (CC0). The Brilliant and Great
+          checks were informed by <a href="https://github.com/WintrCat/wintrchess">WintrChess</a> (GPL-3.0); our version is written independently.
+        </p>
+
         <h2>Privacy</h2>
         <p>
-          Analysis runs entirely in your browser. If you upload a photo, it goes to this site&apos;s server and on to the configured vision API (the NUS SoCLaaS gateway, or Anthropic&apos;s API)
+          Analysis and game review run entirely in your browser. If you upload a photo, it goes to this site&apos;s server and on to the configured vision API (the NUS SoCLaaS gateway, or Anthropic&apos;s API)
           to read the pieces. It&apos;s held in memory for that request only, and WhatsThisPosition doesn&apos;t store it. FEN and hand
           setup never leave your device.
         </p>

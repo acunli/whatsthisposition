@@ -97,3 +97,43 @@ show and animate, with honest evidence behind it.
 
 Every item is tagged **Board fact** (rules), **Engine** (Stockfish), or **Idea**
 (interpretation). Nothing splits the evaluation into invented percentages.
+
+## Game review: how moves are labelled
+
+The game review labels every move the way Chess.com's Game Review does, using rules that work for any game. We studied the open-source projects and published formulas below, then implemented our own version (`src/lib/review/`).
+
+### Sources
+
+- **Chess.com, "How are moves classified?"** (help article). This is the expected-points model: a move is judged by how much of the mover's expected score it loses compared with the best move. The bands are Best 0, Excellent < 0.02, Good < 0.05, Inaccuracy < 0.10, Mistake < 0.20, Blunder ≥ 0.20, plus the special labels Brilliant (a good sacrifice), Great (the only good move, critical), Miss (failing to punish an error), Book and Forced. We use the same bands.
+- **Lichess.** The win-percentage curve `50 + 50·(2/(1+e^(−0.00368208·cp)) − 1)`, the move-accuracy formula `103.1668·e^(−0.04354·Δ) − 3.1669`, and game accuracy as the mean of a volatility-weighted mean and a harmonic mean (lichess.org/page/accuracy and lila's `AccuracyPercent`).
+- **lichess-org/chess-openings** (CC0). This is the opening book: 3,863 named lines, which give 7,976 positions counting every position along each line.
+- **WintrChess** (github.com/WintrCat/wintrchess, GPL-3.0). We studied its Brilliant and Great logic:
+  - pieces left "unsafe";
+  - pieces that were already trapped;
+  - "danger levels" (taking the piece lets the taker be hit by something equal or bigger);
+  - candidate gating (not when already winning, not when in check, not on a queen promotion).
+  We reimplemented the ideas independently and changed the method: exchanges are scored by static exchange evaluation (SEE) with x-rays, and only legal first captures count.
+- **freechess** (github.com/WintrCat/freechess). Read for orientation only. Its CC BY-NC-SA licence is incompatible with ours, so none of it is used.
+
+### What we changed or added
+
+| Problem seen in testing | Rule |
+| --- | --- |
+| Shallow searches misjudge sacrifices and "blunders" (depth 14 calls the Immortal Game's 19.e5 a blunder; depth 18 calls it an inaccuracy) | Two passes: every position next to a Brilliant, Great, Mistake, Miss or Blunder is searched again 4 plies deeper |
+| Labels changed from run to run with several engine workers | `ucinewgame` before every search, so results don't depend on hash contents |
+| A piece left hanging two moves running was "sacrificed" twice (Kasparov–Topalov 29…Bb7) | Pieces the opponent could already take on their last turn don't count as a new sacrifice |
+| Miss isn't defined by WintrChess | Miss: a Mistake or Blunder right after the opponent's Mistake, Blunder or Miss that doesn't leave the mover worse off than before that error (within 2%) |
+| One position analysed in "deep" mode got different labels from the same move in a game | Single-position analysis uses the same classifier (`classifyCandidate`) |
+
+### Explanations
+
+Each label has a template, filled only with verified facts and engine lines.
+
+- **Brilliant:** names the pieces offered, then shows what happens if they're taken (or that taking is too dangerous) from the reply line.
+- **Great:** what the next best move would cost.
+- **Errors:** the opponent's punishing reply and what it does on the board, the material swing along the line, and "Better was …" with its reason. The better line can be played out on the board.
+- **Book:** the opening name and ECO code.
+
+### Test set
+
+The same code is run on unrelated games, with no game-specific logic: Morphy's Opera Game, Byrne–Fischer 1956, Anderssen–Kieseritzky 1851, Kasparov–Topalov 1999, the Blackburne Shilling trap, and a 43.g4 test position.

@@ -1,11 +1,13 @@
 /**
- * Runs the real Stockfish build on the owner's reference position, where 43.g4!! is a
- * pawn sacrifice: ...Qxg4+ runs into Kh1 and the g-file opens for White's rooks.
+ * Runs the real Stockfish build on a test position where 43.g4!! is a pawn
+ * sacrifice: ...Qxg4+ runs into Kh1 and the g-file opens for White's rooks.
+ * (Game review is tested on several unrelated games in src/lib/review.)
  */
 import { createRequire } from "node:module";
 import { beforeAll, describe, expect, it } from "vitest";
 import { EngineClient } from "../engine/client";
-import { analyzeMoveDeep, classify, classifyLoss, type Searcher } from "./deep";
+import { lossClass } from "../review/classify";
+import { analyzeMoveDeep, classification, type Searcher } from "./deep";
 
 const require = createRequire(import.meta.url);
 const FEN = "7r/1pp1nk2/2n2p2/1bPp2q1/3P3p/rPB2RP1/5Q1P/2NBR1K1 w - - 3 43";
@@ -38,15 +40,12 @@ describe("deep move understanding", () => {
 });
 
 describe("classification", () => {
-  it("labels moves by gap and sacrifice", () => {
-    expect(classify(true, 20, true, 250).kind).toBe("brilliant");
-    expect(classify(true, 200, false, 100).kind).toBe("only");
-    expect(classify(true, 80, false, 100).kind).toBe("great");
-    expect(classify(true, 10, false, 100).kind).toBe("best");
-    expect(classify(true, 10, true, 1200).kind).toBe("best"); // already crushing: not a "brilliancy"
-    expect(classifyLoss(10).kind).toBe("good");
-    expect(classifyLoss(60).symbol).toBe("?!");
-    expect(classifyLoss(150).symbol).toBe("?");
-    expect(classifyLoss(400).symbol).toBe("??");
+  it("uses the game-review labels and annotation marks", () => {
+    const cp = (n: number) => ({ kind: "cp" as const, cp: n });
+    expect(classification(lossClass(cp(30), cp(25), "w")).label).toBe("Best");
+    expect(classification(lossClass(cp(30), cp(-30), "w")).symbol).toBe("?!");
+    expect(classification(lossClass(cp(30), cp(-150), "w")).symbol).toBe("?");
+    expect(classification(lossClass(cp(30), cp(-400), "w")).symbol).toBe("??");
+    expect(classification("brilliant").symbol).toBe("!!");
   });
 });

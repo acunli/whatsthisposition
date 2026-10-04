@@ -310,6 +310,8 @@ export function explainMove(fen: string, line: LineContext): WhyThis | null {
 export interface WhyNot {
   move: MoveInsight;
   loss: number;
+  bestEval: Evaluation;
+  candidateEval: Evaluation;
   verdict: string;
   refutation?: MoveInsight;
   engine: InsightPoint[];
@@ -352,7 +354,7 @@ export function explainWhyNot(fen: string, best: LineContext, candidateLine: Lin
   const refutation = reply
     ? { san: reply.san, uci: reply.uci, color: reply.color, points: staticMovePoints(reply).slice(0, 3) }
     : undefined;
-  return { move, loss, verdict, refutation, engine };
+  return { move, loss, bestEval: best.eval, candidateEval: candidateLine.eval, verdict, refutation, engine };
 }
 
 export function evalFromMoverView(e: Evaluation, mover: Color) {

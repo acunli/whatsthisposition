@@ -1,6 +1,8 @@
 "use client";
 
 import type { DeepMove } from "@/lib/deep/deep";
+import { CLASS_INFO } from "@/lib/review/classify";
+import { ClassIcon } from "../review/ClassIcon";
 import type { Marks } from "@/lib/facts/types";
 import { EvalChip, EvidenceTag, sideName } from "./bits";
 import type { DeepEntry } from "./useAnalysis";
@@ -14,9 +16,10 @@ interface Props {
 }
 
 export function ClassBadge({ d }: { d: Pick<DeepMove, "classification"> }) {
+  const k = d.classification.kind;
   return (
-    <span className={`cls cls-${d.classification.kind}`}>
-      {d.classification.symbol && <b>{d.classification.symbol}</b>}
+    <span className="cls" style={{ ["--cls" as string]: CLASS_INFO[k].color }}>
+      <ClassIcon cls={k} size={16} />
       {d.classification.label}
     </span>
   );

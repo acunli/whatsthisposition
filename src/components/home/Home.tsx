@@ -4,17 +4,20 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BoardStage } from "../BoardStage";
 import { parseFen, placementFromFen, validateSetup } from "@/lib/chess/fen";
-import type { PositionSetup } from "@/lib/chess/types";
+import type { Color, PositionSetup } from "@/lib/chess/types";
+import { PgnError, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
+import { GameImport } from "../review/GameImport";
 import { computeFacts } from "@/lib/facts";
 import { buildLedger } from "@/lib/facts/ledger";
 import { buildTour } from "@/lib/facts/tour";
 import { Concepts } from "./Concepts";
+import { Labels } from "./Labels";
 import { Story } from "./Story";
 
 const Hero3D = dynamic(() => import("./Hero3D"), { ssr: false });
 
+/** Teaching positions for single-position analysis (games are reviewed from GameImport). */
 export const SAMPLES = [
-  { name: "The g4 brilliancy", fen: "7r/1pp1nk2/2n2p2/1bPp2q1/3P3p/rPB2RP1/5Q1P/2NBR1K1 w - - 3 43" },
   { name: "Isolated queen's pawn", fen: "r1bq1rk1/pp2bppp/2n1pn2/8/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10" },
   { name: "Is e5 free?", fen: "r1bqkbnr/pppp1ppp/8/4p3/2BnP3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4" },
   { name: "Outside passer", fen: "8/5pk1/6p1/1P6/8/6P1/5PK1/8 w - - 0 1" },
@@ -24,6 +27,7 @@ const HERO_FEN = "r2q1rk1/1b2bppp/p2p1n2/1p2p3/4P3/1BN2N2/PPP2PPP/R2Q1RK1 w - - 
 const HERO_STEP_MS = 4200;
 
 interface Props {
+  onGame: (game: ParsedGame, orientation?: Color) => void;
   onPhoto: (file: File) => void;
   onFen: (setup: PositionSetup, complete: boolean) => void;
   onHand: () => void;
@@ -60,6 +64,11 @@ function useReducedMotion() {
 }
 
 const TICKER = [
+  "Brilliant moves",
+  "Blunders",
+  "Missed wins",
+  "Book moves",
+  "Accuracy",
   "Hanging pieces",
   "Pins & skewers",
   "Forks",
@@ -71,13 +80,13 @@ const TICKER = [
   "King danger",
   "Open files",
   "Space",
-  "Brilliant moves",
   "Only moves",
   "Plans for both sides",
 ];
 
-export function Home({ onPhoto, onFen, onHand, onSample }: Props) {
+export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
   const [drag, setDrag] = useState(false);
+  const [dropError, setDropError] = useState<string | null>(null);
   const [fen, setFen] = useState("");
   const [fenError, setFenError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -121,6 +130,26 @@ export function Home({ onPhoto, onFen, onHand, onSample }: Props) {
   };
 
   const pick = () => input.current?.click();
+  const dockRef = useRef<HTMLDivElement>(null);
+  const toImport = () => {
+    dockRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+    dockRef.current?.querySelector<HTMLInputElement>("input, textarea")?.focus({ preventScroll: true });
+  };
+
+  /** A dropped .pgn is reviewed; a dropped image is read as a board photo. */
+  const dropFile = async (f: File) => {
+    setDropError(null);
+    if (f.type.startsWith("image/")) return onPhoto(f);
+    if (/\.pgn$|\.txt$/i.test(f.name) || f.type.startsWith("text/")) {
+      try {
+        onGame(parseFirstGame(await f.text()));
+      } catch (e) {
+        setDropError(e instanceof PgnError ? e.message : "That file couldn't be read as a game.");
+      }
+      return;
+    }
+    setDropError("Drop a board photo (JPEG, PNG, WebP) or a .pgn file.");
+  };
 
   return (
     <>
@@ -146,11 +175,12 @@ export function Home({ onPhoto, onFen, onHand, onSample }: Props) {
             engine <em>sees.</em>
           </h1>
           <p className="hero-lede">
-            Snap any chess position. <span className="hl-red">Threats</span> flash red, <span className="hl-gold">strong pieces</span> light up their squares,{" "}
-            <span className="hl-red">weaknesses</span> crack open, and every brilliant move is explained from the engine&apos;s own lines.
+            Review any game from Chess.com, Lichess or a PGN: every move is labelled from <span className="hl-gold">Brilliant</span> to <span className="hl-red">Blunder</span> and explained
+            from Stockfish&apos;s own lines. Then open any position and watch threats flash red and strong pieces light up.
           </p>
 
           <div
+            ref={dockRef}
             className={drag ? "dock dock-on" : "dock"}
             onDragOver={(e) => {
               e.preventDefault();
@@ -161,48 +191,56 @@ export function Home({ onPhoto, onFen, onHand, onSample }: Props) {
               e.preventDefault();
               setDrag(false);
               const f = e.dataTransfer.files[0];
-              if (f) onPhoto(f);
+              if (f) void dropFile(f);
             }}
           >
-            <button className="btn btn-gold btn-xl" onClick={pick}>
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-                <circle cx="12" cy="13" r="3.5" />
-              </svg>
-              Upload a board photo
-            </button>
-            <form
-              className="dock-fen"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitFen();
-              }}
-            >
-              <input className="input" placeholder="or paste a FEN…" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
-              <button className="btn" disabled={!fen.trim()}>
-                Analyze →
-              </button>
-            </form>
-            <input
-              ref={input}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onPhoto(f);
-              }}
-            />
-            {fenError && <p className="hero-issue">{fenError}</p>}
-            <div className="dock-row">
-              <button className="chip" onClick={onHand}>
-                ✎ Set up a board
-              </button>
-              {SAMPLES.map((s) => (
-                <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
-                  {s.name}
+            <GameImport onGame={onGame} />
+            {dropError && <p className="hero-issue">{dropError}</p>}
+
+            <div className="dock-alt">
+              <span className="eyebrow">Or analyse one position</span>
+              <div className="dock-alt-row">
+                <button className="btn" onClick={pick}>
+                  <svg viewBox="0 0 24 24" aria-hidden>
+                    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                    <circle cx="12" cy="13" r="3.5" />
+                  </svg>
+                  Board photo
                 </button>
-              ))}
+                <form
+                  className="dock-fen"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    submitFen();
+                  }}
+                >
+                  <input className="input" placeholder="paste a FEN…" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
+                  <button className="btn" disabled={!fen.trim()}>
+                    Analyse →
+                  </button>
+                </form>
+              </div>
+              <input
+                ref={input}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onPhoto(f);
+                }}
+              />
+              {fenError && <p className="hero-issue">{fenError}</p>}
+              <div className="dock-row">
+                <button className="chip" onClick={onHand}>
+                  ✎ Set up a board
+                </button>
+                {SAMPLES.map((s) => (
+                  <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -239,7 +277,9 @@ export function Home({ onPhoto, onFen, onHand, onSample }: Props) {
         </div>
       </div>
 
-      <Story onTry={() => onSample(SAMPLES[0].fen)} />
+      <Labels />
+
+      <Story onTry={onSample} />
 
       <section className="section">
         <div className="section-head">
@@ -256,19 +296,19 @@ export function Home({ onPhoto, onFen, onHand, onSample }: Props) {
 
       <section className="cta">
         <h2 className="h-cta">
-          Your position.
+          Your game.
           <br />
           <em>Explained.</em>
         </h2>
         <div className="row" style={{ justifyContent: "center" }}>
-          <button className="btn btn-gold btn-xl" onClick={pick}>
+          <button className="btn btn-gold btn-xl" onClick={toImport}>
+            Review a game
+          </button>
+          <button className="btn btn-xl btn-ghost" onClick={pick}>
             Upload a board photo
           </button>
-          <button className="btn btn-xl btn-ghost" onClick={onHand}>
-            Set up a board
-          </button>
         </div>
-        <p className="dock-note">Photos are read on our server and never stored. The engine runs on your device.</p>
+        <p className="dock-note">Games and photos are never stored. The engine runs on your device.</p>
       </section>
     </>
   );
