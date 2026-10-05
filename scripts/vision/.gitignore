@@ -1,0 +1,12 @@
+# Downloaded and generated training assets
+sets/
+png/
+boards/
+samples/
+test/
+venv/
+*.pt
+*.bin
+*.json
+sets.cfg
+boards.cfg

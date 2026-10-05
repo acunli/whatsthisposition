@@ -5436,3 +5436,62 @@ em {
     transition: none;
   }
 }
+
+/* On-device board reading */
+.found-box {
+  position: absolute;
+  border: 2px solid rgb(var(--lime));
+  box-shadow: 0 0 0 9999px rgb(0 0 0 / 0.35), 0 0 24px rgb(var(--lime) / 0.5);
+  background-image:
+    linear-gradient(90deg, rgb(var(--lime) / 0.55) 1px, transparent 1px),
+    linear-gradient(0deg, rgb(var(--lime) / 0.55) 1px, transparent 1px);
+  background-size: 12.5% 12.5%;
+  pointer-events: none;
+  animation: found-in 0.6s var(--ease-out) both;
+}
+
+@keyframes found-in {
+  from {
+    opacity: 0;
+    transform: scale(1.04);
+  }
+}
+
+.orient-guess {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  color: var(--bone-2);
+}
+
+.orient-unsure {
+  color: rgb(var(--gold));
+  font-weight: 600;
+}
+
+.cloud-reader {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--slab);
+}
+
+.cloud-reader summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--bone-2);
+}
+
+.cloud-reader[open] {
+  display: grid;
+  gap: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .found-box {
+    animation: none;
+  }
+}

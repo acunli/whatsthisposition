@@ -1,0 +1,16 @@
+[
+ {
+  "file": "ui_flipped.rgba.gz",
+  "w": 708,
+  "h": 568,
+  "fen": "r5k1/5ppp/p1pb4/1qp5/5P2/1PBP2Q1/P1P3PP/4R2K b - - 0 1",
+  "flipped": true
+ },
+ {
+  "file": "plain_white.rgba.gz",
+  "w": 352,
+  "h": 352,
+  "fen": "r1bq1rk1/pp2bppp/2n1pn2/8/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10",
+  "flipped": false
+ }
+]

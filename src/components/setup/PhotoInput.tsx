@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { gridToPlacement, type Recognition, type RecognitionError, type RecognitionResponse } from "@/lib/vision/grid";
 import type { Placement, Square } from "@/lib/chess/types";
+import type { BoardGrid } from "@/lib/vision/local/detect";
+import { loadSquareNets } from "@/lib/vision/local/loader";
+import { recognizeLocalAsync, toRecognition } from "@/lib/vision/local/recognize";
 
 interface Props {
   onRecognized: (placement: Placement, uncertain: Square[], notes: string, whiteAtBottom: boolean) => void;
@@ -12,6 +15,8 @@ interface Props {
 }
 
 type Stage = "empty" | "crop" | "reading" | "done" | "error";
+/** How the board was read: on this device, or by the cloud vision model. */
+type Reader = "local" | "cloud";
 interface Crop {
   x: number;
   y: number;
@@ -58,6 +63,19 @@ function rotateToCanvas(img: HTMLImageElement, deg: number): HTMLCanvasElement {
   return c;
 }
 
+function cropToCanvas(src: HTMLCanvasElement, crop: Crop): HTMLCanvasElement {
+  const out = document.createElement("canvas");
+  out.width = Math.max(8, Math.round(crop.w * src.width));
+  out.height = Math.max(8, Math.round(crop.h * src.height));
+  out.getContext("2d")!.drawImage(src, crop.x * src.width, crop.y * src.height, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+
+function rasterOf(c: HTMLCanvasElement) {
+  const d = c.getContext("2d", { willReadFrequently: true })!.getImageData(0, 0, c.width, c.height);
+  return { width: c.width, height: c.height, data: d.data };
+}
+
 function cropToBlob(src: HTMLCanvasElement, crop: Crop): Promise<Blob> {
   const sx = crop.x * src.width;
   const sy = crop.y * src.height;
@@ -83,6 +101,12 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
   const [whiteAtBottom, setWhiteAtBottom] = useState<boolean | null>(null);
   const [rows, setRows] = useState<Recognition["rows"] | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [reader, setReader] = useState<Reader>("local");
+  const [found, setFound] = useState<(BoardGrid & { w: number; h: number }) | null>(null);
+  const [orientationSure, setOrientationSure] = useState(true);
+  const [readConfidence, setReadConfidence] = useState(1);
+  const [progress, setProgress] = useState(0);
+  const [cropNote, setCropNote] = useState<string | null>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -112,35 +136,6 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
     setPreview(c.toDataURL("image/jpeg", 0.85));
   }, []);
 
-  const accept = async (file: File | undefined) => {
-    if (!file) return;
-    setError(null);
-    if (!file.type.startsWith("image/")) {
-      setError("That isn't an image file. Use a JPEG, PNG or WebP photo or screenshot.");
-      setStage("error");
-      return;
-    }
-    try {
-      imgRef.current = await loadImage(file);
-      setQuarter(0);
-      setFine(0);
-      setCrop({ x: 0.04, y: 0.04, w: 0.92, h: 0.92 });
-      render(0);
-      setStage("crop");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't open the image.");
-      setStage("error");
-    }
-  };
-
-  useEffect(() => {
-    if (!initialFile) return;
-    // Defer so the handed-over file is processed outside the effect body.
-    queueMicrotask(() => void accept(initialFile));
-    onInitialConsumed?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for the handed-over file
-  }, [initialFile]);
-
   const rotate = (q: number, f: number) => {
     setQuarter(q);
     setFine(f);
@@ -148,9 +143,50 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
     render(q * 90 + f);
   };
 
-  const read = async () => {
+  const apply = (r: Recognition["rows"], wab: boolean, notes: string) => {
+    setRows(r);
+    setWhiteAtBottom(wab);
+    const { placement, uncertain } = gridToPlacement(r, wab);
+    onRecognized(placement, uncertain, notes, wab);
+    setStage("done");
+  };
+
+  /**
+   * Reads the board on this device. With no crop, the board is found automatically;
+   * if it can't be found, the cropper opens. With a crop, the crop is read.
+   */
+  const readLocal = async (useCrop: Crop | null) => {
+    if (!canvasRef.current) return;
+    setStage("reading");
+    setError(null);
+    setCropNote(null);
+    setProgress(0);
+    try {
+      const src = useCrop ? cropToCanvas(canvasRef.current, useCrop) : canvasRef.current;
+      const net = await loadSquareNets();
+      const rec = await recognizeLocalAsync(rasterOf(src), net, { onProgress: setProgress });
+      if (!useCrop && !rec.detected) {
+        setFound(null);
+        setCropNote("Couldn't find the board's edges automatically. Drag the frame onto the board, then read it.");
+        setStage("crop");
+        return;
+      }
+      setReader("local");
+      setFound(useCrop ? null : { ...rec.grid, w: src.width, h: src.height });
+      setOrientationSure(rec.orientationSure);
+      setReadConfidence(rec.confidence);
+      apply(toRecognition(rec).rows, rec.whiteAtBottom, "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The board couldn't be read.");
+      setStage("error");
+    }
+  };
+
+  /** Fallback: send the crop to the configured cloud vision model (needs an API key on the server). */
+  const readCloud = async () => {
     if (!canvasRef.current || whiteAtBottom === null) return;
     setStage("reading");
+    setProgress(0);
     setError(null);
     const ac = new AbortController();
     abortRef.current = ac;
@@ -165,10 +201,11 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
         setStage("error");
         return;
       }
-      setRows(json.rows);
-      const { placement, uncertain } = gridToPlacement(json.rows, whiteAtBottom);
-      onRecognized(placement, uncertain, json.notes, whiteAtBottom);
-      setStage("done");
+      setReader("cloud");
+      setFound(null);
+      setOrientationSure(true);
+      setReadConfidence(1);
+      apply(json.rows, whiteAtBottom, json.notes);
     } catch (e) {
       if (ac.signal.aborted) {
         setStage("crop");
@@ -178,6 +215,35 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
       setStage("error");
     }
   };
+
+  const accept = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    if (!file.type.startsWith("image/")) {
+      setError("That isn't an image file. Use a JPEG, PNG or WebP photo or screenshot.");
+      setStage("error");
+      return;
+    }
+    try {
+      imgRef.current = await loadImage(file);
+      setQuarter(0);
+      setFine(0);
+      setCrop({ x: 0.04, y: 0.04, w: 0.92, h: 0.92 });
+      render(0);
+      await readLocal(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open the image.");
+      setStage("error");
+    }
+  };
+
+  useEffect(() => {
+    if (!initialFile) return;
+    // Defer so the handed-over file is processed outside the effect body.
+    queueMicrotask(() => void accept(initialFile));
+    onInitialConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once for the handed-over file
+  }, [initialFile]);
 
   // Crop box dragging (move or resize from a corner), in fractions of the preview.
   const startDrag = (mode: "move" | "nw" | "ne" | "sw" | "se") => (e: React.PointerEvent) => {
@@ -229,19 +295,13 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
     setPreview(null);
     setRows(null);
     setWhiteAtBottom(null);
+    setFound(null);
+    setCropNote(null);
     setStage("empty");
     setError(null);
   };
 
-  if (configured === false) {
-    return (
-      <div className="pane">
-        <div className="notice">
-          <b>Photo reading isn&apos;t set up on this server.</b> It needs a vision API key: put your key in <code>SOCLAAS_API_KEY</code> in <code>.env.local</code> and restart the server. Meanwhile, paste a FEN or set up the position by hand. Both work fully offline.
-        </div>
-      </div>
-    );
-  }
+  const sideAtBottom = whiteAtBottom ? "White" : "Black";
 
   return (
     <div className="pane">
@@ -270,15 +330,14 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
             </svg>
           </span>
           <span>
-            <span className="drop-title">Drop a photo or screenshot</span>
-            <span className="drop-sub">or tap to choose · JPEG, PNG, WebP</span>
+            <span className="drop-title">Drop a screenshot or photo</span>
+            <span className="drop-sub">Chess.com, Lichess or any app · JPEG, PNG, WebP · the board is found automatically</span>
           </span>
           <span />
           <input
             ref={inputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            capture="environment"
             hidden
             onChange={(e) => void accept(e.target.files?.[0])}
           />
@@ -289,7 +348,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
         <>
           <div className="cropper" ref={boxRef}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="Your photo" draggable={false} />
+            <img src={preview} alt="Your picture" draggable={false} />
             {stage === "crop" && (
               <div
                 className="crop-box"
@@ -302,17 +361,29 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
                 ))}
               </div>
             )}
+            {stage === "done" && found && (
+              <div
+                className="found-box"
+                aria-hidden
+                style={{
+                  left: `${(found.x / found.w) * 100}%`,
+                  top: `${(found.y / found.h) * 100}%`,
+                  width: `${((found.cellW * 8) / found.w) * 100}%`,
+                  height: `${((found.cellH * 8) / found.h) * 100}%`,
+                }}
+              />
+            )}
             {stage === "reading" && (
               <div className="reading">
                 <span className="scanline" aria-hidden />
-                <span>Reading 64 squares…</span>
+                <span>{progress > 0 ? `Reading squares… ${progress}/64` : reader === "cloud" ? "Asking the AI reader…" : "Finding the board…"}</span>
               </div>
             )}
           </div>
 
           {stage === "crop" && (
             <>
-              <p className="field-note">Drag the frame to the board&apos;s edges. The grid should line up with the squares.</p>
+              <p className="field-note">{cropNote ?? "Drag the frame to the board's edges. The grid should line up with the squares."}</p>
               <div className="row" style={{ margin: "10px 0 14px" }}>
                 <button className="btn btn-ghost btn-sm" onClick={() => rotate((quarter + 3) % 4, fine)}>
                   ↺ 90°
@@ -326,29 +397,41 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
                   <span className="mono">{fine > 0 ? "+" : ""}{fine}°</span>
                 </label>
               </div>
-              <fieldset className={`field ${whiteAtBottom === null ? "field-required" : ""}`}>
-                <legend className="field-label">Which side is at the bottom of the photo?</legend>
-                <div className="seg-group">
-                  <button className={whiteAtBottom === true ? "seg seg-on" : "seg"} onClick={() => setWhiteAtBottom(true)} aria-pressed={whiteAtBottom === true}>
-                    <span className="side-dot side-w" aria-hidden /> White&apos;s side
-                  </button>
-                  <button className={whiteAtBottom === false ? "seg seg-on" : "seg"} onClick={() => setWhiteAtBottom(false)} aria-pressed={whiteAtBottom === false}>
-                    <span className="side-dot side-b" aria-hidden /> Black&apos;s side
-                  </button>
-                </div>
-              </fieldset>
               <div className="row">
-                <button className="btn btn-gold" disabled={whiteAtBottom === null} onClick={() => void read()}>
+                <button className="btn btn-gold" onClick={() => void readLocal(crop)}>
                   Read the board
                 </button>
                 <button className="btn btn-ghost" onClick={reset}>
-                  Choose another photo
+                  Choose another picture
                 </button>
               </div>
+              {configured && (
+                <details className="cloud-reader">
+                  <summary>A real board photographed at an angle? Try the AI reader</summary>
+                  <p className="small muted">
+                    The on-device reader is built for screenshots and flat diagrams. The AI reader ({provider === "anthropic" ? "Anthropic" : "NUS SoCLaaS"}) can try angled photos of a
+                    real board, but it makes more mistakes, so check every square afterwards.
+                  </p>
+                  <fieldset className={`field ${whiteAtBottom === null ? "field-required" : ""}`}>
+                    <legend className="field-label">Which side is at the bottom of the photo?</legend>
+                    <div className="seg-group">
+                      <button className={whiteAtBottom === true ? "seg seg-on" : "seg"} onClick={() => setWhiteAtBottom(true)} aria-pressed={whiteAtBottom === true}>
+                        <span className="side-dot side-w" aria-hidden /> White&apos;s side
+                      </button>
+                      <button className={whiteAtBottom === false ? "seg seg-on" : "seg"} onClick={() => setWhiteAtBottom(false)} aria-pressed={whiteAtBottom === false}>
+                        <span className="side-dot side-b" aria-hidden /> Black&apos;s side
+                      </button>
+                    </div>
+                  </fieldset>
+                  <button className="btn btn-sm" disabled={whiteAtBottom === null} onClick={() => void readCloud()}>
+                    Send the crop to the AI reader
+                  </button>
+                </details>
+              )}
             </>
           )}
 
-          {stage === "reading" && (
+          {stage === "reading" && reader === "cloud" && (
             <div className="row">
               <button className="btn btn-ghost" onClick={() => abortRef.current?.abort()}>
                 Cancel
@@ -359,26 +442,37 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
           {stage === "done" && (
             <div className="done">
               <p className="pane-text">
-                <b>Board read.</b> Compare it with your photo and fix anything that&apos;s off. Squares marked <b>?</b> were hard to read.
+                <b>Board read{reader === "local" ? " on your device" : " by the AI reader"}.</b>{" "}
+                {readConfidence < 0.85 ? "Some squares were hard to read: they're marked ?. " : ""}
+                Compare it with your picture and tap any square to fix it.
+              </p>
+              <p className={`orient-guess ${orientationSure ? "" : "orient-unsure"}`}>
+                <span className={`side-dot side-${whiteAtBottom ? "w" : "b"}`} aria-hidden />
+                {reader === "local"
+                  ? orientationSure
+                    ? `${sideAtBottom} is at the bottom of the picture, judging by where the pawns and kings stand.`
+                    : `Check the orientation: we guessed ${sideAtBottom} at the bottom, but the position doesn't make it clear.`
+                  : `${sideAtBottom} at the bottom, as you chose.`}
               </p>
               <div className="row" style={{ marginTop: 10 }}>
                 <button
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-sm"
                   onClick={() => {
                     if (!rows || whiteAtBottom === null) return;
                     const flipped = !whiteAtBottom;
                     setWhiteAtBottom(flipped);
+                    setOrientationSure(true);
                     const { placement, uncertain } = gridToPlacement(rows, flipped);
                     onRecognized(placement, uncertain, "", flipped);
                   }}
                 >
-                  Wrong way round? Swap sides
+                  ⇅ Wrong way round? Swap sides
                 </button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setStage("crop")}>
-                  Re-crop and read again
+                  Crop and read again
                 </button>
                 <button className="btn btn-ghost btn-sm" onClick={reset}>
-                  New photo
+                  New picture
                 </button>
               </div>
             </div>
@@ -392,18 +486,19 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
           <div className="row">
             {preview && (
               <button className="btn btn-sm" onClick={() => setStage("crop")}>
-                Adjust and retry
+                Crop and retry
               </button>
             )}
             <button className="btn btn-ghost btn-sm" onClick={reset}>
-              Use a different photo
+              Use a different picture
             </button>
           </div>
         </div>
       )}
 
       <p className="privacy">
-        Your photo is sent to this site&apos;s server and on to {provider === "anthropic" ? "Anthropic's API" : "the NUS SoCLaaS AI gateway"} to read the pieces, then discarded. We don&apos;t save it.
+        Screenshots are read on your device: the picture never leaves your browser. Only if you choose the AI reader is the cropped picture sent through this site&apos;s server to{" "}
+        {provider === "anthropic" ? "Anthropic's API" : "the NUS SoCLaaS gateway"}, then discarded.
       </p>
     </div>
   );
