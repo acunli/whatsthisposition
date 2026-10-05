@@ -208,8 +208,14 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
         const pieceName = saves ? nm(placementFromFen(inp.fen), first.from).replace(/^the /, "") : "";
         ideas.push({
           kind: "parry",
-          phrase: saves ? `gets the ${pieceName.split(" on ")[0]} out of the way of ${th.label}` : th.mates ? `stops the mate threat ${th.label}` : `stops ${th.label}`,
-          text: saves ? `${text} The ${pieceName.split(" on ")[0]} steps away.` : `${text} ${first.san} takes care of it.`,
+          phrase: saves
+            ? first.captured
+              ? `trades off the attacked ${pieceName.split(" on ")[0]} instead of losing it to ${th.label}`
+              : `gets the ${pieceName.split(" on ")[0]} out of the way of ${th.label}`
+            : th.mates
+              ? `stops the mate threat ${th.label}`
+              : `stops ${th.label}`,
+          text: saves ? `${text} ${first.captured ? `The ${pieceName.split(" on ")[0]} takes something with it instead.` : `The ${pieceName.split(" on ")[0]} steps away.`}` : `${text} ${first.san} takes care of it.`,
           tone: "info",
           evidence: "engine",
           weight: th.mates ? 50 : 24 + Math.min(24, th.size / 30),
@@ -268,7 +274,7 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
     label,
     headline: headlineOf(label, ideas),
     ideas,
-    line: line ? narrate(first.fenAfter, line.pv.slice(1), evalAfter, me) : undefined,
+    line: line ? narrate(first.fenAfter, line.pv.slice(1), evalAfter, me, 12, inp.fen) : undefined,
     alternatives,
     opponentThreat,
     refutation,

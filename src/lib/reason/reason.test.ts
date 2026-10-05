@@ -77,3 +77,13 @@ describe("move reasoning with the engine", () => {
     expect(nc2?.refutation?.text).toMatch(/Bxc2, winning a knight/);
   }, 180_000);
 });
+
+describe("line stories count the explained move's own capture", () => {
+  it("doesn't call a bishop-for-knight trade 'a piece down'", () => {
+    // 1.e4 e5 2.Nf3 Nc6 3.Bb5 a6: 4.Bxc6 dxc6 is a trade, not a lost piece.
+    const fen = "r1bqkbnr/1ppp1ppp/p1n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4";
+    const after = buildVariation(fen, ["b5c6"]).moves[0].fenAfter;
+    const story = narrate(after, ["d7c6", "e1g1", "f7f6"], { kind: "cp", cp: 0 }, "w", 12, fen);
+    expect(story?.text).not.toMatch(/piece down/);
+  });
+});

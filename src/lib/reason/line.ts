@@ -11,7 +11,11 @@ export function scoreSheet(moves: VariationMove[]): string {
   return moves.map((m, i) => (m.color === "w" ? `${m.moveNumber}.${m.san}` : i === 0 ? `${m.moveNumber}…${m.san}` : m.san)).join(" ");
 }
 
-export function narrate(fen: string, pv: string[], e: Evaluation, mover: Color, maxPlies = 12): LineStory | undefined {
+/**
+ * @param baseFen where material is counted from (default `fen`): pass the position
+ *   before the move being explained, so a capture by that move counts.
+ */
+export function narrate(fen: string, pv: string[], e: Evaluation, mover: Color, maxPlies = 12, baseFen?: string): LineStory | undefined {
   const v = buildVariation(fen, pv, maxPlies);
   if (!v.moves.length) return undefined;
   // Show about six plies, extended so the line doesn't stop in the middle of an exchange.
@@ -33,7 +37,7 @@ export function narrate(fen: string, pv: string[], e: Evaluation, mover: Color, 
   const mate = moves[moves.length - 1].san.includes("#");
   if (mate) events.push("it's mate");
   else if (settled) {
-    const start = materialSummary(placementFromFen(fen)).diff;
+    const start = materialSummary(placementFromFen(baseFen ?? fen)).diff;
     const endDiff = materialSummary(placementFromFen(moves[moves.length - 1].fenAfter)).diff - start;
     const forMover = mover === "w" ? endDiff : -endDiff;
     if (forMover >= 1) events.push(`${COLOR_NAME[mover]} comes out ${materialWords(forMover)} up`);
