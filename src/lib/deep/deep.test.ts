@@ -34,7 +34,7 @@ describe("deep move understanding", () => {
     expect(offer?.text).toMatch(/the pawn is poisoned/);
     expect(deep!.classification.kind).toBe("brilliant");
     expect(deep!.headline).toMatch(/offers the pawn on g4/);
-    expect(deep!.points.map((p) => p.text).join(" ")).toMatch(/Uncovers the queen on f2: it now hits the pawn on h4|Takes h5 away from the queen on g5/);
+    expect(deep!.points.map((p) => p.text).join(" ")).toMatch(/uncovers the queen on f2, which now hits the h4 pawn|away from the Black queen on g5/);
     expect(deep!.comparison?.san).toBeTruthy();
   }, 170_000);
 });

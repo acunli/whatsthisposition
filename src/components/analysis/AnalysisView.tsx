@@ -6,13 +6,15 @@ import { placementFromFen } from "@/lib/chess/fen";
 import { other, type Color, type Square } from "@/lib/chess/types";
 import type { EngineLine } from "@/lib/engine/client";
 import type { Evaluation } from "@/lib/engine/score";
-import { computeFacts, marksForLenses, type Fact, type LensId, type Marks } from "@/lib/facts";
+import { computeFacts, marksForLenses, mergeMarks, type Fact, type LensId, type Marks } from "@/lib/facts";
 import { buildAdvice } from "@/lib/facts/advice";
 import { threatFact } from "@/lib/facts/engineFacts";
-import { explainWhyNot, staticMovePoints } from "@/lib/facts/explain";
+import { explainWhyNot } from "@/lib/facts/explain";
+import { boardIdeas } from "@/lib/reason/ideas";
 import { buildLedger, labelOf, polarityOf } from "@/lib/facts/ledger";
 import { materialSummary } from "@/lib/facts/material";
 import { findPlans } from "@/lib/facts/plans";
+import { planCard } from "@/lib/plans/cards";
 import { buildTour, type Scene } from "@/lib/facts/tour";
 import { deepScenes } from "@/lib/deep/scenes";
 import { traceSquare } from "@/lib/facts/trace";
@@ -24,6 +26,7 @@ import { LayersPanel } from "./LayersPanel";
 import { LedgerPanel } from "./LedgerPanel";
 import { LinesPanel, type LineRef, type WhyState } from "./LinesPanel";
 import { PlansPanel } from "./PlansPanel";
+import { usePlanTimings } from "./usePlanTimings";
 import { QuizPanel } from "./QuizPanel";
 import { ScanIntro } from "./ScanIntro";
 import { Scoreboard } from "./Scoreboard";
@@ -145,6 +148,9 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
   const safeScene = Math.min(sceneIdx, Math.max(0, scenes.length - 1));
 
   const plans = useMemo(() => findPlans(displayFacts.ctx, atRoot ? lines : []), [displayFacts, atRoot, lines]);
+  const planCards = useMemo(() => plans.map((pl) => planCard(displayFen, pl)), [plans, displayFen]);
+  const bestLineInput = useMemo(() => (lines[0] ? { pv: lines[0].pv, eval: lines[0].eval, depth: lines[0].depth } : undefined), [lines]);
+  const { timings: planTimings, threat: planThreat } = usePlanTimings(fen, planCards, bestLineInput, done && atRoot && tab === "plans");
   const material = useMemo(() => materialSummary(displayFacts.ctx.p), [displayFacts]);
 
   const shown = useMemo(() => {
@@ -313,11 +319,11 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
         const d = deep.data;
         return { key: `mv-${ply}-${line?.key}-deep`, tone: "opportunity", tag: d.classification.symbol || `${ply}`, kind: `${d.classification.label} · ${num}${lastMove.san}`, text: d.headline };
       }
-      const pts = staticMovePoints(lastMove);
-      const best = pts.find((p) => p.tone === "opportunity") ?? pts[0];
+      const ideas = boardIdeas(lastMove, { after: variation ? variation.moves.slice(ply) : [], evalAfter: 0 });
+      const best = ideas.find((p) => p.tone !== "danger") ?? ideas[0];
       return {
         key: `mv-${ply}-${line?.key}`,
-        tone: best?.tone ?? "info",
+        tone: best?.tone === "info" ? "info" : (best?.tone ?? "info"),
         tag: `${ply}`,
         kind: `${sideName(lastMove.color)} plays ${num}${lastMove.san}`,
         text: best?.text ?? "A quiet move: its point comes later in the line.",
@@ -347,13 +353,22 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
       };
     }
     if (tab === "plans" && (planHover || planFocus)) {
-      const p = plans.find((x) => x.id === (planHover ?? planFocus));
-      if (p) {
-        const unmet = p.conditions.filter((c) => !c.met);
+      const c = planCards.find((x) => x.id === (planHover ?? planFocus));
+      if (c) {
+        const t = planTimings[c.id];
+        const timing = t && t !== "pending" ? t : null;
+        const m = mergeMarks(c.marks, timing?.marks ?? emptyMarks(), ...c.benefits.slice(0, 1).map((b) => b.marks));
+        const verdict = timing ? { now: "good now", prepare: "prepare first", "not-now": "not now", later: "later" }[timing.verdict] : "checking";
         return {
-          marks: p.marks,
-          key: `plan-${p.id}`,
-          caption: { key: p.id, tone: "idea", tag: "?", kind: `${sideName(p.side)} · idea`, text: `${p.title} ${unmet.length ? `Needs: ${unmet.map((c) => c.text).join("; ")}.` : "Conditions hold now."}` },
+          marks: m,
+          key: `plan-${c.id}-${timing?.verdict ?? ""}`,
+          caption: {
+            key: c.id,
+            tone: timing?.verdict === "not-now" ? "danger" : timing?.verdict === "now" ? "opportunity" : "idea",
+            tag: timing?.verdict === "now" ? "✓" : timing?.verdict === "not-now" ? "✕" : "?",
+            kind: `${sideName(c.side)} · ${c.style} plan · ${verdict}`,
+            text: timing?.text ?? c.title,
+          },
         };
       }
     }
@@ -367,7 +382,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     }
     return { marks: nextHint(emptyMarks()), key: `plain-${ply}`, caption: moveCaption() };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deepVersion signals deep-cache updates
-  }, [hoverPoint, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, pinned, displayFacts, extraThreats, lenses, focus, displayFen, planHover, planFocus, plans, movesMode, lines, pair, fen, deepFor, a.deepVersion]);
+  }, [hoverPoint, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, pinned, displayFacts, extraThreats, lenses, focus, displayFen, planHover, planFocus, planCards, planTimings, movesMode, lines, pair, fen, deepFor, a.deepVersion]);
 
   const toggleLens = (id: LensId) => {
     setFocus(null);
@@ -597,7 +612,18 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
 
           {tab === "plans" && (
             <div className="desk-body">
-              <PlansPanel plans={plans} focus={planFocus} onFocus={setPlanFocus} onHover={setPlanHover} />
+              <PlansPanel
+                cards={planCards}
+                timings={planTimings}
+                turn={turn}
+                threat={atRoot ? planThreat : null}
+                bestSan={bestFirst?.san ?? null}
+                focus={planFocus}
+                onFocus={setPlanFocus}
+                onHover={setPlanHover}
+                onHoverPoint={setHoverPoint}
+                onShow={(pv) => playLine(pv, 1)}
+              />
             </div>
           )}
 

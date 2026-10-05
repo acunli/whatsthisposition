@@ -22,6 +22,10 @@ export interface Plan {
   /** e.g. "Engine line 2 plays c5 on move 3" */
   engineNote?: string;
   marks: Marks;
+  /** The first move that starts the plan (for timing checks and benefits). */
+  keyMove?: { from: Square; to: Square };
+  /** Squares a piece passes through on the way (knight routes). */
+  route?: Square[];
 }
 
 export interface EngineLineLite {
@@ -86,6 +90,7 @@ export function findPlans(ctx: Ctx, lines: EngineLineLite[] = []): Plan[] {
           ],
           evidence: note ? "engine" : "idea",
           engineNote: note,
+          keyMove: { from: sq, to: target },
           marks: {
             ...emptyMarks(),
             arrows: [{ from: sq, to: target, tone: note ? "opportunity" : "idea", dashed: !note }],
@@ -134,6 +139,8 @@ export function findPlans(ctx: Ctx, lines: EngineLineLite[] = []): Plan[] {
         ],
         evidence: note ? "engine" : "idea",
         engineNote: note,
+        keyMove: { from: sq, to: best.route[0] },
+        route: [sq, ...best.route],
         marks: {
           ...emptyMarks(),
           arrows: [sq, ...best.route].slice(0, -1).map((from, i) => ({ from, to: best!.route[i], tone: "idea" as const, dashed: true })),
@@ -166,6 +173,7 @@ export function findPlans(ctx: Ctx, lines: EngineLineLite[] = []): Plan[] {
           ],
           evidence: note ? "engine" : "idea",
           engineNote: note,
+          keyMove: { from: sq, to: t },
           marks: { ...emptyMarks(), arrows: [{ from: sq, to: t, tone: note ? "opportunity" : "idea", dashed: !note }] },
         });
         break;
@@ -189,6 +197,7 @@ export function findPlans(ctx: Ctx, lines: EngineLineLite[] = []): Plan[] {
         ],
         evidence: note ? "engine" : "idea",
         engineNote: note,
+        keyMove: { from: pi.sq, to: stop },
         marks: {
           ...emptyMarks(),
           arrows: [{ from: pi.sq, to: stop, tone: note ? "opportunity" : "idea", dashed: !note }],
@@ -220,6 +229,7 @@ export function findPlans(ctx: Ctx, lines: EngineLineLite[] = []): Plan[] {
         ],
         evidence: note ? "engine" : "idea",
         engineNote: note,
+        keyMove: { from: `e${rank}` as Square, to: `${kingTo}${rank}` as Square },
         marks: { ...emptyMarks(), arrows: [{ from: `e${rank}` as Square, to: `${kingTo}${rank}` as Square, tone: "idea", dashed: true }] },
       });
     }
@@ -228,7 +238,7 @@ export function findPlans(ctx: Ctx, lines: EngineLineLite[] = []): Plan[] {
   // Engine-backed plans first, then the side to move, then those whose conditions hold.
   const score = (pl: Plan) =>
     (pl.evidence === "engine" ? 100 : 0) + (pl.side === ctx.turn ? 20 : 0) + pl.conditions.filter((c) => c.met).length * 5 - pl.conditions.length;
-  return plans.sort((a, b) => score(b) - score(a)).slice(0, 6);
+  return plans.sort((a, b) => score(b) - score(a)).slice(0, 8);
 }
 
 export function planPieceName(kind: Plan["kind"]): string {

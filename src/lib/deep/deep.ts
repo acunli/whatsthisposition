@@ -20,6 +20,7 @@ import { enPrise, makeCtx } from "../facts/context";
 import { materialSwing, staticMovePoints, type InsightPoint } from "../facts/explain";
 import { materialSummary } from "../facts/material";
 import { emptyMarks, type Marks, type Tone } from "../facts/types";
+import { reasonMove } from "../reason/reason";
 import { ANNOTATION, CLASS_INFO, classifyCandidate, type MoveClass } from "../review/classify";
 import { buildVariation, type VariationMove } from "../variation";
 
@@ -338,11 +339,32 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
 
   const poisoned = offers.find((o) => o.poisoned && !o.existing);
   const moverName = COLOR_NAME[mover];
+  // The move's ideas, from the same reasoning engine as game review (threats are probed above already).
+  opts.onProgress?.("Working out what the move does");
+  const reasoning = await reasonMove({
+    fen,
+    uci: m.uci,
+    line: { pv: deepPv, eval: deepEval, depth },
+    best: opts.isBest ? line : opts.bestLine,
+    second: opts.isBest ? alts[0] : undefined,
+    search,
+    depth: Math.max(12, depth - 2),
+    probes: { threat: false, opponentThreat: true },
+  }).catch(() => null);
+  if (reasoning) {
+    const fromIdeas: InsightPoint[] = reasoning.ideas
+      .filter((i) => i.kind !== "threat" && (i.tone !== "danger" || i.weight >= 6))
+      .slice(0, 5)
+      .map((i) => ({ text: i.text, tone: i.tone, evidence: i.evidence, marks: i.marks }));
+    points.splice(0, points.length, ...fromIdeas);
+  }
   let headline: string;
   if (m.san.includes("#")) headline = `${m.san} is checkmate.`;
   else if (line.eval.kind === "mate" && line.eval.winner === mover) headline = `${m.san} forces mate in ${line.eval.moves}.`;
   else if (poisoned)
     headline = `${m.san} offers the ${PIECE_NAME[poisoned.captured]} on ${poisoned.capturedOn}, but taking it walks into ${poisoned.sans[1] ?? "a strong reply"}. ${cl.kind === "brilliant" ? "A real sacrifice." : ""}`.trim();
+  else if (reasoning && !/quiet move/.test(reasoning.headline))
+    headline = threat && !reasoning.headline.includes("threatens") ? reasoning.headline.replace(/\.$/, `, and threatens ${threat.san}.`) : reasoning.headline;
   else if (threat) headline = `${m.san} sets up a threat: ${threat.san}.`;
   else if (cl.kind === "great" && comparison && comparison.gap >= 150) headline = `${m.san} is the only move that keeps ${moverName}'s chances.`;
   else headline = points.find((p) => p.tone === "opportunity")?.text ?? `${m.san} improves ${moverName}'s position; the point shows up later in the line.`;

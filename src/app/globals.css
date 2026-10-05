@@ -5495,3 +5495,282 @@ em {
     animation: none;
   }
 }
+
+/* Move reasoning in the review card */
+.rv-section {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.rv-line,
+.rv-intent,
+.rv-better {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--bone-2);
+}
+
+.rv-line {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--night-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.rv-better {
+  color: var(--bone);
+  font-weight: 600;
+}
+
+.rv-intent {
+  font-style: italic;
+}
+
+.rv-thinking {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--dim);
+  background: linear-gradient(90deg, var(--dim) 0%, var(--bone) 50%, var(--dim) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: thinking 1.6s linear infinite;
+}
+
+.rv-section b {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12.5px;
+  color: var(--bone);
+}
+
+@keyframes thinking {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-thinking {
+    animation: none;
+    -webkit-text-fill-color: var(--dim);
+  }
+}
+
+/* Plan cards */
+.pcard {
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--slab);
+  border: 1px solid var(--line);
+  transition: border-color 0.2s, transform 0.2s var(--ease-out);
+}
+
+.pcard:hover,
+.pcard-on {
+  border-color: var(--line-2);
+}
+
+.pcard-now {
+  border-color: rgb(var(--lime) / 0.45);
+}
+
+.pcard-not-now {
+  border-color: rgb(var(--red) / 0.4);
+}
+
+.pcard-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.pcard-head .side-dot {
+  margin-top: 4px;
+}
+
+.pcard-titles {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.pcard-kind {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.pcard-title {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+.pverdict {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  color: var(--bone-2);
+  white-space: nowrap;
+}
+
+.pverdict-now {
+  background: rgb(var(--lime) / 0.16);
+  border-color: rgb(var(--lime) / 0.6);
+  color: rgb(var(--lime));
+}
+
+.pverdict-prepare {
+  background: rgb(var(--gold) / 0.14);
+  border-color: rgb(var(--gold) / 0.55);
+  color: rgb(var(--gold));
+}
+
+.pverdict-not-now {
+  background: rgb(var(--red) / 0.14);
+  border-color: rgb(var(--red) / 0.55);
+  color: rgb(var(--red));
+}
+
+.pverdict-pending {
+  animation: pulse-dot 1.2s ease-in-out infinite alternate;
+}
+
+.pcard-when {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--bone);
+}
+
+.pmeter {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pmeter-row {
+  display: grid;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.pmeter-track {
+  height: 6px;
+  border-radius: 6px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.pmeter-track span {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.6s var(--ease-out);
+}
+
+.pmeter-attack .pmeter-track span {
+  background: rgb(var(--red));
+}
+
+.pmeter-defence .pmeter-track span {
+  background: rgb(var(--sky));
+}
+
+.pmeter-longTerm .pmeter-track span {
+  background: rgb(var(--gold));
+}
+
+.pmeter-risk .pmeter-track span {
+  background: repeating-linear-gradient(45deg, rgb(var(--red)), rgb(var(--red)) 4px, rgb(var(--red) / 0.5) 4px, rgb(var(--red) / 0.5) 8px);
+}
+
+.pcard-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.pcard-cols h4 {
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.plist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.plist li {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--bone-2);
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--night-2);
+  cursor: default;
+}
+
+.plist li:hover {
+  color: var(--bone);
+  background: var(--slab-2);
+}
+
+.plist li b {
+  color: rgb(var(--tc, var(--white-rgb)));
+  margin-right: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pverdict-pending {
+    animation: none;
+  }
+}
+
+.plans-urgent {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgb(var(--red) / 0.55);
+  background: rgb(var(--red) / 0.1);
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+
+.plans-urgent b {
+  color: rgb(var(--red));
+}

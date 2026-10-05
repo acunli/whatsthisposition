@@ -2,19 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BoardStage } from "../BoardStage";
-import { EvalBar, EvalChip, EvidenceTag, sideName } from "../analysis/bits";
+import { EvalBar, EvalChip, sideName } from "../analysis/bits";
 import { VariationBar } from "../analysis/VariationBar";
 import { placementFromFen } from "@/lib/chess/fen";
 import { other, type Color, type Square } from "@/lib/chess/types";
 import type { Evaluation } from "@/lib/engine/score";
 import { emptyMarks, type Marks } from "@/lib/facts/types";
-import { ANNOTATION, CLASS_INFO, CLASS_ORDER, isBad, type ClassifiedMove, type MoveClass } from "@/lib/review/classify";
+import { ANNOTATION, CLASS_INFO, CLASS_ORDER, type ClassifiedMove, type MoveClass } from "@/lib/review/classify";
 import { explainReviewMove } from "@/lib/review/explain";
 import type { ParsedGame } from "@/lib/review/pgn";
 import { tally } from "@/lib/review/review";
 import { buildVariation, fenAtPly, moveAtPly, navigate, type NavAction, type Variation } from "@/lib/variation";
 import { ClassIcon } from "./ClassIcon";
 import { EvalGraph } from "./EvalGraph";
+import { MoveInsight } from "./MoveInsight";
+import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview } from "./useReview";
 
 interface Props {
@@ -68,6 +70,8 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
   const cm: ClassifiedMove | undefined = ply > 0 ? moves[ply - 1] : undefined;
   const gm = ply > 0 ? game.moves[ply - 1] : undefined;
   const story = useMemo(() => (cm ? explainReviewMove(cm, moves[ply - 2]) : null), [cm, moves, ply]);
+  // The deeper explanation waits until the review has finished, so it doesn't slow the engines down.
+  const reasoning = useMoveReasoning(cm, active && r.status === "done");
 
   const go = useCallback(
     (p: number) => {
@@ -130,7 +134,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
       if (nx) m.arrows.push({ from: nx.from, to: nx.to, tone: "info", thin: true, dashed: true });
       return m;
     }
-    if (cm && cm.bestUci && cm.bestUci !== cm.move.uci && cm.cls !== "book" && cm.cls !== "forced") {
+    if (cm && cm.bestUci && cm.bestUci !== cm.move.uci && !["book", "forced", "best", "brilliant", "great"].includes(cm.cls)) {
       m.arrows.push({ from: cm.bestUci.slice(0, 2) as Square, to: cm.bestUci.slice(2, 4) as Square, tone: "opportunity" });
     }
     const next = game.moves[ply];
@@ -317,34 +321,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
                 </div>
                 <EvalChip e={cm.evalAfter} />
               </div>
-              <p className="rv-headline">{story.headline}</p>
-              {story.points.length > 0 && (
-                <ul className="rv-points">
-                  {story.points.map((p, i) => (
-                    <li
-                      key={i}
-                      className={`t-${p.tone}`}
-                      onMouseEnter={() => setHover(p.marks.arrows.length || p.marks.squares.length ? p.marks : null)}
-                      onMouseLeave={() => setHover(null)}
-                    >
-                      <span>{p.text}</span> <EvidenceTag e={p.evidence} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <div className="rv-actions">
-                {story.better && (
-                  <button className="btn btn-sm" onClick={() => playLine(`Better was ${story.better!.san}`, cm.move.fenBefore, story.better!.pv, cm.evalBefore)}>
-                    ▶ Play {story.better.san} instead
-                  </button>
-                )}
-                {cm.replyLine && (
-                  <button className="btn btn-sm btn-ghost" onClick={() => playLine("What happens next (engine)", cm.move.fenAfter, cm.replyLine!.pv, cm.evalAfter)}>
-                    ▶ Engine&apos;s follow-up
-                  </button>
-                )}
-                {isBad(cm.cls) && <span className="small muted">Gold arrow: the engine&apos;s best move.</span>}
-              </div>
+              <MoveInsight cm={cm} story={story} entry={reasoning} onHover={setHover} onPlay={playLine} />
             </>
           )}
           <div className="rv-deep">
