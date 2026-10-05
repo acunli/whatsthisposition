@@ -39,9 +39,14 @@ export default function Credits() {
           time, deeper, before the label is final. Accuracy uses Lichess&apos;s published formula.
         </p>
         <p>
-          Games you import from Chess.com or Lichess are fetched through this site from their free public APIs and aren&apos;t stored. The opening
-          book is the Lichess <a href="https://github.com/lichess-org/chess-openings">chess-openings</a> dataset (CC0). The Brilliant and Great
-          checks were informed by <a href="https://github.com/WintrCat/wintrchess">WintrChess</a> (GPL-3.0); our version is written independently.
+          Games you import from Chess.com or Lichess are fetched through this site from their free public APIs and aren&apos;t stored. Opening
+          names come from the Lichess <a href="https://github.com/lichess-org/chess-openings">chess-openings</a> dataset (CC0). How deep theory
+          goes, and what strong players play in each position, comes from 1.84 million games between strong players: over-the-board games from
+          the <a href="https://database.lichess.org/#broadcasts">Lichess broadcast database</a> (CC BY-SA 4.0; this site&apos;s book is a
+          derived statistics table, shared under the same licence), and online games from the{" "}
+          <a href="https://database.nikonoel.fr/">Lichess Elite Database</a> by nikonoel, a selection of the CC0{" "}
+          <a href="https://database.lichess.org/">Lichess database</a>. The Brilliant and Great checks were informed by{" "}
+          <a href="https://github.com/WintrCat/wintrchess">WintrChess</a> (GPL-3.0); our version is written independently.
         </p>
 
         <h2>Privacy</h2>

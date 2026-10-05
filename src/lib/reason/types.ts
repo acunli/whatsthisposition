@@ -1,5 +1,5 @@
 import type { Evaluation } from "../engine/score";
-import type { Evidence, Marks, Tone } from "../facts/types";
+import type { Evidence, Marks, PeekLine, Tone } from "../facts/types";
 
 /** What a move does, in chess terms. Ordered roughly from concrete to strategic. */
 export type IdeaKind =
@@ -46,6 +46,8 @@ export interface Idea {
   marks: Marks;
   /** How much the idea matters here (higher first). Engine-confirmed ideas weigh more. */
   weight: number;
+  /** A line the sentence refers to, for the hover preview. */
+  line?: PeekLine;
 }
 
 export interface LineStory {
@@ -54,6 +56,7 @@ export interface LineStory {
   /** What happens along the line: trades, material, mates. */
   text: string;
   eval: Evaluation;
+  line?: PeekLine;
 }
 
 export interface Alternative {
@@ -62,6 +65,7 @@ export interface Alternative {
   text: string;
   marks: Marks;
   pv: string[];
+  line?: PeekLine;
 }
 
 export interface MoveReasoning {
@@ -75,7 +79,7 @@ export interface MoveReasoning {
   /** For a strong move: why the next best isn't as good. */
   alternatives: Alternative[];
   /** What the opponent was threatening before the move, and whether the move deals with it. */
-  opponentThreat?: { san: string; text: string; parried: boolean; marks: Marks };
+  opponentThreat?: { san: string; text: string; parried: boolean; marks: Marks; line?: PeekLine };
   /** The opponent's answer in the engine line and what it does. */
-  refutation?: { san: string; text: string; marks: Marks };
+  refutation?: { san: string; text: string; marks: Marks; line?: PeekLine };
 }

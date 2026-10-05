@@ -4,6 +4,7 @@ import type { DeepMove } from "@/lib/deep/deep";
 import { CLASS_INFO } from "@/lib/review/classify";
 import { ClassIcon } from "../review/ClassIcon";
 import type { Marks } from "@/lib/facts/types";
+import { PeekText } from "../peek/Peek";
 import { EvalChip, EvidenceTag, sideName } from "./bits";
 import type { DeepEntry } from "./useAnalysis";
 
@@ -74,7 +75,9 @@ export function DeepCard({ entry, onHoverMarks, onPlay, onClose }: Props) {
             {d.points.map((p, i) => (
               <li key={i} className={`point t-${p.tone}`} onMouseEnter={() => hover(p.marks)} onMouseLeave={() => hover(null)}>
                 <span className={`fact-mark t-${p.tone}`} aria-hidden />
-                <span>{p.text}</span>
+                <span>
+                  <PeekText text={p.text} line={p.line} lines={p.lines} />
+                </span>
                 <EvidenceTag e={p.evidence} />
               </li>
             ))}

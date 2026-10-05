@@ -6,6 +6,10 @@ An X-ray for chess games and positions, built for **whatsthisposition.com**.
 
 **Game review.** Bring a game from Chess.com (username), Lichess (game link) or a PGN. Stockfish reviews every move in your browser, and each move gets a Chess.com-style label: **Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder** or **Forced**. Each label comes with an explanation drawn from the engine's lines. The review also shows accuracy for both players, an eval graph, key moments and a per-player label table. From any move you can play out the better line, or **deep-analyse that position**. The labels follow the same rules for every game; see [How moves are labelled](docs/position-understanding.md#game-review-how-moves-are-labelled).
 
+**Openings, as deep as theory goes.** Book moves come from 1.84 million games between strong players, so theory follows the game until a move strong players don't really play (on average 7.9 plies on a club player's games, against 5.1 with named lines alone). Every book move says how often strong players choose it, how they score after it, the main line and the alternatives. The opening card says how long both sides followed theory, who left it, and what strong players play there instead.
+
+**Every line can be watched.** Wherever an explanation names a line ("Black answers 8…Nxe4", "the main line goes on 2…e6 3.Nc3 Nf6", "the engine plays it after 7.b4 Bb6 8.a4"), hover or tap the underlined moves and a small board plays the line out, move by move, in a floating window.
+
 **Position analysis.** Drop a screenshot (read on your device, no upload), paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
 
 **What you get after analysing a position**
@@ -88,7 +92,9 @@ src/components/     BoardStage (animated board), home, game review, setup flow,
                     analysis arena, scan intro
 src/app/api/recognize  POST photo → recognized grid (nothing is stored)
 src/app/api/games      GET recent Chess.com games / a Lichess game (nothing is stored)
-scripts/build-openings.mjs  rebuilds src/data/openings.json from lichess-org/chess-openings
+scripts/build-openings.mjs  rebuilds src/data/openings.json (opening names) from lichess-org/chess-openings
+scripts/build-book.mjs      rebuilds public/data/masters-book.bin.gz (what strong players play) from game databases
+                            (sources and command at the top of the file)
 ```
 
 ### Engine
@@ -116,7 +122,7 @@ Explanations are written from templates over these facts. **No language model wr
 
 ## Licences
 
-Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Clash Display and Satoshi (Indian Type Foundry via Fontshare, ITF Free Font License, self-hosted in `src/fonts/`), plus Instrument Serif and Geist Mono (SIL OFL). The 3D hero uses three.js and React Three Fiber (MIT). chess.js is BSD-2-Clause. The opening book comes from the Lichess [chess-openings](https://github.com/lichess-org/chess-openings) dataset (CC0). The Brilliant/Great logic was informed by [WintrChess](https://github.com/WintrCat/wintrchess) (GPL-3.0); it is an independent reimplementation.
+Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The fonts are Clash Display and Satoshi (Indian Type Foundry via Fontshare, ITF Free Font License, self-hosted in `src/fonts/`), plus Instrument Serif and Geist Mono (SIL OFL). The 3D hero uses three.js and React Three Fiber (MIT). chess.js is BSD-2-Clause. Opening names come from the Lichess [chess-openings](https://github.com/lichess-org/chess-openings) dataset (CC0). The master opening book (`public/data/masters-book.bin.gz`, built by `scripts/build-book.mjs`) is derived from the [Lichess broadcast database](https://database.lichess.org/#broadcasts) (CC BY-SA 4.0, so the book file is shared under CC BY-SA 4.0 too) and the [Lichess Elite Database](https://database.nikonoel.fr/) (a selection of the CC0 Lichess database). The Brilliant/Great logic was informed by [WintrChess](https://github.com/WintrCat/wintrchess) (GPL-3.0); it is an independent reimplementation.
 
 ## Known limitations
 

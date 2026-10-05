@@ -8,7 +8,7 @@ import { Chess } from "chess.js";
 import { COLOR_NAME, other, type Color } from "../chess/types";
 import type { Searcher } from "../deep/deep";
 import { evalFor, formatEval, type Evaluation } from "../engine/score";
-import { emptyMarks, type Marks } from "../facts/types";
+import { emptyMarks, type Marks, type PeekLine } from "../facts/types";
 import { gainWords, netCaptures } from "../reason/ideas";
 import { moveLabel, type LineInput, type ThreatInfo } from "../reason/reason";
 import { buildVariation } from "../variation";
@@ -26,21 +26,27 @@ export interface PlanTiming {
   /** The engine's line starting with the plan move (for "show it"). */
   pv?: string[];
   marks: Marks;
+  /** Lines the text names (the refutation, the engine's own route to the plan), for hover previews. */
+  lines?: PeekLine[];
 }
 
 const mv = (e: Evaluation, c: Color) => Math.max(-3000, Math.min(3000, evalFor(e, c)));
 const pawns = (cp: number) => (cp / 100).toFixed(1);
 
-/** Where the plan move appears in the engine's main line, as "after 11.Qe3 Nf5". */
-function inMainLine(fen: string, best: LineInput | undefined, uci: string): string | null {
+/**
+ * Where the plan move appears in the engine's main line, as "after 11.Qe3 Nf5", with
+ * that line up to and including the plan move (to watch it happen).
+ */
+function inMainLine(fen: string, best: LineInput | undefined, uci: string): { text: string; line: PeekLine } | null {
   if (!best) return null;
   const v = buildVariation(fen, best.pv, 14);
   const i = v.moves.findIndex((m) => m.uci === uci || (m.isCastle && uci.slice(0, 2) === m.from && uci.slice(2) === m.to));
   if (i <= 0) return null;
-  return v.moves
+  const text = v.moves
     .slice(0, i)
     .map((m, k) => (m.color === "w" ? `${m.moveNumber}.${m.san}` : k === 0 ? `${m.moveNumber}…${m.san}` : m.san))
     .join(" ");
+  return { text, line: { fen, pv: v.moves.slice(0, i + 1).map((m) => m.uci), label: text } };
 }
 
 export async function planTiming(fen: string, card: PlanCard, best: LineInput | undefined, search: Searcher, depth: number, threat: ThreatInfo | null): Promise<PlanTiming> {
@@ -51,13 +57,16 @@ export async function planTiming(fen: string, card: PlanCard, best: LineInput | 
     return { verdict: "later", text: `It's ${COLOR_NAME[turn]}'s move: this is an idea for ${COLOR_NAME[side]} after the reply.`, marks: emptyMarks() };
   }
   const legal = !!card.keyUci && new Chess(fen).moves({ verbose: true }).some((m) => m.lan === card.keyUci);
-  const later = card.keyUci ? inMainLine(fen, best, card.keyUci) : null;
+  const route = card.keyUci ? inMainLine(fen, best, card.keyUci) : null;
+  const later = route?.text ?? null;
+  const routeLines = route ? [route.line] : [];
   if (!legal) {
     const unmet = card.conditions.filter((c) => !c.met).map((c) => c.text.charAt(0).toLowerCase() + c.text.slice(1));
     return {
       verdict: "prepare",
       text: `Not possible yet${unmet.length ? `: ${unmet.join("; ")}` : ""}.${later ? ` The engine gets there after ${later}.` : ""}`,
       marks: emptyMarks(),
+      lines: routeLines,
     };
   }
   const line = (await search({ fen, depth, multipv: 1, searchmoves: [card.keyUci!] }))[0];
@@ -76,6 +85,7 @@ export async function planTiming(fen: string, card: PlanCard, best: LineInput | 
       eval: line.eval,
       pv: line.pv,
       marks: { ...emptyMarks(), arrows: first ? [{ from: first.from, to: first.to, tone: "opportunity" }] : [] },
+      lines: [{ fen, pv: line.pv }],
     };
   }
   if (cost <= 120) {
@@ -86,6 +96,7 @@ export async function planTiming(fen: string, card: PlanCard, best: LineInput | 
       eval: line.eval,
       pv: line.pv,
       marks: { ...emptyMarks(), arrows: bestFirst ? [{ from: bestFirst.from, to: bestFirst.to, tone: "opportunity" }] : [] },
+      lines: [...(bestFirst ? [{ fen, pv: best.pv, label: moveLabel(bestFirst) }] : []), { fen, pv: line.pv, label: `playing ${name} right away` }, ...routeLines],
     };
   }
   // Refuted: say how.
@@ -104,5 +115,9 @@ export async function planTiming(fen: string, card: PlanCard, best: LineInput | 
     eval: line.eval,
     pv: line.pv,
     marks: { ...emptyMarks(), arrows: [...(first ? [{ from: first.from, to: first.to, tone: "danger" as const, dashed: true }] : []), ...(reply ? [{ from: reply.from, to: reply.to, tone: "danger" as const }] : [])] },
+    lines: [
+      ...(ignoresThreat ? [threat!.line] : reply ? [{ fen, pv: line.pv, label: moveLabel(reply) }] : []),
+      ...routeLines,
+    ],
   };
 }

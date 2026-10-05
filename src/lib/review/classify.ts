@@ -19,6 +19,7 @@ import type { Color } from "../chess/types";
 import type { EngineLine } from "../engine/client";
 import { evalFor, type Evaluation } from "../engine/score";
 import { detectSacrifice, unsafePieces, wasFreeMaterial, type SacrificeInfo } from "./safety";
+import type { MasterMove } from "./masters";
 import type { GameMove } from "./pgn";
 
 export type MoveClass =
@@ -90,6 +91,24 @@ export interface ClassifiedMove {
   /** For Miss: the opponent's mistake that went unpunished. */
   missedPly?: number;
   opening?: { eco: string; name: string } | null;
+  /** What masters played in the position before the move: set on book moves and on the move that left the book. */
+  theory?: TheoryInfo | null;
+}
+
+/** A master choice in a position, with the line masters most often follow after it. */
+export interface TheoryOption extends MasterMove {
+  san: string;
+  /** UCI moves after it, following the most played move each time. */
+  line: string[];
+}
+
+export interface TheoryInfo {
+  /** Master games that reached the position before the move. */
+  games: number;
+  /** This move's master statistics (null when masters didn't play it as theory). */
+  played: MasterMove | null;
+  /** Master moves here, most played first. */
+  options: TheoryOption[];
 }
 
 /** Evaluation of a game-over position (mate or draw), White-relative. */
@@ -175,6 +194,7 @@ export interface ClassifyInput {
   /** The previous move (the opponent's), already classified. */
   previous?: ClassifiedMove;
   opening?: { eco: string; name: string } | null;
+  theory?: TheoryInfo | null;
 }
 
 /** Classifies one move. Pure: everything comes from the two position analyses. */
@@ -213,6 +233,7 @@ export function classifyMove(inp: ClassifyInput): ClassifiedMove {
     evalAfter,
     sacrifice: null as SacrificeInfo | null,
     opening: inp.opening ?? null,
+    theory: inp.theory ?? null,
   };
 
   if (inp.legalMoves <= 1) return { ...base, cls: "forced" };

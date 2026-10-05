@@ -6,7 +6,8 @@
 import { Chess } from "chess.js";
 import type { Searcher } from "../deep/deep";
 import type { OpeningBook } from "./book";
-import { classifyMove, terminalEval, type ClassifiedMove, type PositionAnalysis } from "./classify";
+import { classifyMove, expectedScore, terminalEval, type ClassifiedMove, type PositionAnalysis, type TheoryInfo, type TheoryOption } from "./classify";
+import { isTheory, mainLine, type MasterEntry, type MasterMove, type MastersBook } from "./masters";
 import type { ParsedGame } from "./pgn";
 
 export interface ReviewOptions {
@@ -75,6 +76,29 @@ export interface GameReview {
   /** Index of the last move that is part of opening theory (−1 if none). */
   bookUntil: number;
   opening: { eco: string; name: string } | null;
+  /** Where the master statistics come from, when the master book loaded. */
+  masters: { games: number; minElo: number } | null;
+}
+
+/** Master choices at `fen` (up to `max`, theory moves only), each with the line masters follow after it. */
+export function theoryAt(masters: MastersBook, fen: string, entry: MasterEntry, played: MasterMove | null, max = 4): TheoryInfo {
+  const c = new Chess(fen);
+  const options: TheoryOption[] = [];
+  for (const mv of entry.moves) {
+    if (options.length >= max) break;
+    if (!isTheory(entry, mv.uci)) continue;
+    let san: string;
+    let after: string;
+    try {
+      san = c.move({ from: mv.uci.slice(0, 2), to: mv.uci.slice(2, 4), promotion: mv.uci[4] }).san;
+      after = c.fen();
+      c.undo();
+    } catch {
+      continue;
+    }
+    options.push({ ...mv, san, line: mainLine(masters, after, 9) });
+  }
+  return { games: entry.total, played, options };
 }
 
 /**
@@ -86,6 +110,7 @@ export type ClassifyCache = Map<number, { c: ClassifiedMove; prev?: ClassifiedMo
 
 export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | null)[], book: OpeningBook | null, cache?: ClassifyCache): GameReview {
   const out: ClassifiedMove[] = [];
+  const masters = book?.masters ?? null;
   let stillBook = true;
   let bookUntil = -1;
   let opening: { eco: string; name: string } | null = null;
@@ -94,7 +119,13 @@ export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | nu
     const after = positions[i + 1];
     if (!before || !after) break;
     const m = game.moves[i];
-    const inBook = stillBook && !!book?.inBook(m.fenAfter);
+    // Theory: a named opening line, or a move strong players really choose here (and the
+    // engine doesn't call a mistake: popular online traps aren't theory).
+    const entry = stillBook && masters ? masters.get(m.fenBefore) : null;
+    const sound = expectedScore(before.eval, m.color) - expectedScore(after.eval, m.color) < 0.1;
+    const played = sound ? isTheory(entry, m.uci) : null;
+    const wasBook = stillBook;
+    const inBook = stillBook && (!!book?.inBook(m.fenAfter) || !!played);
     if (!inBook) stillBook = false;
     else bookUntil = i;
     const named = book?.name(m.fenAfter);
@@ -106,11 +137,13 @@ export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | nu
       continue;
     }
     const legal = new Chess(m.fenBefore).moves().length;
-    const c = classifyMove({ move: m, before, after, legalMoves: legal, inBook, previous, opening: inBook ? opening : null });
+    // Book moves, and the move that left the book, carry what masters play here.
+    const theory = wasBook && entry && masters ? theoryAt(masters, m.fenBefore, entry, played) : null;
+    const c = classifyMove({ move: m, before, after, legalMoves: legal, inBook, previous, opening: inBook ? opening : null, theory });
     cache?.set(i, { c, prev: previous });
     out.push(c);
   }
-  return { moves: out, bookUntil, opening };
+  return { moves: out, bookUntil, opening, masters: masters ? { games: masters.games, minElo: masters.minElo } : null };
 }
 
 const CRITICAL = new Set(["brilliant", "great", "mistake", "miss", "blunder"]);

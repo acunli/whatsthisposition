@@ -2,11 +2,12 @@
 
 import type { Evaluation } from "@/lib/engine/score";
 import type { InsightPoint } from "@/lib/facts/explain";
-import type { Marks } from "@/lib/facts/types";
+import type { Marks, PeekLine } from "@/lib/facts/types";
 import type { Idea, MoveReasoning } from "@/lib/reason/types";
 import { isBad, type ClassifiedMove } from "@/lib/review/classify";
 import type { MoveStory } from "@/lib/review/explain";
 import { EvidenceTag } from "../analysis/bits";
+import { Peek, PeekText } from "../peek/Peek";
 import type { ReasoningEntry } from "./useMoveReasoning";
 
 interface Props {
@@ -17,25 +18,46 @@ interface Props {
   onPlay: (title: string, fen: string, pv: string[], e: Evaluation) => void;
 }
 
-type Point = Pick<InsightPoint, "text" | "tone" | "evidence" | "marks">;
+type Point = Pick<InsightPoint, "text" | "tone" | "evidence" | "marks" | "line" | "lines">;
 
 const hasMarks = (m: Marks) => m.arrows.length > 0 || m.squares.length > 0 || (m.bands?.length ?? 0) > 0;
 
-function Points({ items, onHover }: { items: Point[]; onHover: (m: Marks | null) => void }) {
+export function Points({ items, onHover }: { items: Point[]; onHover: (m: Marks | null) => void }) {
   if (!items.length) return null;
   return (
     <ul className="rv-points">
       {items.map((p, i) => (
         <li key={i} className={`t-${p.tone}`} onMouseEnter={() => onHover(hasMarks(p.marks) ? p.marks : null)} onMouseLeave={() => onHover(null)}>
-          <span>{p.text}</span> <EvidenceTag e={p.evidence} />
+          <span>
+            <PeekText text={p.text} line={p.line} lines={p.lines} />
+          </span>{" "}
+          <EvidenceTag e={p.evidence} />
         </li>
       ))}
     </ul>
   );
 }
 
-const fromIdea = (i: Idea): Point => ({ text: i.text, tone: i.tone, evidence: i.evidence, marks: i.marks });
-const engineNote = (text: string, marks: Marks, tone: Point["tone"] = "info"): Point => ({ text, tone, evidence: "engine", marks });
+const fromIdea = (i: Idea): Point => ({ text: i.text, tone: i.tone, evidence: i.evidence, marks: i.marks, line: i.line });
+const engineNote = (text: string, marks: Marks, tone: Point["tone"] = "info", line?: PeekLine): Point => ({ text, tone, evidence: "engine", marks, line });
+
+/** Opening theory: what strong players do here (book moves) or play instead (the move that left the book). */
+function Opening({ story, onHover }: { story: MoveStory; onHover: (m: Marks | null) => void }) {
+  if (!story.opening?.length) return null;
+  return (
+    <>
+      <p className="rv-section">Opening theory</p>
+      <Points items={story.opening} onHover={onHover} />
+    </>
+  );
+}
+
+/** An engine line as a sentence, hoverable to watch it. */
+const LineNote = ({ line }: { line: { text: string; line?: PeekLine } }) => (
+  <p className="rv-line">
+    <PeekText text={line.text} line={line.line} />
+  </p>
+);
 
 /** Ideas worth listing: strongest first, no near-duplicates, downsides only when they matter. */
 function listIdeas(r: MoveReasoning, max: number) {
@@ -63,6 +85,7 @@ export function MoveInsight({ cm, story, entry, onHover, onPlay }: Props) {
       <>
         <p className="rv-headline">{story.headline}</p>
         <Points items={story.points} onHover={onHover} />
+        <Opening story={story} onHover={onHover} />
         {thinking && <p className="rv-thinking">Looking deeper: what the move threatens, what it stops, and how the opponent answers…</p>}
         <Actions cm={cm} better={story.better ? { san: story.better.san, pv: story.better.pv } : null} onPlay={onPlay} />
       </>
@@ -77,13 +100,14 @@ export function MoveInsight({ cm, story, entry, onHover, onPlay }: Props) {
       <>
         <p className="rv-headline">{headline}</p>
         <Points items={items} onHover={onHover} />
-        {p.line && <p className="rv-line">{p.line.text}</p>}
+        {p.line && <LineNote line={p.line} />}
         {p.alternatives[0] && (
           <>
             <p className="rv-section">Why not something else?</p>
-            <Points items={[engineNote(p.alternatives[0].text, p.alternatives[0].marks, "danger")]} onHover={onHover} />
+            <Points items={[engineNote(p.alternatives[0].text, p.alternatives[0].marks, "danger", p.alternatives[0].line)]} onHover={onHover} />
           </>
         )}
+        <Opening story={story} onHover={onHover} />
         <Actions cm={cm} better={null} onPlay={onPlay} alt={p.alternatives[0] ? { san: p.alternatives[0].san, pv: p.alternatives[0].pv } : null} />
       </>
     );
@@ -91,8 +115,11 @@ export function MoveInsight({ cm, story, entry, onHover, onPlay }: Props) {
 
   // A mistake: what goes wrong first, then what it was going for, then the better move and why.
   const wrong: Point[] = [];
-  if (p.refutation) wrong.push(engineNote(p.refutation.text, p.refutation.marks, "danger"));
-  if (p.opponentThreat && !p.opponentThreat.parried) wrong.push(engineNote(`It doesn't deal with the threat: ${p.opponentThreat.text.charAt(0).toLowerCase()}${p.opponentThreat.text.slice(1)}`, p.opponentThreat.marks, "danger"));
+  if (p.refutation) wrong.push(engineNote(p.refutation.text, p.refutation.marks, "danger", p.refutation.line));
+  if (p.opponentThreat && !p.opponentThreat.parried)
+    wrong.push(
+      engineNote(`It doesn't deal with the threat: ${p.opponentThreat.text.charAt(0).toLowerCase()}${p.opponentThreat.text.slice(1)}`, p.opponentThreat.marks, "danger", p.opponentThreat.line),
+    );
   wrong.push(...p.ideas.filter((i) => i.tone === "danger" && i.weight >= 5).slice(0, 2).map(fromIdea));
   const intent = p.ideas.find((i) => i.tone !== "danger" && i.weight >= 10 && i.kind !== "prepare");
   const b = r.better;
@@ -101,18 +128,22 @@ export function MoveInsight({ cm, story, entry, onHover, onPlay }: Props) {
       <p className="rv-headline">{story.headline}</p>
       <p className="rv-section">What goes wrong</p>
       <Points items={wrong} onHover={onHover} />
-      {p.line && <p className="rv-line">{p.line.text}</p>}
+      {p.line && <LineNote line={p.line} />}
       {intent && <p className="rv-intent">The idea was that it {intent.phrase}, but the reply above comes first.</p>}
       {b && (
         <>
           <p className="rv-section">
-            Better: <b>{b.label}</b>
+            Better:{" "}
+            <b>
+              <Peek line={cm.bestLine ? { fen: cm.move.fenBefore, pv: cm.bestLine.pv } : null}>{b.label}</Peek>
+            </b>
           </p>
           <p className="rv-better">{b.headline}</p>
           <Points items={listIdeas(b, 3)} onHover={onHover} />
-          {b.line && <p className="rv-line">{b.line.text}</p>}
+          {b.line && <LineNote line={b.line} />}
         </>
       )}
+      <Opening story={story} onHover={onHover} />
       <Actions cm={cm} better={b && cm.bestLine ? { san: b.san, pv: cm.bestLine.pv } : null} onPlay={onPlay} />
       <span className="small muted">Gold arrow on the board: the engine&apos;s move. Hover a reason to see it.</span>
     </>

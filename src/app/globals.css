@@ -4872,6 +4872,7 @@ em {
 .rv-head,
 .rv-card,
 .rv-moments,
+.rv-opening,
 .rv-table,
 .rv-moves {
   padding: 16px;
@@ -5773,4 +5774,102 @@ em {
 
 .plans-urgent b {
   color: rgb(var(--red));
+}
+
+/* Hover a line in an explanation: a small board plays it out */
+.peek {
+  text-decoration: underline dotted rgb(var(--gold) / 0.8);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  cursor: help;
+  border-radius: 4px;
+  color: var(--bone);
+  transition: background 0.15s;
+}
+
+.peek::after {
+  content: " ▸";
+  font-size: 0.8em;
+  color: rgb(var(--gold));
+}
+
+.peek:hover,
+.peek:focus-visible,
+.peek-on {
+  background: rgb(var(--gold) / 0.14);
+  outline: none;
+}
+
+.peek-pop {
+  position: fixed;
+  z-index: 120;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--slab-2);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 24px 60px -16px rgb(0 0 0 / 0.75);
+  display: grid;
+  gap: 8px;
+  animation: caption-in 0.2s var(--ease-out) both;
+}
+
+.peek-pop .bs {
+  border-radius: 8px;
+}
+
+.peek-moves {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+.peek-mv {
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  border-radius: 5px;
+  color: var(--bone-2);
+}
+
+.peek-mv-on {
+  background: rgb(var(--gold));
+  color: var(--night);
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peek-pop {
+    animation: none;
+  }
+}
+
+/* The opening card in the game review. */
+.rv-opening {
+  display: grid;
+  gap: 8px;
+}
+
+.rv-opening-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rv-opening-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.rv-opening .rv-points {
+  margin: 0;
 }

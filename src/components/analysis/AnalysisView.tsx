@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BoardStage } from "../BoardStage";
+import { PeekOrientation } from "../peek/Peek";
 import { placementFromFen } from "@/lib/chess/fen";
 import { other, type Color, type Square } from "@/lib/chess/types";
 import type { EngineLine } from "@/lib/engine/client";
@@ -424,8 +425,9 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     ["plans", "Plans", plans.length || null],
   ];
 
+  // Line previews (hover a move in an explanation) use the board's orientation.
   return (
-    <>
+    <PeekOrientation.Provider value={orientation}>
       {!introDone && (
         <ScanIntro placement={rootPlacement} orientation={orientation} ledger={rootLedger} threats={threatCount} depth={a.snapshot?.depth ?? 0} onDone={() => setIntroDone(true)} />
       )}
@@ -637,6 +639,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
           </footer>
         </aside>
       </main>
-    </>
+    </PeekOrientation.Provider>
   );
 }

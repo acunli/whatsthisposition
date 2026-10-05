@@ -7,6 +7,7 @@ import { lossClass } from "@/lib/review/classify";
 import type { InsightPoint, MoveInsight, WhyNot } from "@/lib/facts/explain";
 import type { Marks } from "@/lib/facts/types";
 import { buildVariation, formatLine } from "@/lib/variation";
+import { PeekText } from "../peek/Peek";
 import { EvalChip, EvidenceTag } from "./bits";
 import { ClassBadge, DeepCard } from "./DeepCard";
 import type { DeepEntry } from "./useAnalysis";
@@ -106,7 +107,9 @@ function Points({ pts, onHoverPoint }: { pts: InsightPoint[]; onHoverPoint: (m: 
           onMouseLeave={() => onHoverPoint(null)}
         >
           <span className={`fact-mark fact-mark-${pt.tone}`} aria-hidden />
-          <span>{pt.text}</span>
+          <span>
+            <PeekText text={pt.text} line={pt.line} lines={pt.lines} />
+          </span>
           <EvidenceTag e={pt.evidence} />
         </li>
       ))}

@@ -106,6 +106,19 @@ export interface Fact {
   label?: string;
 }
 
+/**
+ * A line of moves an explanation refers to, so the UI can play it out on a small
+ * board when the player hovers the words in `label`.
+ */
+export interface PeekLine {
+  /** Position the moves start from. */
+  fen: string;
+  /** UCI moves. */
+  pv: string[];
+  /** The part of the sentence to underline (e.g. "22.Qe3 Qh6 23.Qxh6 Rxh6"); the whole sentence if absent. */
+  label?: string;
+}
+
 export interface LegendItem {
   tone: Tone;
   style: SquareStyle | "arrow";

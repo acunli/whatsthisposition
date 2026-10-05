@@ -54,6 +54,8 @@ export interface ThreatInfo {
   size: number;
   mates: boolean;
   marks: Marks;
+  /** The threat line from the position where the other side passes. */
+  line: { fen: string; pv: string[]; label: string };
 }
 
 const clamp = (n: number) => Math.max(-3000, Math.min(3000, n));
@@ -130,6 +132,7 @@ export async function findThreat(fen: string, search: Searcher, depth: number, r
     size,
     mates,
     marks: { ...emptyMarks(), arrows: [{ from: rm.from, to: rm.to, tone: "danger" }] },
+    line: { fen: nf, pv: r.pv, label: short(rm) },
   };
 }
 
@@ -179,6 +182,7 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
           evidence: "engine",
           weight: t.mates ? 70 : 28 + Math.min(30, t.size / 25),
           marks: { ...emptyMarks(), arrows: t.marks.arrows.map((a) => ({ ...a, tone: "opportunity" as const, dashed: true })) },
+          line: t.line,
         });
       }
     }
@@ -196,7 +200,7 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
         if (test) parried = mv(test.eval, me) >= mv(evalAfter, me) - 60;
       } else if (reply?.uci === th.uci) parried = false;
       const text = `${COLOR_NAME[them]} was threatening ${th.label}${th.why ? `, ${th.why}` : ""}.`;
-      opponentThreat = { san: th.san, text, parried, marks: th.marks };
+      opponentThreat = { san: th.san, text, parried, marks: th.marks, line: th.line };
       if (parried && !first.isCheck) {
         // The threatened piece is the one moving (not a pawn making luft against a mate).
         const saves = th.uci.slice(2, 4) === first.from && first.piece !== "p" && !th.mates;
@@ -220,6 +224,7 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
           evidence: "engine",
           weight: th.mates ? 50 : 24 + Math.min(24, th.size / 30),
           marks: th.marks,
+          line: th.line,
         });
       }
     }
@@ -241,7 +246,13 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
           ? `${moveLabel(sv[0])} is about as good (${formatEval(second.eval)}): the engine sees almost no difference.`
           : `The engine prefers ${moveLabel(sv[0])} (${formatEval(second.eval)}).`;
 
-      alternatives.push({ san: sv[0].san, text, pv: second.pv, marks: { ...emptyMarks(), arrows: [{ from: sv[0].from, to: sv[0].to, tone: "danger", dashed: true }] } });
+      alternatives.push({
+        san: sv[0].san,
+        text,
+        pv: second.pv,
+        marks: { ...emptyMarks(), arrows: [{ from: sv[0].from, to: sv[0].to, tone: "danger", dashed: true }] },
+        line: { fen: inp.fen, pv: second.pv, label: moveLabel(sv[0]) },
+      });
     }
   }
 
@@ -263,6 +274,7 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
       san: reply.san,
       text: `${COLOR_NAME[them]} answers ${moveLabel(reply)}${what ? `, ${what}` : ""}${leaves}.`,
       marks: { ...emptyMarks(), arrows: [{ from: reply.from, to: reply.to, tone: "danger" }], squares: top?.marks.squares ?? [] },
+      line: { fen: first.fenAfter, pv: line!.pv.slice(1), label: moveLabel(reply) },
     };
   }
 

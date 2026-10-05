@@ -9,13 +9,16 @@ import { describeEval, evalFor, evalLoss, formatEval, type Evaluation } from "..
 import { boardIdeas } from "../reason/ideas";
 import { buildVariation, type VariationMove } from "../variation";
 import { materialSummary } from "./material";
-import { emptyMarks, type Evidence, type Marks, type Tone } from "./types";
+import { emptyMarks, type Evidence, type Marks, type PeekLine, type Tone } from "./types";
 
 export interface InsightPoint {
   text: string;
   tone: Tone;
   evidence: Evidence;
   marks: Marks;
+  /** Lines the sentence names, for the hover preview. */
+  line?: PeekLine;
+  lines?: PeekLine[];
 }
 
 export interface MoveInsight {

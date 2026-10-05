@@ -200,6 +200,8 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
   const myK = kingSquare(after, me);
   const theirK = kingSquare(after, them);
   const pv = [m.uci, ...ctx.after.map((x) => x.uci)];
+  const afterLine = (label: string) => (ctx.after.length ? { fen: m.fenAfter, pv: ctx.after.map((x) => x.uci), label } : undefined);
+  const withLine = (i: Idea, label: string) => ({ ...i, line: afterLine(label) });
 
   if (m.san.includes("#")) return [idea("mate", "delivers checkmate", "Checkmate.", 100, { squares: [{ sq: m.to, tone: "opportunity", style: "fill" }] })];
   if (m.promotion) ideas.push(idea("promotion", `promotes to a ${PIECE_NAME[m.promotion]}`, `Promotes the pawn to a ${PIECE_NAME[m.promotion]}.`, 60, { squares: [{ sq: m.to, tone: "opportunity", style: "fill" }] }));
@@ -216,10 +218,14 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
   } else if (swing >= 1 && (m.captured || ctx.after.slice(0, 5).some((x) => x.captured))) {
     const via = !m.captured && firstGrab ? `, picking it up with ${firstGrab.color === "w" ? `${firstGrab.moveNumber}.` : `${firstGrab.moveNumber}…`}${firstGrab.san}` : "";
     const how = m.captured ? `takes ${nm(before, m.to)}` : "sets up a sequence";
+    const grabLabel = firstGrab ? `${firstGrab.color === "w" ? `${firstGrab.moveNumber}.` : `${firstGrab.moveNumber}…`}${firstGrab.san}` : "";
     ideas.push(
-      idea("material", `wins ${gainWords(net)}${via}`, `${cap(how)} and wins ${gainWords(net)} once the captures settle${via}.`, 55 + 8 * Math.min(swing, 9), {
-        squares: [{ sq: m.to, tone: "opportunity", style: "ring" }],
-      }, "opportunity", "engine"),
+      withLine(
+        idea("material", `wins ${gainWords(net)}${via}`, `${cap(how)} and wins ${gainWords(net)} once the captures settle${via}.`, 55 + 8 * Math.min(swing, 9), {
+          squares: [{ sq: m.to, tone: "opportunity", style: "ring" }],
+        }, "opportunity", "engine"),
+        via ? grabLabel : "once the captures settle",
+      ),
     );
   } else if (m.captured && recaptured && swing >= -0.5) {
     const mine = m.promotion ?? piece;
@@ -656,9 +662,12 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
       const purpose = trade ? ", offering a trade of queens" : next.isCheck ? ", with check" : "";
       const lbl = `${next.color === "w" ? "" : "…"}${next.san}`;
       ideas.push(
-        idea("prepare", `prepares ${lbl}${purpose}`, `It prepares ${lbl}${purpose}: the ${name} ${clears ? "clears the way" : `covers ${next.to}`}.`, trade ? 16 : 12, {
-          arrows: [{ from: next.from, to: next.to, tone: "opportunity", dashed: true }],
-        }, "opportunity", "engine"),
+        withLine(
+          idea("prepare", `prepares ${lbl}${purpose}`, `It prepares ${lbl}${purpose}: the ${name} ${clears ? "clears the way" : `covers ${next.to}`}.`, trade ? 16 : 12, {
+            arrows: [{ from: next.from, to: next.to, tone: "opportunity", dashed: true }],
+          }, "opportunity", "engine"),
+          lbl,
+        ),
       );
     }
   }
@@ -669,10 +678,13 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
     if (lever) {
       const lbl = `${lever.color === "w" ? "" : "…"}${lever.to}`;
       ideas.push(
-        idea("prepare", `backs up the pawn lever ${lbl} to pry open the ${FILE(m.to)}-file`, `The engine follows up with ${lbl}, hitting the pawn on the ${FILE(m.to)}-file: if it opens, the rook is already there.`, 16, {
-          arrows: [{ from: lever.from, to: lever.to, tone: "opportunity", dashed: true }],
-          bands: [{ kind: "file", index: f, tone: "opportunity" }],
-        }, "opportunity", "engine"),
+        withLine(
+          idea("prepare", `backs up the pawn lever ${lbl} to pry open the ${FILE(m.to)}-file`, `The engine follows up with ${lbl}, hitting the pawn on the ${FILE(m.to)}-file: if it opens, the rook is already there.`, 16, {
+            arrows: [{ from: lever.from, to: lever.to, tone: "opportunity", dashed: true }],
+            bands: [{ kind: "file", index: f, tone: "opportunity" }],
+          }, "opportunity", "engine"),
+          lbl,
+        ),
       );
     }
   }
@@ -711,9 +723,12 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
     if (plan.length) {
       const lbl = plan.map((x) => `${x.color === "w" ? "" : "…"}${x.san}`).join(" and ");
       ideas.push(
-        idea("prepare", `prepares ${lbl}`, `The engine's plan continues with ${lbl}: this move is the first step.`, 8, {
-          arrows: plan.map((x) => ({ from: x.from, to: x.to, tone: "opportunity" as const, dashed: true })),
-        }, "opportunity", "engine"),
+        withLine(
+          idea("prepare", `prepares ${lbl}`, `The engine's plan continues with ${lbl}: this move is the first step.`, 8, {
+            arrows: plan.map((x) => ({ from: x.from, to: x.to, tone: "opportunity" as const, dashed: true })),
+          }, "opportunity", "engine"),
+          lbl,
+        ),
       );
     }
   }

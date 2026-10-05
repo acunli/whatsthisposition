@@ -47,5 +47,5 @@ export function narrate(fen: string, pv: string[], e: Evaluation, mover: Color, 
   const list = [...new Set(events)];
   const joined = list.length > 1 ? `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}` : list[0];
   const text = list.length ? `After ${sheet}, ${joined} (${formatEval(e)}).` : `Engine line: ${sheet} (${formatEval(e)}).`;
-  return { moves: sheet, text, eval: e };
+  return { moves: sheet, text, eval: e, line: { fen, pv: moves.map((m) => m.uci), label: sheet } };
 }

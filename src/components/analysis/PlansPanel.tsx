@@ -5,6 +5,7 @@ import type { Marks } from "@/lib/facts/types";
 import { PLAN_KIND_LABEL, type PlanCard, type PlanMeter, type PlanPoint } from "@/lib/plans/cards";
 import type { PlanVerdict } from "@/lib/plans/timing";
 import type { ThreatInfo } from "@/lib/reason/reason";
+import { Peek, PeekText } from "../peek/Peek";
 import { EvidenceTag, sideName } from "./bits";
 import type { TimingEntry } from "./usePlanTimings";
 
@@ -69,7 +70,7 @@ export function PlansPanel({ cards, timings, turn, threat, bestSan, focus, onFoc
     <div className="plans">
       {threat && (
         <div className="plans-urgent" role="note" onMouseEnter={() => onHoverPoint(threat.marks)} onMouseLeave={() => onHoverPoint(null)}>
-          <b>First things first.</b> {sideName(turn === "w" ? "b" : "w")} threatens {threat.label}
+          <b>First things first.</b> {sideName(turn === "w" ? "b" : "w")} threatens <Peek line={threat.line}>{threat.label}</Peek>
           {threat.why ? `, ${threat.why}` : ""}. Plans that ignore it are marked Not now{bestSan ? `; the engine's move is ${bestSan}` : ""}.
         </div>
       )}
@@ -93,7 +94,11 @@ export function PlansPanel({ cards, timings, turn, threat, bestSan, focus, onFoc
                 </span>
                 <span className={`pverdict pverdict-${verdict}`}>{verdict === "pending" ? "Checking…" : VERDICT[verdict]}</span>
               </button>
-              {t && t !== "pending" && <p className="pcard-when">{t.text}</p>}
+              {t && t !== "pending" && (
+                <p className="pcard-when">
+                  <PeekText text={t.text} lines={t.lines} />
+                </p>
+              )}
               <Meter m={c.meter} />
               <div className="pcard-cols">
                 {c.benefits.length > 0 && (

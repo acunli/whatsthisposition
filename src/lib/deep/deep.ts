@@ -355,7 +355,7 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
     const fromIdeas: InsightPoint[] = reasoning.ideas
       .filter((i) => i.kind !== "threat" && (i.tone !== "danger" || i.weight >= 6))
       .slice(0, 5)
-      .map((i) => ({ text: i.text, tone: i.tone, evidence: i.evidence, marks: i.marks }));
+      .map((i) => ({ text: i.text, tone: i.tone, evidence: i.evidence, marks: i.marks, ...(i.line ? { line: i.line } : {}) }));
     points.splice(0, points.length, ...fromIdeas);
   }
   let headline: string;

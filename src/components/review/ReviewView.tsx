@@ -9,13 +9,15 @@ import { other, type Color, type Square } from "@/lib/chess/types";
 import type { Evaluation } from "@/lib/engine/score";
 import { emptyMarks, type Marks } from "@/lib/facts/types";
 import { ANNOTATION, CLASS_INFO, CLASS_ORDER, type ClassifiedMove, type MoveClass } from "@/lib/review/classify";
-import { explainReviewMove } from "@/lib/review/explain";
+import { explainOpening, explainReviewMove } from "@/lib/review/explain";
 import type { ParsedGame } from "@/lib/review/pgn";
 import { tally } from "@/lib/review/review";
 import { buildVariation, fenAtPly, moveAtPly, navigate, type NavAction, type Variation } from "@/lib/variation";
 import { ClassIcon } from "./ClassIcon";
 import { EvalGraph } from "./EvalGraph";
+import { PeekOrientation } from "../peek/Peek";
 import { MoveInsight } from "./MoveInsight";
+import { OpeningCard } from "./OpeningCard";
 import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview } from "./useReview";
 
@@ -172,6 +174,8 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
 
   const turnAt = (boardFen.split(" ")[1] as Color) ?? "w";
   const opening = r.review.opening?.name ?? game.opening;
+  // Once the move after the book is classified (or the whole game is), the opening's story is complete.
+  const openingStory = moves.length > r.review.bookUntil + 1 || r.status === "done" ? explainOpening(r.review) : null;
   const running = r.status === "running" || r.status === "loading" || r.status === "verifying";
   const verifying = r.status === "verifying";
   const top = other(orientation);
@@ -197,7 +201,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
     );
   };
 
-  return (
+  const view = (
     <main className="review">
       <section className="board-col rv-board" aria-label="Board">
         <PlayerRow game={game} color={top} accuracy={r.accuracy?.[top]} active={turnAt === top} />
@@ -336,6 +340,8 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
           </div>
         </section>
 
+        {openingStory && <OpeningCard story={openingStory} masters={r.review.masters} onGo={go} onHover={setHover} />}
+
         {keyMoments.length > 0 && (
           <section className="rv-moments" aria-label="Key moments">
             <span className="eyebrow">Key moments</span>
@@ -391,4 +397,6 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
       </aside>
     </main>
   );
+  // Line previews (hover a move in an explanation) use the board's orientation.
+  return <PeekOrientation.Provider value={orientation}>{view}</PeekOrientation.Provider>;
 }

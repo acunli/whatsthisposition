@@ -106,7 +106,8 @@ The game review labels every move the way Chess.com's Game Review does, using ru
 
 - **Chess.com, "How are moves classified?"** (help article). This is the expected-points model: a move is judged by how much of the mover's expected score it loses compared with the best move. The bands are Best 0, Excellent < 0.02, Good < 0.05, Inaccuracy < 0.10, Mistake < 0.20, Blunder ≥ 0.20, plus the special labels Brilliant (a good sacrifice), Great (the only good move, critical), Miss (failing to punish an error), Book and Forced. We use the same bands.
 - **Lichess.** The win-percentage curve `50 + 50·(2/(1+e^(−0.00368208·cp)) − 1)`, the move-accuracy formula `103.1668·e^(−0.04354·Δ) − 3.1669`, and game accuracy as the mean of a volatility-weighted mean and a harmonic mean (lichess.org/page/accuracy and lila's `AccuracyPercent`).
-- **lichess-org/chess-openings** (CC0). This is the opening book: 3,863 named lines, which give 7,976 positions counting every position along each line.
+- **lichess-org/chess-openings** (CC0). This gives the opening names: 3,863 named lines, which give 7,976 positions counting every position along each line.
+- **Lichess broadcast database** (database.lichess.org, CC BY-SA 4.0) and the **Lichess Elite Database** (database.nikonoel.fr, a 2500+ vs 2300+ selection of the CC0 Lichess database). Together they give 1.84M games between strong players, from which `scripts/build-book.mjs` builds the master book: how often each move is played in each position, and how the games ended. Book is "what strong players really play here": at least 0.5% of the games in the position, or 25 games and 0.1%, and not a move the engine calls a mistake. This follows Chess.com's idea of Book as master-database theory. Its exact database and cut-offs aren't published, so ours are our own, measured on real games (`scripts/eval/README.md` §4).
 - **WintrChess** (github.com/WintrCat/wintrchess, GPL-3.0). We studied its Brilliant and Great logic:
   - pieces left "unsafe";
   - pieces that were already trapped;
@@ -135,6 +136,8 @@ Fitted on one half of the games and tested on the other, the mean gap is 3.3–4
 | A piece left hanging two moves running was "sacrificed" twice (Kasparov–Topalov 29…Bb7) | Pieces the opponent could already take on their last turn don't count as a new sacrifice |
 | Miss isn't defined by WintrChess | Miss: a Mistake or Blunder right after the opponent's Mistake, Blunder or Miss that doesn't leave the mover worse off than before that error (within 2%) |
 | One position analysed in "deep" mode got different labels from the same move in a game | Single-position analysis uses the same classifier (`classifyCandidate`) |
+| The named lines ended the book after about 5 plies ("1.d4 d5 2.c4 Nf6 3.Nc3" left it) | Book from strong players' games: 7.9 plies on average on Ay7u's 228 games, 74% of games with 6+ plies of theory (was 29%) |
+| Popular online traps would count as theory | A master move is Book only if the engine doesn't call it a mistake |
 
 ### Explanations
 
