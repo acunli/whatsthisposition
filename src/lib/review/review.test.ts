@@ -205,3 +205,17 @@ describe("two-pass review", () => {
     expect(second[3]).toBe(first[3]);
   });
 });
+
+describe("accuracy on Chess.com's scale", () => {
+  it("maps perfect play to 100 and keeps the order of better and worse games", async () => {
+    const { gameAccuracy: acc, moveAccuracyFor } = await import("./accuracy");
+    expect(moveAccuracyFor(60, 60)).toBeCloseTo(100, 0);
+    const mk = (before: number, after: number, color: "w" | "b" = "w") => ({ move: { color }, before, after, cls: "best" }) as unknown as ClassifiedMove;
+    const perfect = acc([mk(0.6, 0.6), mk(0.5, 0.5)]);
+    expect(perfect.w).toBe(100);
+    const sloppy = acc([mk(0.6, 0.55), mk(0.55, 0.45), mk(0.5, 0.2)]);
+    expect(sloppy.w!).toBeLessThan(80);
+    expect(sloppy.w!).toBeGreaterThanOrEqual(0);
+    expect(perfect.b).toBeNull();
+  });
+});

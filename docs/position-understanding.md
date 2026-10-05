@@ -115,6 +115,17 @@ The game review labels every move the way Chess.com's Game Review does, using ru
   We reimplemented the ideas independently and changed the method: exchanges are scored by static exchange evaluation (SEE) with x-rays, and only legal first captures count.
 - **freechess** (github.com/WintrCat/freechess). Read for orientation only. Its CC BY-NC-SA licence is incompatible with ours, so none of it is used.
 
+### Accuracy
+
+Lichess's game accuracy (a volatility-weighted mean averaged with a harmonic mean) tracks Chess.com's numbers only loosely. On 46 of Ay7u's games that Chess.com had reviewed, it gave a mean gap of 7.5 points and a correlation of 0.66.
+
+Chess.com doesn't publish its formula, so we fitted one to its output:
+- per-move accuracy uses Lichess's formula with a steeper decay (0.07);
+- the moves are averaged plainly;
+- the average is mapped linearly onto Chess.com's scale: 1.444·x − 43.3.
+
+Fitted on one half of the games and tested on the other, the mean gap is 3.3–4.1 points and the correlation is 0.89. The constants barely move between depth 12 and depth 14. The number shown is labelled as "on Chess.com's scale".
+
 ### What we changed or added
 
 | Problem seen in testing | Rule |

@@ -46,9 +46,10 @@ export default function Credits() {
 
         <h2>Privacy</h2>
         <p>
-          Analysis and game review run entirely in your browser. If you upload a photo, it goes to this site&apos;s server and on to the configured vision API (the NUS SoCLaaS gateway, or Anthropic&apos;s API)
-          to read the pieces. It&apos;s held in memory for that request only, and WhatsThisPosition doesn&apos;t store it. FEN and hand
-          setup never leave your device.
+          Analysis and game review run entirely in your browser. Screenshots and photos are read on your device by a small neural network
+          trained on open-source piece sets; they never leave your browser. Only if you choose the optional AI reader (for angled photos of a
+          real board) is the cropped picture sent through this site&apos;s server to the configured vision API (the NUS SoCLaaS gateway, or
+          Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device.
         </p>
 
         <h2>Stockfish</h2>

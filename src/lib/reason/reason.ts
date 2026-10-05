@@ -16,7 +16,7 @@ import type { Searcher } from "../deep/deep";
 import { evalFor, formatEval, type Evaluation } from "../engine/score";
 import { emptyMarks, type Marks } from "../facts/types";
 import { buildVariation, type VariationMove } from "../variation";
-import { boardIdeas, gainWords, netCaptures, type IdeaContext } from "./ideas";
+import { boardIdeas, consequences, gainWords, netCaptures, nm, type IdeaContext } from "./ideas";
 import { narrate } from "./line";
 import type { Alternative, Idea, MoveReasoning } from "./types";
 
@@ -198,10 +198,18 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
       const text = `${COLOR_NAME[them]} was threatening ${th.label}${th.why ? `, ${th.why}` : ""}.`;
       opponentThreat = { san: th.san, text, parried, marks: th.marks };
       if (parried && !first.isCheck) {
+        // The threatened piece is the one moving (not a pawn making luft against a mate).
+        const saves = th.uci.slice(2, 4) === first.from && first.piece !== "p" && !th.mates;
+        if (saves) {
+          // The threatened piece is the one moving: say it steps away, and drop the plainer "saves" idea.
+          const i = ideas.findIndex((x) => x.kind === "defence" && x.phrase.startsWith("saves"));
+          if (i >= 0) ideas.splice(i, 1);
+        }
+        const pieceName = saves ? nm(placementFromFen(inp.fen), first.from).replace(/^the /, "") : "";
         ideas.push({
           kind: "parry",
-          phrase: `stops ${th.label}`,
-          text: `${text} ${first.san} takes care of it.`,
+          phrase: saves ? `gets the ${pieceName.split(" on ")[0]} out of the way of ${th.label}` : th.mates ? `stops the mate threat ${th.label}` : `stops ${th.label}`,
+          text: saves ? `${text} The ${pieceName.split(" on ")[0]} steps away.` : `${text} ${first.san} takes care of it.`,
           tone: "info",
           evidence: "engine",
           weight: th.mates ? 50 : 24 + Math.min(24, th.size / 30),
@@ -240,10 +248,14 @@ export async function reasonMove(inp: ReasonInput): Promise<MoveReasoning | null
     const rideas = boardIdeas(reply, { after: afterMoves.slice(1), evalAfter: -mv(evalAfter, me) }).filter((i) => i.kind !== "material" && i.kind !== "trade");
     const top = rideas.find((i) => CONCRETE.has(i.kind) || i.kind === "threat" || i.kind === "check");
     const recapture2 = !!(first.captured && reply.captured && reply.to === first.to);
-    const what = wins || (top ? gerund(top.phrase) : recapture2 ? "taking back" : "");
+    const takes = reply.captured && !recapture2 ? `taking ${nm(placementFromFen(reply.fenBefore), reply.to)}` : "";
+    const extra = top && !takes.includes(top.phrase) ? gerund(top.phrase) : "";
+    const damage = wins ? [] : consequences(inp.fen, line!.pv, me);
+    const leaves = damage.length ? `, leaving ${COLOR_NAME[me]} with ${damage.slice(0, 2).join(" and ")}` : "";
+    const what = wins || [recapture2 ? "taking back" : takes, extra].filter(Boolean).join(" and ");
     refutation = {
       san: reply.san,
-      text: `${COLOR_NAME[them]} answers ${moveLabel(reply)}${what ? `, ${what}` : ""}.`,
+      text: `${COLOR_NAME[them]} answers ${moveLabel(reply)}${what ? `, ${what}` : ""}${leaves}.`,
       marks: { ...emptyMarks(), arrows: [{ from: reply.from, to: reply.to, tone: "danger" }], squares: top?.marks.squares ?? [] },
     };
   }

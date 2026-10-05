@@ -6,7 +6,7 @@ An X-ray for chess games and positions, built for **whatsthisposition.com**.
 
 **Game review.** Bring a game from Chess.com (username), Lichess (game link) or a PGN. Stockfish reviews every move in your browser, and each move gets a Chess.com-style label: **Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder** or **Forced**. Each label comes with an explanation drawn from the engine's lines. The review also shows accuracy for both players, an eval graph, key moments and a per-player label table. From any move you can play out the better line, or **deep-analyse that position**. The labels follow the same rules for every game; see [How moves are labelled](docs/position-understanding.md#game-review-how-moves-are-labelled).
 
-**Position analysis.** Snap a photo, paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
+**Position analysis.** Drop a screenshot (read on your device, no upload), paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
 
 **What you get after analysing a position**
 
@@ -23,7 +23,7 @@ How each concept is detected and drawn, with sources, is in [`docs/position-unde
 
 ```bash
 npm install          # also copies the Stockfish WASM build into public/engine
-cp .env.example .env.local   # optional, only needed for photo recognition
+cp .env.example .env.local   # optional: the cloud photo reader and Lichess username import
 npm run dev          # http://localhost:3000
 ```
 
@@ -49,7 +49,7 @@ Requires Node.js 20.9 or newer.
 
 ## Environment variables
 
-Only photo recognition needs configuration. Without it, the photo tab says it isn't set up, and FEN and hand setup keep working. Copy `.env.example` to `.env.local` and fill it in:
+Screenshots are read on the device and need no configuration. The keys below only enable the optional cloud reader for angled photos of real boards, and Lichess username import. Copy `.env.example` to `.env.local` and fill it in:
 
 | Variable | Purpose |
 | --- | --- |
@@ -72,7 +72,9 @@ src/lib/review/     game review: PGN parsing, opening book, piece safety (SEE), 
 src/lib/facts/      visual facts per lens (threats, king, pawns, structure, space, tactics,
                     pieces, control, material), ledger, advice, tour, tracing,
                     move explanations, plans
-src/lib/vision/     recognition schema, grid→board mapping, provider adapter (server-only)
+src/lib/vision/     on-device board reader (local/), recognition schema, cloud provider adapter
+src/lib/reason/     move reasoning: board ideas, engine probes, refutations, line stories
+src/lib/plans/      plan cards (benefits, drawbacks, meter) and engine timing
 src/lib/variation.ts  engine lines → verified moves, navigation
 src/components/     BoardStage (animated board), home, game review, setup flow,
                     analysis arena, scan intro
@@ -101,7 +103,7 @@ Explanations are written from templates over these facts. **No language model wr
 ## Privacy
 
 - Analysis and game review run locally in the browser. Imported games are fetched through this site's server from the public Chess.com and Lichess APIs, and are never stored.
-- Photos are held in memory for the recognition request, forwarded to Anthropic's API, and discarded. They are never written to disk or logged. The UI says this next to the upload control.
+- Screenshots and photos are read in the browser by the on-device reader (`src/lib/vision/local/`) and never uploaded. Only if the player chooses the optional AI reader is the cropped picture sent through this site's server to the configured vision API, held in memory for that request, and discarded. The UI says this next to the upload control.
 - The side to move, castling rights and en passant are never inferred from a photo. The player sets them, and analysis stays blocked until they're valid.
 
 ## Licences
@@ -110,7 +112,7 @@ Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licen
 
 ## Known limitations
 
-- Photo recognition quality depends on the vision model. Angled, glare-heavy or partly covered boards may need manual fixes. The app marks uncertain squares and can't be told a board is "fine" until you confirm them.
+- The on-device reader is built for screenshots and flat diagrams: 98.5% of squares right on a held-out set of unseen Chess.com and Lichess styles (`scripts/vision/README.md`). A few unusual piece sets still confuse it, and uncertain squares are marked for you to check. Angled photos of real boards go to the optional, less accurate AI reader.
 - Crop and rotate are a rectangle plus straightening; there's no perspective (keystone) correction.
 - Static facts use direct attacker/defender counts, not a full exchange evaluation. Where that matters, the text points to the engine line.
 - The lite engine is weaker than full Stockfish (still far beyond human strength). Deep settings on slow phones can take a while.

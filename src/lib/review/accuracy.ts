@@ -1,35 +1,36 @@
 /**
- * Game accuracy, following Lichess (lichess.org/page/accuracy): per-move accuracy
- * from win% before/after, then per player the average of a volatility-weighted
- * mean and a harmonic mean, so one blunder in a dead-equal game doesn't sink the score.
+ * Game accuracy on Chess.com's scale.
+ *
+ * Per move: Lichess's accuracy-from-win% formula, 103.17·e^(−a·Δwin%) − 3.17, with a
+ * steeper decay (a = 0.07). Per player: the plain average over their moves (forced
+ * moves left out), mapped linearly onto Chess.com's scale.
+ *
+ * The decay and the mapping were fitted on 46 Chess.com-reviewed games from the
+ * owner's test account (Ay7u), reviewed here at depth 14. Against Chess.com's own
+ * numbers this gives a mean error of about 3.5 points on held-out games, against
+ * 7.5 for Lichess's volatility-weighted aggregation (correlation 0.89 vs 0.66).
+ * See docs/position-understanding.md, "Accuracy".
  */
 import type { Color } from "../chess/types";
 import type { ClassifiedMove } from "./classify";
 
-function stdDev(xs: number[]) {
-  const m = xs.reduce((s, x) => s + x, 0) / xs.length;
-  return Math.sqrt(xs.reduce((s, x) => s + (x - m) ** 2, 0) / xs.length);
+export const ACCURACY_DECAY = 0.07;
+export const ACCURACY_SCALE = { slope: 1.444, offset: -43.3 };
+
+/** Accuracy of one move (0–100) from the mover's win% before and after it. */
+export function moveAccuracyFor(winBefore: number, winAfter: number, decay = ACCURACY_DECAY): number {
+  const a = 103.1668 * Math.exp(-decay * Math.max(0, winBefore - winAfter)) - 3.1669;
+  return Math.max(0, Math.min(100, a));
 }
 
 export function gameAccuracy(moves: ClassifiedMove[]): Record<Color, number | null> {
-  if (!moves.length) return { w: null, b: null };
-  // White-relative win% for every position: before the first move, then after each move.
-  const wins: number[] = [moves[0].move.color === "w" ? moves[0].before * 100 : (1 - moves[0].before) * 100];
-  for (const m of moves) wins.push(m.move.color === "w" ? m.after * 100 : (1 - m.after) * 100);
-  const windowSize = Math.max(2, Math.min(8, Math.floor(wins.length / 10)));
-  const windows: number[][] = [];
-  for (let i = 0; i < Math.max(0, Math.min(windowSize, wins.length) - 2); i++) windows.push(wins.slice(0, windowSize));
-  for (let i = 0; i + windowSize <= wins.length; i++) windows.push(wins.slice(i, i + windowSize));
-  const weights = windows.map((w) => Math.max(0.5, Math.min(12, stdDev(w))));
-
   const out: Record<Color, number | null> = { w: null, b: null };
   for (const c of ["w", "b"] as Color[]) {
-    const own = moves.map((m, i) => ({ m, w: weights[i] ?? 1 })).filter((x) => x.m.move.color === c);
+    const own = moves.filter((m) => m.move.color === c && m.cls !== "forced");
     if (!own.length) continue;
-    const wsum = own.reduce((s, x) => s + x.w, 0);
-    const weighted = own.reduce((s, x) => s + x.m.accuracy * x.w, 0) / wsum;
-    const harmonic = own.length / own.reduce((s, x) => s + 1 / Math.max(x.m.accuracy, 0.5), 0);
-    out[c] = Math.round(((weighted + harmonic) / 2) * 10) / 10;
+    const mean = own.reduce((s, m) => s + moveAccuracyFor(m.before * 100, m.after * 100), 0) / own.length;
+    const scaled = ACCURACY_SCALE.slope * mean + ACCURACY_SCALE.offset;
+    out[c] = Math.round(Math.max(0, Math.min(100, scaled)) * 10) / 10;
   }
   return out;
 }

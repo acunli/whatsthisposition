@@ -65,6 +65,44 @@ export function netCaptures(fen: string, pv: string[], mover: Color, maxPlies = 
   return { mine, theirs, swing: sum(mine) - sum(theirs) };
 }
 
+/**
+ * Lasting damage to `who` at the settled end of a line: doubled or isolated pawns,
+ * a king shelter with pawns missing, the bishop pair gone.
+ */
+export function consequences(fen: string, pv: string[], who: Color, maxPlies = 10): string[] {
+  const v = buildVariation(fen, pv, maxPlies);
+  let end = v.moves.length;
+  let quiet = 0;
+  for (let i = 0; i < v.moves.length; i++) {
+    quiet = v.moves[i].captured ? 0 : quiet + 1;
+    if (quiet >= 2 && i + 1 >= 4) {
+      end = i + 1;
+      break;
+    }
+  }
+  if (!end) return [];
+  const a = placementFromFen(fen);
+  const b = placementFromFen(v.moves[end - 1].fenAfter);
+  const out: string[] = [];
+  const pa = classifyPawns(a).filter((x) => x.color === who);
+  const pb = classifyPawns(b).filter((x) => x.color === who);
+  const doubled = pb.find((x) => x.doubled && !pa.some((y) => y.doubled && fileIndex(y.sq) === fileIndex(x.sq)));
+  if (doubled) out.push(`doubled ${FILE(doubled.sq)}-pawns`);
+  const isolated = pb.find((x) => x.isolated && !pa.some((y) => y.isolated && y.sq === x.sq) && !doubled);
+  if (isolated) out.push(`an isolated pawn on ${isolated.sq}`);
+  const k = kingSquare(b, who);
+  if (k && relRank(k, who) <= 1 && (fileIndex(k) <= 2 || fileIndex(k) >= 5)) {
+    const cover = (p: Placement) => [-1, 0, 1].filter((d) => {
+      const f = fileIndex(k) + d;
+      return f >= 0 && f < 8 && ALL_SQUARES.some((s) => fileIndex(s) === f && p[s]?.type === "p" && p[s]!.color === who && relRank(s, who) >= 1 && relRank(s, who) <= 2);
+    }).length;
+    if (cover(b) < cover(a)) out.push("a king with pawns missing from its shelter");
+  }
+  const bishops = (p: Placement) => ALL_SQUARES.filter((s) => p[s]?.color === who && p[s]!.type === "b").length;
+  if (bishops(a) === 2 && bishops(b) < 2) out.push("no bishop pair");
+  return out;
+}
+
 const ARTICLE: Record<string, string> = { p: "a pawn", n: "a knight", b: "a bishop", r: "a rook", q: "the queen" };
 
 /** "the queen for a bishop", "a knight", "two pawns", "the exchange" (rook for minor). */
@@ -171,10 +209,15 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
   const swing = net.swing;
   const reply = ctx.after[0];
   const recaptured = !!(m.captured && reply?.captured && reply.to === m.to);
-  if (swing >= 1 && (m.captured || ctx.after.slice(0, 5).some((x) => x.captured))) {
-    const how = m.captured ? `takes ${nm(before, m.to)}` : "starts a sequence";
+  const firstGrab = ctx.after.find((x) => x.color === me && x.captured);
+  if (swing >= 1 && (m.captured || ctx.after.slice(0, 5).some((x) => x.captured)) && ctx.goodMove === false) {
+    // The line wins material for a while, but the engine says the move is a mistake: it comes back.
+    if (m.captured) ideas.push(idea("material", `grabs ${nm(before, m.to)}`, `Grabs ${nm(before, m.to)}, but the engine expects ${COLOR_NAME[me]} to give the material back.`, 9));
+  } else if (swing >= 1 && (m.captured || ctx.after.slice(0, 5).some((x) => x.captured))) {
+    const via = !m.captured && firstGrab ? `, picking it up with ${firstGrab.color === "w" ? `${firstGrab.moveNumber}.` : `${firstGrab.moveNumber}…`}${firstGrab.san}` : "";
+    const how = m.captured ? `takes ${nm(before, m.to)}` : "sets up a sequence";
     ideas.push(
-      idea("material", `wins ${gainWords(net)}`, `${cap(how)} and wins ${gainWords(net)} once the captures settle.`, 55 + 8 * Math.min(swing, 9), {
+      idea("material", `wins ${gainWords(net)}${via}`, `${cap(how)} and wins ${gainWords(net)} once the captures settle${via}.`, 55 + 8 * Math.min(swing, 9), {
         squares: [{ sq: m.to, tone: "opportunity", style: "ring" }],
       }, "opportunity", "engine"),
     );
@@ -406,7 +449,7 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
     const now = zonePressure(after, m.to, them);
     if (was - now >= 2) ideas.push(idea("king-safety", "steps the king out of the firing line", `The king steps out of the firing line (fewer enemy pieces aim at it now).`, 12, {}, "info"));
   }
-  if (piece === "p" && myK && relRank(myK, me) === 0 && Math.abs(fileIndex(m.from) - fileIndex(myK)) <= 1 && relRank(m.to, me) === 2) {
+  if (piece === "p" && myK && relRank(myK, me) === 0 && (fileIndex(myK) <= 2 || fileIndex(myK) >= 5) && Math.abs(fileIndex(m.from) - fileIndex(myK)) <= 1 && relRank(m.to, me) === 2) {
     const backRankThreat = ALL_SQUARES.some((s) => after[s]?.color === them && (after[s]!.type === "r" || after[s]!.type === "q"));
     if (backRankThreat) ideas.push(idea("luft", "makes luft for the king", `Makes an escape square for the king, so back-rank checks lose their sting.`, 8, {}, "info"));
   }
@@ -462,13 +505,49 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
     }
   }
 
+  // Prophylaxis: a square the move takes away from enemy pieces that could have used it.
+  if (!ideas.some((i) => i.kind === "restrict") && !moverLoose) {
+    const covered = new Set(attacksFrom(after, m.to));
+    const bySquare = new Map<Square, Square[]>();
+    for (const sq of ALL_SQUARES) {
+      const x = after[sq];
+      if (!x || x.color !== them || x.type === "p" || x.type === "k") continue;
+      const lost = safeMobility(before, sq, attacksFrom(before, sq)).filter((t) => covered.has(t) && !safeMobility(after, sq, attacksFrom(after, sq)).includes(t));
+      for (const t of lost) bySquare.set(t, [...(bySquare.get(t) ?? []), sq]);
+    }
+    const top = [...bySquare.entries()].sort((a, b) => b[1].length - a[1].length)[0];
+    if (top && (top[1].length >= 2 || piece === "p")) {
+      const [t, pieces] = top;
+      ideas.push(
+        idea("restrict", `takes ${t} away from ${pieces.map((q) => nm(after, q)).join(" and ")}`, `Takes ${t} away from ${pieces.map((q) => nm(after, q)).join(" and ")}.`, pieces.length >= 2 ? 7 : 5, {
+          squares: [{ sq: t, tone: "danger", style: "pit" }, ...pieces.map((q) => ({ sq: q, tone: "danger" as const, style: "ring" as const }))],
+          arrows: [{ from: m.to, to: t, tone: "opportunity", thin: true }],
+        }),
+      );
+    }
+  }
+  // A pawn move that opens a line for one of the mover's long-range pieces.
+  if (piece === "p") {
+    for (const sq of ALL_SQUARES) {
+      const x = after[sq];
+      if (!x || x.color !== me || !["b", "q", "r"].includes(x.type)) continue;
+      if (!attacksFrom(before, sq).includes(m.from)) continue;
+      const gain = attacksFrom(after, sq).length - attacksFrom(before, sq).length;
+      if (gain >= 3) {
+        ideas.push(idea("activate", `opens a line for ${nm(after, sq)}`, `Opens a line for ${nm(after, sq)}.`, 6, { arrows: [{ from: sq, to: m.from, tone: "opportunity", thin: true }] }));
+        break;
+      }
+    }
+  }
+
   // ---- Pawns -------------------------------------------------------------------------
   if (piece === "p" || m.captured === "p") {
     const pb = classifyPawns(before);
     const pa = classifyPawns(after);
     const mineA = pa.filter((x) => x.color === me);
     const newPassed = mineA.filter((x) => x.passed && !pb.some((y) => y.color === me && y.passed && (y.sq === x.sq || (x.sq === m.to && y.sq === m.from))));
-    if (newPassed.length) ideas.push(idea("passed", `creates a passed pawn on ${newPassed[0].sq}`, `Creates a passed pawn on ${newPassed[0].sq}: nothing can stop it with a pawn any more.`, 16, { squares: [{ sq: newPassed[0].sq, tone: "opportunity", style: "ring" }] }));
+    const passer = newPassed.find((x) => x.sq === m.to || relRank(x.sq, me) >= 3);
+    if (passer) ideas.push(idea("passed", `creates a passed pawn on ${passer.sq}`, `Creates a passed pawn on ${passer.sq}: no enemy pawn can stop it any more.`, relRank(passer.sq, me) >= 4 ? 16 : 10, { squares: [{ sq: passer.sq, tone: "opportunity", style: "ring" }] }));
     else if (piece === "p" && pb.some((y) => y.sq === m.from && y.passed)) {
       const rr = relRank(m.to, me);
       ideas.push(idea("passed", `pushes the passed pawn to ${m.to}`, `Pushes the passed pawn to ${m.to}${rr >= 5 ? ", close to promotion" : ""}.`, rr >= 5 ? 20 : 11, { arrows: [{ from: m.from, to: m.to, tone: "opportunity" }] }));
@@ -550,7 +629,7 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
   // ---- Development (opening) -------------------------------------------------------
   const moveNo = Number(m.fenBefore.split(" ")[5]);
   if (moveNo <= 15 && (piece === "n" || piece === "b") && relRank(m.from, me) === 0 && !m.captured) {
-    ideas.push(idea("development", `develops the ${name}`, `Develops the ${name}, bringing another piece into the game.`, 6, {}, "info"));
+    ideas.push(idea("development", `develops the ${name}`, `Develops the ${name}, bringing another piece into the game.`, moveNo <= 10 ? 9 : 6, {}, "info"));
   }
 
   // ---- Defence ------------------------------------------------------------------------
@@ -621,13 +700,13 @@ export function boardIdeas(m: VariationMove, ctx: IdeaContext): Idea[] {
     ideas.push(idea("check", replies <= 2 ? `gives check, leaving ${replies === 1 ? "one reply" : "two replies"}` : "gives check", replies <= 2 ? `Check, and ${COLOR_NAME[them]} has only ${replies === 1 ? "one legal reply" : "two legal replies"}.` : "Gives check, so the reply is forced.", replies <= 2 ? 10 : 6));
   }
   // Getting out of check.
-  if (new Chess(m.fenBefore).inCheck()) {
-    const how = piece === "k" ? `steps the king to ${m.to}` : m.captured ? "captures the checking piece" : `blocks the check with the ${name}`;
-    ideas.push(idea("defence", `${how} to answer the check`, `Answers the check: ${how.replace(/^steps/, "it steps").replace(/^captures/, "it captures").replace(/^blocks/, "it blocks")}.`, 5, {}, "info"));
+  if (new Chess(m.fenBefore).inCheck() && !m.captured) {
+    const phrase = piece === "k" ? `steps the king out of check to ${m.to}` : `blocks the check with the ${name}`;
+    ideas.push(idea("defence", phrase, piece === "k" ? `The king steps out of check to ${m.to}.` : `The ${name} blocks the check.`, 5, {}, "info"));
   }
 
   // Quiet moves: say what they lead to, from the engine's next moves for this side.
-  if (ctx.goodMove && !ideas.some((i) => i.weight >= 10 && i.tone !== "danger")) {
+  if (ctx.goodMove && !ideas.some((i) => i.weight >= 6 && i.tone !== "danger")) {
     const plan = ctx.after.filter((x, i) => x.color === me && !(x.captured && ctx.after[i - 1]?.captured)).slice(0, 2);
     if (plan.length) {
       const lbl = plan.map((x) => `${x.color === "w" ? "" : "…"}${x.san}`).join(" and ");

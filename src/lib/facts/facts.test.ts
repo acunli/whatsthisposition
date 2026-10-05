@@ -184,7 +184,7 @@ describe("move explanations", () => {
     const safe = buildVariation(fen, ["c1g5"]);
     expect(staticMovePoints(safe.moves[0]).some((p) => p.tone === "danger")).toBe(false);
     const hang = buildVariation(fen, ["c1f4"]);
-    expect(staticMovePoints(hang.moves[0]).map((p) => p.text)).toContain("The bishop on f4 can be taken by the pawn on e5.");
+    expect(staticMovePoints(hang.moves[0]).map((p) => p.text)).toContain("The bishop on f4 can be taken by the e5 pawn.");
   });
 });
 
@@ -210,8 +210,10 @@ describe("quiet move explanations", () => {
     expect(texts.join(" ")).toMatch(/Takes b4 away from (the knight on c6|the bishop on e7)/);
   });
 
-  it("explains a move that opens a line for another piece", () => {
+  it("explains a move that opens a line for another piece, without counting squares", () => {
     const v = buildVariation("4k3/8/8/8/8/8/3P4/2B1K3 w - - 0 1", ["d2d4"]);
-    expect(staticMovePoints(v.moves[0]).map((p) => p.text)).toContain("Opens the way for the bishop on c1: 5 more safe squares.");
+    const texts = staticMovePoints(v.moves[0]).map((p) => p.text);
+    expect(texts).toContain("Opens a line for the bishop on c1.");
+    expect(texts.join(" ")).not.toMatch(/safe squares/);
   });
 });
