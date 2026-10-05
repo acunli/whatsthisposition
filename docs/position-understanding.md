@@ -138,13 +138,29 @@ Fitted on one half of the games and tested on the other, the mean gap is 3.3–4
 
 ### Explanations
 
-Each label has a template, filled only with verified facts and engine lines.
-
-- **Brilliant:** names the pieces offered, then shows what happens if they're taken (or that taking is too dangerous) from the reply line.
-- **Great:** what the next best move would cost.
-- **Errors:** the opponent's punishing reply and what it does on the board, the material swing along the line, and "Better was …" with its reason. The better line can be played out on the board.
-- **Book:** the opening name and ECO code.
+The move card's explanations come from the reasoning engine in `src/lib/reason/` (see the next section). The short per-label templates in `src/lib/review/explain.ts` are only shown for the second or two before it finishes.
 
 ### Test set
 
 The same code is run on unrelated games, with no game-specific logic: Morphy's Opera Game, Byrne–Fischer 1956, Anderssen–Kieseritzky 1851, Kasparov–Topalov 1999, the Blackburne Shilling trap, and a 43.g4 test position.
+
+## Move reasoning: what a coach looks for
+
+Owner feedback on 2026-10-05: reasons like "2 more safe squares" are useless; the owner wants reasoning about what each move actually does. So `src/lib/reason/` asks, for any move, the questions a coach asks, in roughly this order of importance:
+
+| Question | How it's answered | Example from real games |
+| --- | --- | --- |
+| Does it win material or mate? | The material at a settled point of the engine line, in words; never claimed when the engine calls the move a mistake | "wins the queen for a bishop", "picking it up with 6.Bxc4" |
+| What does it threaten? | A null move after the move, kept only if new and concrete | "threatens …hxg5, winning a bishop" |
+| What was the opponent threatening, and does it stop it? | A null move before the move, re-tested with `searchmoves` | "stops …Nxf3+", "gets the bishop out of the way of hxg4" |
+| Which tactic does it use? | Forks, pins, skewers and discovered attacks, only if the moving piece can't simply be taken | not a "fork" for 11…Nc2+?? when Bxc2 takes it |
+| Which lines does it take, and at what? | Open and half-open files, the seventh rank, diagonals at the king, batteries, pawn levers on the rook's file | "takes the half-open h-file, aiming at the h3 pawn" |
+| What does it prepare? | The engine's next move for this side, made possible by this one | "prepares …Qh6, offering a trade of queens" |
+| What does it do for the pieces and pawns? | Outposts, the worst piece activated, restriction and prophylaxis, pressure on a target, breaks, passed pawns, development, castling | "takes b4 away from the knight and the bishop" |
+| What does it cost? | Loose pieces, a loosened king cover, lost castling rights, walking into a pin | "loosens the king's pawn cover" |
+| For a mistake: how is it punished? | The reply, what it wins (counted from before the move), and lasting damage at the end of the line | "10…Bxf3, leaving White with doubled f-pawns and a king with pawns missing from its shelter" |
+| Why not the obvious alternative? | The second-best line and its refutation | "11.Ba4 is weaker: Black answers 11…b5, attacking the bishop" |
+
+Each idea is weighted, and weighted up when the engine's line actually uses it. The headline combines the strongest two. Mobility counts survive only as a last resort.
+
+The rules were iterated by reading every explanation over about 14 real games (`scripts/eval/README.md`). Each fix was made in general terms, never for one position.

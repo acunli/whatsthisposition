@@ -15,7 +15,7 @@ An X-ray for chess games and positions, built for **whatsthisposition.com**.
 - **Strengths & weaknesses:** a Silman-style ledger for both sides, plus "what each side should try". Every item points at its squares.
 - **Moves:** Stockfish's candidate lines played out move by move, with a per-move eval strip, "Why this move?", "Why not?", Compare, and "Try it first". You can also play your own move and ask about it.
 - **Layers:** stackable overlays for threats, king safety, pawn structure, pieces, space & control, and material.
-- **Plans:** conditional ideas (pawn breaks, knight routes, rook lifts, pushing passers, castling), each with what it depends on.
+- **Plans:** castling, pawn breaks, knight routes, rook lifts and passed-pawn pushes for both sides. For the side to move, the engine checks each one: good now, prepare first, or not now (with the reply that refutes it), and when the engine itself plays it. Each plan has its benefits and drawbacks drawn on the board, and an attack, defence, long-term and risk meter.
 
 How each concept is detected and drawn, with sources, is in [`docs/position-understanding.md`](docs/position-understanding.md).
 
@@ -46,6 +46,14 @@ Requires Node.js 20.9 or newer.
 | `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
 | `npm run vision:check` | Checks the SoCLaaS key, lists models, tests image input |
 | `npm run typecheck` | `tsc --noEmit` |
+
+### Evaluating changes
+
+Changes to the analysis are checked on real games, using the owner's test account Ay7u on Chess.com:
+- `scripts/eval/README.md`: an explanation report to read and iterate on, and game accuracy compared with Chess.com's own numbers.
+- `scripts/vision/README.md`: the photo reader's training and held-out benchmark.
+
+These tests are opt-in, so `npm test` stays fast.
 
 ## Environment variables
 
