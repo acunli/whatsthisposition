@@ -97,11 +97,9 @@ export function Story({ onTry }: { onTry: (fen: string) => void }) {
 
   return (
     <section className="story">
-      <div className="story-head">
-        <div className="eyebrow">One position, read four ways · computed live</div>
-        <h2 className="h-section">
-          How a strong player <em>reads</em> a board.
-        </h2>
+      <div className="section-head story-head">
+        <h2 className="h-section">How a strong player reads a board</h2>
+        <p className="section-lede">One position, read four ways. Every line below is worked out live from the board by the same code that reads your positions.</p>
       </div>
       <div className="story-grid">
         <div className="story-board">
@@ -126,7 +124,7 @@ export function Story({ onTry }: { onTry: (fen: string) => void }) {
             >
               <span className="story-n">{st.n}</span>
               <h3>
-                {st.title} <em>{st.accent}</em>
+                {st.title} {st.accent}
               </h3>
               <ul>
                 {st.lines.map((l, j) => (
@@ -136,8 +134,8 @@ export function Story({ onTry }: { onTry: (fen: string) => void }) {
                 ))}
               </ul>
               {k === steps.length - 1 && (
-                <button className="btn btn-gold" onClick={() => onTry(FEN)}>
-                  Explore this position with the engine →
+                <button className="btn btn-primary" onClick={() => onTry(FEN)}>
+                  Explore this position with the engine
                 </button>
               )}
             </article>

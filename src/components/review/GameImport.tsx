@@ -129,8 +129,8 @@ export function GameImport({ onGame }: Props) {
             autoCapitalize="off"
             autoComplete="off"
           />
-          <button className="btn btn-gold" disabled={!user.trim() || busy}>
-            {busy ? "Fetching…" : source === "lichess" && /lichess\.org\//i.test(user) ? "Review →" : "Find games →"}
+          <button className="btn btn-primary" disabled={!user.trim() || busy}>
+            {busy ? "Fetching…" : source === "lichess" && /lichess\.org\//i.test(user) ? "Review" : "Find games"}
           </button>
         </form>
       ) : (
@@ -145,8 +145,8 @@ export function GameImport({ onGame }: Props) {
             rows={4}
           />
           <div className="row">
-            <button className="btn btn-gold" disabled={!pgn.trim()} onClick={() => reviewPgn(pgn)}>
-              Review game →
+            <button className="btn btn-primary" disabled={!pgn.trim()} onClick={() => reviewPgn(pgn)}>
+              Review game
             </button>
             <button className="btn btn-ghost" onClick={() => file.current?.click()}>
               Upload .pgn

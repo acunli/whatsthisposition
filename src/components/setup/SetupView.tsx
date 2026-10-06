@@ -299,8 +299,8 @@ export function SetupView({ setup, onChange, orientation, onOrientation, onAnaly
           {status && status.kind !== "ongoing" && <p className={status.kind === "insufficient" ? "issue issue-note" : "issue"}>{status.message}</p>}
         </div>
 
-        <button className="btn btn-gold btn-big btn-wide" disabled={!!blocking} onClick={() => onAnalyze(setup)}>
-          X-ray this position →
+        <button className="btn btn-primary btn-big btn-wide" disabled={!!blocking} onClick={() => onAnalyze(setup)}>
+          X-ray this position
         </button>
       </section>
     </main>

@@ -8,7 +8,7 @@ const RULES: Record<MoveClass, string> = {
   best: "The engine's top choice in the position.",
   excellent: "Not the top move, but it costs under 2% of your winning chances.",
   good: "Costs between 2% and 5% of your winning chances.",
-  book: "Opening theory: the position is in the Lichess openings database.",
+  book: "Opening theory: a move strong players really choose here, from 1.8 million of their games.",
   inaccuracy: "Gives away 5–10% of your winning chances.",
   mistake: "Gives away 10–20% of your winning chances.",
   miss: "Your opponent just made a mistake and you let it go unpunished.",
@@ -20,28 +20,21 @@ export function Labels() {
   return (
     <section className="section">
       <div className="section-head">
-        <div>
-          <div className="eyebrow">Game review</div>
-          <h2 className="h-section">
-            Every move gets a <em>label.</em>
-          </h2>
-        </div>
+        <h2 className="h-section">Every move gets a label</h2>
         <p className="section-lede">
-          Each move is compared with Stockfish&apos;s best, in winning chances, using Lichess&apos;s win-probability curve. The same rules apply to every game, from your blitz games to
+          Each move is compared with Stockfish&apos;s best in winning chances, on Lichess&apos;s win-probability curve. The same rules apply to every game, from your blitz games to
           world championships.
         </p>
       </div>
-      <div className="labels">
-        {CLASS_ORDER.map((c, i) => (
-          <article key={c} className="label-card" style={{ ["--cls" as string]: CLASS_INFO[c].color, ["--i" as string]: i }}>
-            <ClassIcon cls={c} size={34} />
-            <div>
-              <h3>{CLASS_INFO[c].label}</h3>
-              <p>{RULES[c]}</p>
-            </div>
-          </article>
+      <ul className="legend">
+        {CLASS_ORDER.map((c) => (
+          <li key={c} style={{ ["--cls" as string]: CLASS_INFO[c].color }}>
+            <ClassIcon cls={c} size={28} />
+            <b>{CLASS_INFO[c].label}</b>
+            <span>{RULES[c]}</span>
+          </li>
         ))}
-      </div>
+      </ul>
     </section>
   );
 }

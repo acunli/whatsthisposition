@@ -82,7 +82,7 @@ const CONCEPTS: Concept[] = [
   },
 ];
 
-function Tile({ c, n }: { c: Concept; n: number }) {
+function Tile({ c }: { c: Concept }) {
   const ref = useRef<HTMLElement>(null);
   const [key, setKey] = useState(0);
   const [seen, setSeen] = useState(false);
@@ -111,10 +111,7 @@ function Tile({ c, n }: { c: Concept; n: number }) {
   return (
     <article ref={ref} className={`concept ${c.tone}`} onMouseEnter={() => setKey((k) => k + 1)}>
       <BoardStage placement={placement} orientation="w" marks={seen ? marks : undefined} revealKey={key} coordinates={false} label={`${c.title} example`} />
-      <h3>
-        <span className="concept-num">{String(n).padStart(2, "0")}</span>
-        {c.title}
-      </h3>
+      <h3>{c.title}</h3>
       <p>{c.text}</p>
     </article>
   );
@@ -123,8 +120,8 @@ function Tile({ c, n }: { c: Concept; n: number }) {
 export function Concepts() {
   return (
     <div className="concepts">
-      {CONCEPTS.map((c, i) => (
-        <Tile key={c.title} c={c} n={i + 1} />
+      {CONCEPTS.map((c) => (
+        <Tile key={c.title} c={c} />
       ))}
     </div>
   );

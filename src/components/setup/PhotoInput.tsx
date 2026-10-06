@@ -398,7 +398,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
                 </label>
               </div>
               <div className="row">
-                <button className="btn btn-gold" onClick={() => void readLocal(crop)}>
+                <button className="btn btn-primary" onClick={() => void readLocal(crop)}>
                   Read the board
                 </button>
                 <button className="btn btn-ghost" onClick={reset}>

@@ -329,8 +329,8 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
             </>
           )}
           <div className="rv-deep">
-            <button className="btn btn-gold btn-sm" onClick={() => onDeep(boardFen)}>
-              Deep-analyse this position →
+            <button className="btn btn-primary btn-sm" onClick={() => onDeep(boardFen)}>
+              Deep-analyse this position
             </button>
             {gm && !line && (
               <button className="linkish" onClick={() => onDeep(gm.fenBefore)}>

@@ -12,7 +12,7 @@ export function OpeningCard({ story, masters, onGo, onHover }: { story: OpeningS
         <span className="eyebrow">The opening{story.eco ? ` · ${story.eco}` : ""}</span>
         {story.leftPly != null && (
           <button className="linkish small" onClick={() => onGo(story.leftPly!)}>
-            Go to where it left theory →
+            Go to where it left theory
           </button>
         )}
       </div>

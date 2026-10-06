@@ -63,27 +63,6 @@ function useReducedMotion() {
   return r;
 }
 
-const TICKER = [
-  "Brilliant moves",
-  "Blunders",
-  "Missed wins",
-  "Book moves",
-  "Accuracy",
-  "Hanging pieces",
-  "Pins & skewers",
-  "Forks",
-  "Poisoned pawns",
-  "Holes",
-  "Outposts",
-  "Passed pawns",
-  "Pawn chains",
-  "King danger",
-  "Open files",
-  "Space",
-  "Only moves",
-  "Plans for both sides",
-];
-
 export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
   const [drag, setDrag] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
@@ -166,17 +145,10 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
         <div className="hero3d-veil" aria-hidden />
 
         <div className="hero3d-content">
-          <span className="pill">
-            <i aria-hidden /> Stockfish 19 · runs in your browser · free
-          </span>
-          <h1 className="h-hero">
-            See what the
-            <br />
-            engine <em>sees.</em>
-          </h1>
+          <h1 className="h-hero">See what the engine sees.</h1>
           <p className="hero-lede">
-            Review any game from Chess.com, Lichess or a PGN: every move is labelled from <span className="hl-gold">Brilliant</span> to <span className="hl-red">Blunder</span> and explained
-            from Stockfish&apos;s own lines. Then open any position and watch threats flash red and strong pieces light up.
+            Review a game from Chess.com, Lichess or a PGN. Every move gets a label, from brilliant to blunder, and an explanation taken from Stockfish&apos;s own lines. It all
+            runs in your browser, free.
           </p>
 
           <div
@@ -198,7 +170,7 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
             {dropError && <p className="hero-issue">{dropError}</p>}
 
             <div className="dock-alt">
-              <span className="eyebrow">Or analyse one position</span>
+              <span className="dock-label">Or open a single position</span>
               <div className="dock-alt-row">
                 <button className="btn" onClick={pick}>
                   <svg viewBox="0 0 24 24" aria-hidden>
@@ -214,9 +186,9 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
                     submitFen();
                   }}
                 >
-                  <input className="input" placeholder="paste a FEN…" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
+                  <input className="input input-code" placeholder="Paste a FEN" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
                   <button className="btn" disabled={!fen.trim()}>
-                    Analyse →
+                    Analyse
                   </button>
                 </form>
               </div>
@@ -233,7 +205,7 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
               {fenError && <p className="hero-issue">{fenError}</p>}
               <div className="dock-row">
                 <button className="chip" onClick={onHand}>
-                  ✎ Set up a board
+                  Set up a board
                 </button>
                 {SAMPLES.map((s) => (
                   <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
@@ -250,7 +222,7 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
             <div key={scene.id} className={`caption ${scene.polarity === "strength" ? "t-opportunity" : "t-danger"}`}>
               <span className="caption-tag">{scene.polarity === "strength" ? "+" : "−"}</span>
               <span className="caption-kind">
-                Live read · {scene.side === "w" ? "White" : "Black"} · {scene.polarity}
+                {scene.side === "w" ? "White" : "Black"}&apos;s {scene.polarity}, read live from the board
               </span>
               <span className="caption-text">{scene.fact.title}</span>
             </div>
@@ -261,21 +233,7 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
             </div>
           </div>
         )}
-        <div className="scroll-cue" aria-hidden>
-          <span />
-        </div>
       </section>
-
-      <div className="ticker" aria-hidden>
-        <div className="ticker-track">
-          {[...TICKER, ...TICKER].map((t, k) => (
-            <span key={k}>
-              {t}
-              <i>✦</i>
-            </span>
-          ))}
-        </div>
-      </div>
 
       <Labels />
 
@@ -283,32 +241,23 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
 
       <section className="section">
         <div className="section-head">
-          <div>
-            <div className="eyebrow">The visual language</div>
-            <h2 className="h-section">
-              Every idea has a <em>look.</em>
-            </h2>
-          </div>
-          <p className="section-lede">Once you&apos;ve seen these on the board a few times, you start spotting them in your own games, before the engine tells you.</p>
+          <h2 className="h-section">What each idea looks like on the board</h2>
+          <p className="section-lede">Once you&apos;ve seen these a few times, you start spotting them in your own games before the engine points them out.</p>
         </div>
         <Concepts />
       </section>
 
-      <section className="cta">
-        <h2 className="h-cta">
-          Your game.
-          <br />
-          <em>Explained.</em>
-        </h2>
-        <div className="row" style={{ justifyContent: "center" }}>
-          <button className="btn btn-gold btn-xl" onClick={toImport}>
+      <section className="closing">
+        <h2 className="h-section">Bring the game you lost last night.</h2>
+        <p className="section-lede">Type your Chess.com username or paste the PGN, then step through it move by move.</p>
+        <div className="closing-actions">
+          <button className="btn btn-primary btn-xl" onClick={toImport}>
             Review a game
           </button>
           <button className="btn btn-xl btn-ghost" onClick={pick}>
             Upload a board photo
           </button>
         </div>
-        <p className="dock-note">Games and photos are never stored. The engine runs on your device.</p>
       </section>
     </>
   );
