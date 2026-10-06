@@ -156,7 +156,8 @@ const CRITICAL = new Set(["brilliant", "great", "mistake", "miss", "blunder"]);
 export function criticalPositions(review: GameReview, positions: (PositionAnalysis | null)[], minDepth: number): number[] {
   const out = new Set<number>();
   review.moves.forEach((m, i) => {
-    if (!CRITICAL.has(m.cls)) return;
+    // Sacrifices count too: a near-best sacrifice at the first depth may be the best move deeper.
+    if (!CRITICAL.has(m.cls) && !m.sacrifice?.pieces.length) return;
     for (const k of [i, i + 1]) if (positions[k]?.lines.length && positions[k]!.depth < minDepth) out.add(k);
   });
   return [...out].sort((a, b) => a - b);

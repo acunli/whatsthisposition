@@ -5,21 +5,75 @@ import { usePathname, useRouter } from "next/navigation";
 import { LogoMark, Wordmark } from "./Logo";
 
 /**
- * The loading screen: the logo animation on a full-screen veil.
+ * The loading screen: the logo animation on a full-screen veil. It stays up until the
+ * page underneath is ready to run smoothly, so the first thing you see doesn't stutter.
  *
  * - First load: the veil is in the server HTML, so it shows before any script runs.
- *   It lifts once the page has hydrated and the logo has played (BOOT_MS). If scripts
- *   never run, CSS lifts it after a few seconds anyway.
+ *   It lifts when all of these hold: the logo has played (BOOT_MS), fonts are in,
+ *   every component holding the veil (`holdPageVeil`, e.g. the 3D hero until its first
+ *   frames are drawn) has let go, and the browser is drawing frames smoothly again.
+ *   Caps keep it from ever waiting too long; if scripts never run, CSS lifts it.
  * - Page changes: `showPageChange(fn)` (the studio's stages) and clicks on internal
  *   links (other routes) bring the veil back with a quicker cut of the animation, run
- *   the change underneath it, and lift it after NAV_MS.
+ *   the change underneath it, and lift it the same way (at least NAV_MS).
+ * - When it lifts it fires "wtp:revealed", so intro animations start in view.
  * - Reduced motion: no veil on page changes; on first load a static logo and a short fade.
  */
-const BOOT_MS = 1700;
-const NAV_MS = 800;
+const BOOT_MS = 2100;
+const BOOT_CAP_MS = 6000;
+const NAV_MS = 1000;
+const NAV_CAP_MS = 3000;
 const IN_MS = 170;
 const OUT_MS = 360;
 const EVENT = "wtp:page-change";
+export const REVEALED_EVENT = "wtp:revealed";
+
+// Components that need the veil to stay up a little longer (heavy first render).
+const holds = new Set<symbol>();
+const holdWaiters = new Set<() => void>();
+
+/**
+ * Keeps the loading veil up until the returned function is called (or `maxMs` passes):
+ * for work that would make the first seconds stutter, like compiling 3D shaders.
+ */
+export function holdPageVeil(maxMs = 5000): () => void {
+  const id = Symbol("veil-hold");
+  holds.add(id);
+  const release = () => {
+    if (!holds.delete(id)) return;
+    if (!holds.size) holdWaiters.forEach((f) => f());
+  };
+  setTimeout(release, maxMs);
+  return release;
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, Math.max(0, ms)));
+const released = () =>
+  holds.size
+    ? new Promise<void>((r) => {
+        const f = () => {
+          holdWaiters.delete(f);
+          r();
+        };
+        holdWaiters.add(f);
+      })
+    : Promise.resolve();
+
+/** Resolves when the browser draws `frames` frames in a row within `budget` ms each (or after `maxMs`). */
+function smooth(frames = 8, budget = 34, maxMs = 1500): Promise<void> {
+  return new Promise((resolve) => {
+    const t0 = performance.now();
+    let last = t0;
+    let calm = 0;
+    const tick = (now: number) => {
+      calm = now - last < budget ? calm + 1 : 0;
+      last = now;
+      if (calm >= frames || now - t0 > maxMs) resolve();
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
 
 type Phase = "boot" | "in" | "out" | "hidden";
 
@@ -48,9 +102,16 @@ export function PageVeil() {
     setPhase(p);
   };
   const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
-  const lift = (minMs: number) => {
-    later(Math.max(0, minMs - (performance.now() - shownAt.current)), () => {
+  const generation = useRef(0);
+  /** Lift once the minimum time has passed, holds are released (up to `capMs`), and frames are smooth. */
+  const lift = (minMs: number, capMs: number) => {
+    const gen = ++generation.current;
+    const since = shownAt.current;
+    const elapsed = () => performance.now() - since;
+    void Promise.all([sleep(minMs - elapsed()), Promise.race([released(), sleep(capMs - elapsed())]).then(() => smooth(8, 34, Math.max(300, capMs - elapsed())))]).then(() => {
+      if (gen !== generation.current) return; // a newer page change took over
       set("out");
+      window.dispatchEvent(new Event(REVEALED_EVENT));
       later(OUT_MS, () => set("hidden"));
     });
   };
@@ -59,7 +120,7 @@ export function PageVeil() {
   useEffect(() => {
     const t = timers.current;
     const elapsed = performance.now();
-    if (elapsed > 4300) {
+    if (elapsed > 7800) {
       // The CSS fallback has already lifted it.
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync with the CSS fallback
       set("hidden");
@@ -68,7 +129,7 @@ export function PageVeil() {
     shownAt.current = 0;
     const min = reducedMotion() ? 250 : BOOT_MS;
     const fonts = document.fonts?.ready ?? Promise.resolve();
-    void fonts.then(() => lift(min));
+    void fonts.then(() => lift(min, BOOT_CAP_MS));
     return () => t.forEach(clearTimeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
   }, []);
@@ -92,7 +153,7 @@ export function PageVeil() {
       later(IN_MS, () => {
         change();
         // Two frames: the new page has rendered under the veil.
-        requestAnimationFrame(() => requestAnimationFrame(() => lift(NAV_MS)));
+        requestAnimationFrame(() => requestAnimationFrame(() => lift(NAV_MS, NAV_CAP_MS)));
       });
     };
     window.addEventListener(EVENT, onChange);
@@ -125,7 +186,7 @@ export function PageVeil() {
   useEffect(() => {
     if (pendingRoute.current && pendingRoute.current === pathname) {
       pendingRoute.current = null;
-      requestAnimationFrame(() => lift(NAV_MS));
+      requestAnimationFrame(() => lift(NAV_MS, NAV_CAP_MS));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to the route only
   }, [pathname]);

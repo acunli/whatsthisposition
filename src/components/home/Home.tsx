@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BoardStage } from "../BoardStage";
 import { parseFen, placementFromFen, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
 import { PgnError, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
+import { holdPageVeil } from "../PageVeil";
 import { GameImport } from "../review/GameImport";
 import { computeFacts } from "@/lib/facts";
 import { buildLedger } from "@/lib/facts/ledger";
@@ -34,20 +35,32 @@ interface Props {
   onSample: (fen: string) => void;
 }
 
+/**
+ * Can the browser do WebGL? Checked without creating a throwaway context: that alone
+ * can stall the main thread for a long time (GPU start-up). If the 3D hero fails
+ * anyway, HeroBoundary falls back to the flat board.
+ */
 function useWebGL() {
   const [ok, setOk] = useState<boolean | null>(null);
   useEffect(() => {
-    let supported = false;
-    try {
-      const c = document.createElement("canvas");
-      supported = !!(c.getContext("webgl2") || c.getContext("webgl"));
-    } catch {
-      supported = false;
-    }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time capability check
-    setOk(supported);
+    setOk(typeof window !== "undefined" && ("WebGL2RenderingContext" in window || "WebGLRenderingContext" in window));
   }, []);
   return ok;
+}
+
+/** Falls back to the flat board if the 3D hero throws (no WebGL context, lost GPU). */
+class HeroBoundary extends Component<{ fallback: ReactNode; children: ReactNode; onError: () => void }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch() {
+    this.props.onError();
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
 
 function useReducedMotion() {
@@ -83,6 +96,15 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
     io.observe(el);
     return () => io.disconnect();
   }, []);
+
+  // The loading veil waits for the 3D hero's first frames (shaders compile then), so the page doesn't stutter as it appears.
+  const releaseVeil = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (!webgl) return;
+    releaseVeil.current = holdPageVeil(5000);
+    return () => releaseVeil.current?.();
+  }, [webgl]);
+  const heroReady = () => releaseVeil.current?.();
 
   const heroPlacement = useMemo(() => placementFromFen(HERO_FEN), []);
   const scenes = useMemo(() => {
@@ -135,7 +157,16 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
       <section className="hero3d" ref={heroRef} onMouseEnter={() => setPaused(false)}>
         <div className="hero3d-stage" aria-hidden>
           {webgl ? (
-            <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} />
+            <HeroBoundary
+              onError={heroReady}
+              fallback={
+                <div className="hero3d-fallback">
+                  <BoardStage placement={heroPlacement} orientation="w" marks={scene?.fact.marks} revealKey={scene?.id} coordinates={false} label="" />
+                </div>
+              }
+            >
+              <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} onReady={heroReady} />
+            </HeroBoundary>
           ) : webgl === false ? (
             <div className="hero3d-fallback">
               <BoardStage placement={heroPlacement} orientation="w" marks={scene?.fact.marks} revealKey={scene?.id} coordinates={false} label="" />

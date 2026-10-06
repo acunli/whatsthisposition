@@ -8,6 +8,7 @@ import { isBad, type ClassifiedMove } from "@/lib/review/classify";
 import type { MoveStory } from "@/lib/review/explain";
 import { EvidenceTag } from "../analysis/bits";
 import { Peek, PeekText } from "../peek/Peek";
+import { WhyBrilliant } from "./WhyBrilliant";
 import type { ReasoningEntry } from "./useMoveReasoning";
 
 interface Props {
@@ -86,13 +87,30 @@ export function MoveInsight({ cm, story, entry, onHover, onPlay }: Props) {
         <p className="rv-headline">{story.headline}</p>
         <Points items={story.points} onHover={onHover} />
         <Opening story={story} onHover={onHover} />
-        {thinking && <p className="rv-thinking">Looking deeper: what the move threatens, what it stops, and how the opponent answers…</p>}
+        {thinking && (
+          <p className="rv-thinking">
+            {cm.cls === "brilliant"
+              ? "Working out why the sacrifice works: what happens if it's taken, and why the obvious move falls short…"
+              : "Looking deeper: what the move threatens, what it stops, and how the opponent answers…"}
+          </p>
+        )}
         <Actions cm={cm} better={story.better ? { san: story.better.san, pv: story.better.pv } : null} onPlay={onPlay} />
       </>
     );
   }
 
   const p = r.played;
+  if (cm.cls === "brilliant" && r.sacrifice?.steps.length) {
+    return (
+      <>
+        <p className="rv-headline">{r.sacrifice.headline}</p>
+        <WhyBrilliant x={r.sacrifice} onHover={onHover} />
+        <Opening story={story} onHover={onHover} />
+        <Actions cm={cm} better={null} onPlay={onPlay} />
+        <span className="small muted">Hover a step to see it on the board; hover the moves to watch the line.</span>
+      </>
+    );
+  }
   if (!bad) {
     const headline = cm.cls === "brilliant" ? story.headline : p.headline;
     const items = cm.cls === "brilliant" ? [...story.points.slice(0, 2), ...listIdeas(p, 3)] : listIdeas(p, 5);

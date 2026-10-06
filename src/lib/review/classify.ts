@@ -8,7 +8,8 @@
  *   Book       the position after the move is opening theory (while the game is still in book)
  *   Forced     the only legal move
  *   Great      the best move when every alternative is clearly worse (≥ 10% loss)
- *   Brilliant  a best / near-best move that really gives material away (see safety.ts)
+ *   Brilliant  the best move, it really gives material away (see safety.ts), and it is clearly
+ *              better than the next-best move (BRILLIANT_GAP)
  *   Miss       failing to punish the opponent's mistake without actually making things worse
  *
  * Expected score uses Lichess's win% curve. Thresholds match Chess.com's published
@@ -50,6 +51,9 @@ export const CLASS_INFO: Record<MoveClass, { label: string; symbol: string; colo
   blunder: { label: "Blunder", symbol: "??", color: "#e0362f" },
   forced: { label: "Forced", symbol: "→", color: "#9aa3ad" },
 };
+
+/** How much better (expected score) a sacrifice must be than the next-best move to be Brilliant. */
+export const BRILLIANT_GAP = 0.04;
 
 /** Chess annotation marks, for writing a move as e.g. "16.Qb8+!!". */
 export const ANNOTATION: Partial<Record<MoveClass, string>> = { brilliant: "!!", great: "!", inaccuracy: "?!", mistake: "?", miss: "?", blunder: "??" };
@@ -261,7 +265,10 @@ export function classifyMove(inp: ClassifyInput): ClassifiedMove {
     // Pieces the opponent could already take on their last turn were offered (and declined) before this move.
     const declined = prev ? unsafePieces(prev.move.fenBefore, mover) : [];
     sacrifice = detectSacrifice(move.fenBefore, move.uci, declined);
-    if (sacrifice?.pieces.length) cls = "brilliant";
+    // Brilliant: the sacrifice is the engine's choice and clearly better than not making it
+    // (a liquidation that any move would match, e.g. into a dead draw, isn't brilliant).
+    const needed = topPlayed && (secondEp === null || epBefore - secondEp >= BRILLIANT_GAP);
+    if (sacrifice?.pieces.length && needed) cls = "brilliant";
   }
 
   // Miss: the opponent just erred, and this move lets the chance go without making things worse than before.

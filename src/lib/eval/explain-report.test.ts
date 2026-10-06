@@ -8,6 +8,7 @@
  *   EVAL_GAMES=scripts/eval/out/games.json [EVAL_OUT=…] [EVAL_SKIP=0] [EVAL_N=4] [EVAL_PER=8] [EVAL_DEPTH=12] \
  *     npx vitest run src/lib/eval/explain-report.test.ts
  * EVAL_PGN=file.pgn (with EVAL_FOCUS=42,43 for plies to always include) reviews one PGN instead.
+ * EVAL_ONLY=1 reports only the focus plies, or only the brilliant moves when there is no focus.
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { it } from "vitest";
@@ -15,8 +16,9 @@ import openings from "@/data/openings.json";
 import { findThreat, reasonMove } from "../reason/reason";
 import { makeBook } from "../review/book";
 import { CLASS_INFO } from "../review/classify";
+import { explainReviewMove } from "../review/explain";
 import { parseGame } from "../review/pgn";
-import { analysePositions, classifyGame } from "../review/review";
+import { analysePositions, classifyGame, criticalPositions } from "../review/review";
 import { nodeSearcher, type SavedGame } from "./nodeEngine";
 
 const env = process.env;
@@ -37,10 +39,22 @@ it.skipIf(!enabled)("write the explanation report", async () => {
   const out: string[] = [];
   for (const { pgn, focus: plies } of games) {
     const g = parseGame(pgn);
-    const r = classifyGame(g, await analysePositions(g, [search], { depth }), book);
+    // The same two passes as the app: tactical moments are searched again, deeper.
+    const first = await analysePositions(g, [search], { depth });
+    const crit = criticalPositions(classifyGame(g, first, book), first, depth + 4);
+    const positions = crit.length ? await analysePositions(g, [search], { depth: depth + 4, indices: crit, existing: first }) : first;
+    const r = classifyGame(g, positions, book);
     out.push(`\n######## ${g.white} vs ${g.black} (${g.result}) ${g.headers.Link ?? ""}`);
+    // EVAL_ONLY=1: just the focus plies (or, without focus, just the brilliant moves).
+    const only = env.EVAL_ONLY === "1";
     const pick = r.moves
-      .filter((m, i) => plies.includes(i + 1) || ["brilliant", "great", "mistake", "blunder", "miss"].includes(m.cls) || (["best", "excellent"].includes(m.cls) && i % 9 === 4))
+      .filter((m, i) =>
+        only
+          ? plies.length
+            ? plies.includes(i + 1)
+            : m.cls === "brilliant"
+          : plies.includes(i + 1) || ["brilliant", "great", "mistake", "blunder", "miss"].includes(m.cls) || (["best", "excellent"].includes(m.cls) && i % 9 === 4),
+      )
       .slice(0, Number(env.EVAL_PER ?? 8));
     for (const c of pick) {
       const m = c.move;
@@ -57,6 +71,9 @@ it.skipIf(!enabled)("write the explanation report", async () => {
         threatBefore,
       });
       out.push(`\n=== ply ${m.ply} ${CLASS_INFO[c.cls].label.toUpperCase()} ${rs?.label}  [${Date.now() - t0}ms]  best ${c.bestSan}  fen ${m.fenBefore}`);
+      const story = explainReviewMove(c, r.moves[m.ply - 2]);
+      out.push(`STORY: ${story.headline}`);
+      for (const p of story.points) out.push(`  * ${p.text}`);
       if (!rs) continue;
       out.push(`HEADLINE: ${rs.headline}`);
       for (const i of rs.ideas.slice(0, 6)) out.push(`  - [${i.kind} ${i.weight.toFixed(0)} ${i.evidence}] ${i.text}`);

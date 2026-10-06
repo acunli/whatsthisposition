@@ -83,6 +83,49 @@ Most games now leave the book on a move strong players don't really play (9.Bb5+
 
 **Rebuilding the book:** download the sources listed at the top of `scripts/build-book.mjs` (about 230 MB of broadcasts and 490 MB of Elite Database months), then run it in the **foreground**. Background shells on this machine are throttled to about half a core, which turns 1.5 minutes into 4 or more. `node scripts/build-book.mjs --check file.pgn.zst 3000` compares the fast SAN replayer with chess.js ply by ply (0 differences on 6,000 games, 2026-10-06).
 
+## 5. Brilliant moves: find them, explain them, read, fix
+
+The owner wants brilliant moves explained so that anyone understands *why* (Chess.com's and Chessigma's one-liners are the bar to beat), checked on top players' games.
+
+```bash
+# 1. Games from top players (one month each). Hikaru is the owner's example.
+for u in hikaru MagnusCarlsen FabianoCaruana GMWSO DanielNaroditsky Firouzja2003 LyonBeast nihalsarin AnishGiri GukeshDommaraju Polish_fighter3000 Ghandeevam2003 rpragchess; do
+  node scripts/eval/fetch-games.mjs $u scripts/eval/out/top-$u.json 1; done
+
+# 2. Find every move we label Brilliant (board-only pre-filter, then engine checks at depth 16).
+#    Resumable; run shards in parallel, in the FOREGROUND (background shells are throttled).
+G=$(ls scripts/eval/out/top-*.json | tr '\n' ',' | sed 's/,$//')
+for s in 0 1 2 3 4 5 6 7; do EVAL_GAMES=$G EVAL_SHARD=$s/8 EVAL_BUDGET_S=500 EVAL_OUT=scripts/eval/out/brilliants-$s.jsonl \
+  npx vitest run src/lib/eval/brilliant-hunt.test.ts > scripts/eval/out/hunt-$s.log 2>&1 & done; wait
+
+# 3. Explain them all (only the ones still Brilliant under the current rules).
+C=$(ls scripts/eval/out/brilliants-*.jsonl | tr '\n' ',' | sed 's/,$//')
+EVAL_CORPUS=$C EVAL_N=600 npx vitest run src/lib/eval/brilliant-report.test.ts
+less scripts/eval/out/brilliant-report.txt
+
+# One position: EVAL_FEN="<fen before>" EVAL_UCI=h6f8 [EVAL_LINES=1] npx vitest run src/lib/eval/brilliant-report.test.ts
+```
+
+**Results on 2026-10-06:**
+- 1,107 non-bullet games, about 1.5 hours of hunting in all.
+- 213 moves are Brilliant under the current rules, every one explained in 3–6 steps.
+- The report runs in about 40 s with the stored analyses.
+- By player: Naroditsky 153 (he plays the most), Nihal Sarin 23, Duda 13, Giri 10, Hikaru 7, Vachier-Lagrave 6, Firouzja 5, Gukesh 3, Carlsen 2, So 1, Praggnanandhaa 1.
+- Hikaru's 30.Bxf8 against demon64fields is in the corpus.
+
+**What the report found, and what was fixed in general terms:**
+- false Brilliants: trades (R×N, N×R, Q×N) and dead-draw liquidations (the classifier now needs a margin and a real net loss);
+- grammar in threat and idea clauses;
+- repeated threats;
+- "takes back" used when the recapture wasn't even;
+- pawn gifts;
+- promotions;
+- defensive sacrifices;
+- graded wording when the mover is worse;
+- the "why not save it" comparison now uses the verified second-best line.
+
+When reading, ask: would a 1000-rated player understand why the move works, and why the obvious move doesn't?
+
 ## Notes
 
 - These tests are skipped unless `EVAL_GAMES` (or `EVAL_PGN`) is set, so `npm test` stays fast.

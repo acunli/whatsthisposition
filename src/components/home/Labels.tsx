@@ -3,7 +3,7 @@ import { ClassIcon } from "../review/ClassIcon";
 
 /** The rule behind every label, exactly as src/lib/review/classify.ts applies it. */
 const RULES: Record<MoveClass, string> = {
-  brilliant: "A best or near-best move that really gives material away. The sacrifice is checked with exchange maths on the board, not guessed from the score.",
+  brilliant: "The engine's best move, and it really gives material away: checked with exchange maths on the board, not guessed from the score, and clearly better than not sacrificing.",
   great: "The only good move: every alternative throws away at least 10% of your winning chances.",
   best: "The engine's top choice in the position.",
   excellent: "Not the top move, but it costs under 2% of your winning chances.",

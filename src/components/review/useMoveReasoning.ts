@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Searcher } from "@/lib/deep/deep";
 import { getBrowserEngine } from "@/lib/engine/browser";
 import { findThreat, reasonMove } from "@/lib/reason/reason";
+import { explainSacrifice, type SacrificeExplanation } from "@/lib/reason/sacrifice";
 import type { MoveReasoning } from "@/lib/reason/types";
 import type { ClassifiedMove } from "@/lib/review/classify";
 
@@ -11,6 +12,8 @@ export interface ReviewReasoning {
   played: MoveReasoning | null;
   /** The engine's move, explained, when the game move wasn't it. */
   better: MoveReasoning | null;
+  /** For a Brilliant move: why the sacrifice works (what if they take, why not the obvious move). */
+  sacrifice?: SacrificeExplanation | null;
 }
 
 export type ReasoningEntry = { status: "pending" } | { status: "done"; data: ReviewReasoning } | { status: "failed" };
@@ -61,7 +64,23 @@ export function useMoveReasoning(cm: ClassifiedMove | undefined, enabled: boolea
         if (cm.bestUci && cm.bestUci !== m.uci && cm.bestLine) {
           better = await reasonMove({ fen: m.fenBefore, uci: cm.bestUci, line: cm.bestLine, best: cm.bestLine, second: cm.secondLine ?? undefined, search, depth: DEPTH, threatBefore });
         }
-        set({ status: "done", data: { played, better } });
+        let sacrifice: SacrificeExplanation | null = null;
+        if (cm.cls === "brilliant") {
+          sacrifice = await explainSacrifice({
+            fen: m.fenBefore,
+            uci: m.uci,
+            reply: cm.replyLine ? { pv: cm.replyLine.pv, eval: cm.evalAfter, depth: cm.replyLine.depth } : undefined,
+            best: cm.bestLine ?? undefined,
+            second: cm.secondLine ?? undefined,
+            threatBefore,
+            search,
+            depth: DEPTH,
+          }).catch((e) => {
+            if (stale()) throw e;
+            return null;
+          });
+        }
+        set({ status: "done", data: { played, better, sacrifice } });
       } catch {
         // A stale request is simply dropped; it will restart if the move is selected again.
         started.current.delete(key);

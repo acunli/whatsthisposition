@@ -1144,7 +1144,7 @@ textarea.input {
 
 /* If scripts never run, the first-load veil still lifts. */
 .veil-boot {
-  animation: veil-out 0.42s ease 4.2s forwards;
+  animation: veil-out 0.42s ease 7.5s forwards;
 }
 
 .veil-in {
@@ -5897,4 +5897,52 @@ em {
 
 .rv-opening .rv-points {
   margin: 0;
+}
+
+/* "Why it's brilliant": numbered steps in the review card */
+.rv-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.rv-steps li {
+  counter-increment: step;
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 12px 12px 12px 42px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--bone-2);
+  transition: background 0.15s;
+}
+
+.rv-steps li:hover {
+  background: var(--slab-2);
+}
+
+.rv-steps li::before {
+  content: counter(step);
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--night);
+  background: var(--cls, rgb(var(--gold)));
+}
+
+.rv-steps b {
+  color: var(--bone);
+  font-size: 14.5px;
 }

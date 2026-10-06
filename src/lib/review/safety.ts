@@ -175,7 +175,11 @@ export function detectSacrifice(fenBefore: string, uci: string, declined: BoardP
   const afterInCheck = new Chess(move.after).inCheck();
   if (!afterInCheck && after.length < before.length) return null;
   if (!after.length) return null;
-  const fresh = after.filter((pc) => pc.square === move.to || !declined.some((d) => d.square === pc.square && d.type === pc.type));
+  // What they win by taking must be more than the move itself just took: a rook that grabs a
+  // knight and is taken by a knight (and taken back) is a trade, not a sacrifice.
+  const afterP = placementFromFen(move.after);
+  const realLoss = (pc: BoardPiece) => see(afterP, pc.square, other(mover), legalCapturers(move.after, pc.square)) > captured;
+  const fresh = after.filter((pc) => (pc.square === move.to || !declined.some((d) => d.square === pc.square && d.type === pc.type)) && realLoss(pc));
   if (!fresh.length) return null;
   if (fresh.every((pc) => capturesBackfire(move.after, pc))) return null;
   const trappedBefore = before.filter((pc) => isTrapped(withTurn(fenBefore, other(mover)), pc));

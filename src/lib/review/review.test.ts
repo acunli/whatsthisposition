@@ -147,6 +147,16 @@ describe("classification rules (synthetic evaluations)", () => {
     expect(classifyMove({ ...base, move: e4, before: pa(cp(1200), ["e2e4"], cp(900)), after: pa(cp(1200)) }).cls).toBe("best");
   });
 
+  it("calls a sacrifice Brilliant only when it is clearly better than not sacrificing", () => {
+    // 30.Bxf8 (Hikaru vs demon64fields, 2026): takes a bishop and leaves the rook on a4 to the knight.
+    const fen = "r1r2bk1/p2q1p1p/1p1P2pB/4Pp2/R7/P1n2N1P/3Q1PP1/R5K1 w - - 2 30";
+    const move = parseGame(`[SetUp "1"]\n[FEN "${fen}"]\n\n30. Bxf8 *`).moves[0];
+    const at = { ...base, move, legalMoves: 40 };
+    expect(classifyMove({ ...at, before: pa(cp(430), ["h6f8"], cp(225)), after: pa(cp(430)) }).cls).toBe("brilliant");
+    // The same sacrifice when a quiet move is just as good: not Brilliant (it isn't needed).
+    expect(classifyMove({ ...at, before: pa(cp(80), ["h6f8"], cp(70)), after: pa(cp(80)) }).cls).not.toBe("brilliant");
+  });
+
   it("calls an unpunished opponent mistake a Miss", () => {
     const prev = { cls: "blunder", before: 0.55, move: { ply: 1 } } as unknown as ClassifiedMove;
     // We were at 45% before their blunder, the best reply would give 95%, we played something worth 50%.

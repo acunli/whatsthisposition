@@ -138,6 +138,9 @@ Fitted on one half of the games and tested on the other, the mean gap is 3.3–4
 | One position analysed in "deep" mode got different labels from the same move in a game | Single-position analysis uses the same classifier (`classifyCandidate`) |
 | The named lines ended the book after about 5 plies ("1.d4 d5 2.c4 Nf6 3.Nc3" left it) | Book from strong players' games: 7.9 plies on average on Ay7u's 228 games, 74% of games with 6+ plies of theory (was 29%) |
 | Popular online traps would count as theory | A master move is Book only if the engine doesn't call it a mistake |
+| Trades (a rook takes a knight, is taken by a knight, and is taken back) were called sacrifices | A piece only counts as sacrificed if the opponent wins more than the move just captured |
+| Endgame liquidations that any move would match (a rook given for a knight into a dead draw) were Brilliant | Brilliant needs the sacrifice to beat the next-best move by at least 0.04 in expected score |
+| Other sites label a brilliancy without explaining it | "Why it's brilliant": what's given up, what the move does instead, each way of taking played out, the best defence, why the obvious move falls short (checked on 213 brilliant moves from top players' games) |
 
 ### Explanations
 

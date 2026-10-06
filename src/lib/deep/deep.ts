@@ -21,6 +21,7 @@ import { materialSwing, staticMovePoints, type InsightPoint } from "../facts/exp
 import { materialSummary } from "../facts/material";
 import { emptyMarks, type Marks, type Tone } from "../facts/types";
 import { reasonMove } from "../reason/reason";
+import { explainSacrifice, type SacrificeExplanation } from "../reason/sacrifice";
 import { ANNOTATION, CLASS_INFO, classifyCandidate, type MoveClass } from "../review/classify";
 import { buildVariation, type VariationMove } from "../variation";
 
@@ -92,6 +93,8 @@ export interface Moment {
 }
 
 export interface DeepMove {
+  /** For a Brilliant move: why the sacrifice works. */
+  sacrifice?: SacrificeExplanation | null;
   uci: string;
   san: string;
   label: string;
@@ -358,8 +361,23 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
       .map((i) => ({ text: i.text, tone: i.tone, evidence: i.evidence, marks: i.marks, ...(i.line ? { line: i.line } : {}) }));
     points.splice(0, points.length, ...fromIdeas);
   }
+  // A Brilliant move gets the full "why the sacrifice works" story.
+  let sacrifice: SacrificeExplanation | null = null;
+  if (cl.kind === "brilliant") {
+    opts.onProgress?.("Working out why the sacrifice works");
+    sacrifice = await explainSacrifice({
+      fen,
+      uci: m.uci,
+      reply: deepPv.length > 1 ? { pv: deepPv.slice(1), eval: deepEval, depth } : undefined,
+      best: opts.isBest ? line : opts.bestLine,
+      second: opts.isBest ? alts[0] : undefined,
+      search,
+      depth: Math.max(12, depth - 2),
+    }).catch(() => null);
+  }
   let headline: string;
-  if (m.san.includes("#")) headline = `${m.san} is checkmate.`;
+  if (sacrifice?.steps.length) headline = sacrifice.headline;
+  else if (m.san.includes("#")) headline = `${m.san} is checkmate.`;
   else if (line.eval.kind === "mate" && line.eval.winner === mover) headline = `${m.san} forces mate in ${line.eval.moves}.`;
   else if (poisoned)
     headline = `${m.san} offers the ${PIECE_NAME[poisoned.captured]} on ${poisoned.capturedOn}, but taking it walks into ${poisoned.sans[1] ?? "a strong reply"}. ${cl.kind === "brilliant" ? "A real sacrifice." : ""}`.trim();
@@ -394,5 +412,6 @@ export async function analyzeMoveDeep(fen: string, line: LineInput, search: Sear
     pv: deepPv,
     outcome,
     comparison,
+    sacrifice,
   };
 }

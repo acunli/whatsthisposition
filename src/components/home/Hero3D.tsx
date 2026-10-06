@@ -2,6 +2,7 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
+import { REVEALED_EVENT } from "../PageVeil";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
@@ -158,6 +159,27 @@ interface Props {
   active: boolean;
   /** Lighter rendering for small screens. */
   lite: boolean;
+  /** Called once the first frames are drawn (shaders compiled): the loading veil can lift. */
+  onReady?: () => void;
+}
+
+/**
+ * Tells the page when the scene is ready, and draws the shadows once: the board and
+ * pieces never move (only the camera and the glowing overlays, which cast none), so
+ * re-rendering the shadow map every frame would be wasted work.
+ */
+function ReadySignal({ onReady }: { onReady?: () => void }) {
+  const frames = useRef(0);
+  useFrame((state) => {
+    frames.current++;
+    if (frames.current === 2) {
+      const map = state.gl.shadowMap;
+      map.autoUpdate = false;
+      map.needsUpdate = true;
+    }
+    if (frames.current === 3) onReady?.();
+  });
+  return null;
 }
 
 /** Glowing tiles, light pillars and arcing arrows for the current finding. */
@@ -270,11 +292,23 @@ function ScanBeam({ reduced }: { reduced: boolean }) {
 }
 
 function Rig({ reduced }: { reduced: boolean }) {
-  const { camera, pointer } = useThree();
+  const { camera, pointer, clock } = useThree();
+  // The camera's intro move starts when the loading veil lifts, so it plays in view.
+  const revealedAt = useRef<number | null>(null);
+  useEffect(() => {
+    const on = () => {
+      if (revealedAt.current === null) revealedAt.current = clock.getElapsedTime();
+    };
+    window.addEventListener(REVEALED_EVENT, on);
+    // Already revealed (e.g. the hero mounted after the veil lifted): start now.
+    if (!document.querySelector(".veil-boot, .veil-in")) on();
+    return () => window.removeEventListener(REVEALED_EVENT, on);
+  }, [clock]);
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime();
     const sway = reduced ? 0 : Math.sin(t * 0.18) * 0.22;
-    const intro = reduced ? 1 : Math.min(1, t / 2.4);
+    const since = revealedAt.current === null ? 0 : t - revealedAt.current;
+    const intro = reduced ? 1 : Math.min(1, since / 2.4);
     const e = 1 - Math.pow(1 - intro, 3);
     const radius = 18 - 2.6 * e;
     const angle = 0.5 + sway + (reduced ? 0 : pointer.x * 0.08);
@@ -285,15 +319,23 @@ function Rig({ reduced }: { reduced: boolean }) {
   return null;
 }
 
-export default function Hero3D({ placement, marks, sceneKey, reduced, active, lite }: Props) {
+export default function Hero3D({ placement, marks, sceneKey, reduced, active, lite, onReady }: Props) {
   return (
-    <Canvas shadows={lite ? false : "percentage"} frameloop={active ? "always" : "never"} dpr={lite ? 1 : [1, 1.75]} camera={{ fov: 30, position: [7, 9, 9], near: 0.1, far: 100 }} gl={{ antialias: true, alpha: true }} onCreated={setupEnvironment}>
+    <Canvas
+      shadows={lite ? false : "percentage"}
+      frameloop={active ? "always" : "never"}
+      dpr={lite ? 1 : [1, 1.5]}
+      camera={{ fov: 30, position: [7, 9, 9], near: 0.1, far: 100 }}
+      gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
+      onCreated={setupEnvironment}
+    >
+      <ReadySignal onReady={onReady} />
       <ambientLight intensity={0.25} />
       <directionalLight
         position={[5, 11, 6]}
         intensity={1.9}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-7}
         shadow-camera-right={7}
         shadow-camera-top={7}

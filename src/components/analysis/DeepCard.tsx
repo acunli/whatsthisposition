@@ -5,6 +5,7 @@ import { CLASS_INFO } from "@/lib/review/classify";
 import { ClassIcon } from "../review/ClassIcon";
 import type { Marks } from "@/lib/facts/types";
 import { PeekText } from "../peek/Peek";
+import { WhyBrilliant } from "../review/WhyBrilliant";
 import { EvalChip, EvidenceTag, sideName } from "./bits";
 import type { DeepEntry } from "./useAnalysis";
 
@@ -68,7 +69,13 @@ export function DeepCard({ entry, onHoverMarks, onPlay, onClose }: Props) {
       </header>
       <p className="deep-headline">{d.headline}</p>
 
-      {d.points.length > 0 && (
+      {d.sacrifice?.steps.length ? (
+        <section className="deep-sec deep-why">
+          <WhyBrilliant x={d.sacrifice} onHover={hover} />
+        </section>
+      ) : null}
+
+      {d.points.length > 0 && !d.sacrifice?.steps.length && (
         <section className="deep-sec">
           <h4>What it does</h4>
           <ul className="points">

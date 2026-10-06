@@ -8,6 +8,8 @@ An X-ray for chess games and positions, built for **whatsthisposition.com**.
 
 **Openings, as deep as theory goes.** Book moves come from 1.84 million games between strong players, so theory follows the game until a move strong players don't really play (on average 7.9 plies on a club player's games, against 5.1 with named lines alone). Every book move says how often strong players choose it, how they score after it, the main line and the alternatives. The opening card says how long both sides followed theory, who left it, and what strong players play there instead.
 
+**Brilliant moves, explained.** A Brilliant label comes with the reasons a weak player needs: what is given up (and the threat it ignores), what the move does instead, what happens after each way of taking it, the opponent's best defence, and why the obvious move falls short. Checked on 213 brilliant moves from top players' games on Chess.com.
+
 **Every line can be watched.** Wherever an explanation names a line ("Black answers 8…Nxe4", "the main line goes on 2…e6 3.Nc3 Nf6", "the engine plays it after 7.b4 Bb6 8.a4"), hover or tap the underlined moves and a small board plays the line out, move by move, in a floating window.
 
 **Position analysis.** Drop a screenshot (read on your device, no upload), paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
