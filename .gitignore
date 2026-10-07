@@ -1,13 +1,5 @@
 node_modules/
 .next/
-# On iCloud-synced folders these are symlinks into *.nosync folders, which iCloud
-# never offloads (see docs/PROJECT_CONTEXT.md §0, gotchas).
-/node_modules
-/.next
-*.nosync
-# iCloud's conflict copies ("node_modules 2", "node_modules 3", …)
-/node_modules *
-/.next *
 out/
 coverage/
 *.tsbuildinfo

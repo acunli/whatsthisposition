@@ -1,9 +1,6 @@
 .git
 node_modules
-node_modules*
 .next
-.next*
-*.nosync
 public/engine
 scripts/eval/out
 coverage
@@ -11,4 +8,3 @@ coverage
 .env*.local
 *.tsbuildinfo
 .DS_Store
-**/* 2.*

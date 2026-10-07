@@ -5,16 +5,23 @@ import "server-only";
  * two API routes from accidental floods and abuse: /api/games proxies Chess.com and
  * Lichess (which rate-limit us in turn), and /api/recognize can cost money.
  *
- * In-memory means per server instance: good enough on one container or VPS; on a
- * serverless host each instance keeps its own count (a soft limit, still useful).
+ * In-memory means per server instance: exact on one container, softer on Vercel,
+ * where each function instance keeps its own count (still useful against floods).
  */
 const buckets = new Map<string, number[]>();
 let lastSweep = 0;
 
-/** The client's IP as the proxy in front of us reports it. */
+/**
+ * The client's IP as the proxy in front of us reports it. Vercel and Caddy both
+ * overwrite x-forwarded-for with the real address, so a visitor can't fake it there.
+ * Other headers are only trusted when CLIENT_IP_HEADER names one (for example
+ * cf-connecting-ip behind Cloudflare), because anyone can send them.
+ */
 export function clientIp(req: Request): string {
   const h = req.headers;
-  return h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "local";
+  const trusted = process.env.CLIENT_IP_HEADER?.trim();
+  const ip = (trusted && h.get(trusted)) || h.get("x-forwarded-for")?.split(",")[0] || h.get("x-real-ip");
+  return ip?.trim() || "local";
 }
 
 /** Records a hit; returns how many seconds to wait if over `limit` hits per `windowMs`, else 0. */

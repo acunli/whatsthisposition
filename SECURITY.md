@@ -17,3 +17,4 @@ Things that are especially worth reporting:
 - Keep API keys in the host's environment settings or `.env.local`, never in the repository.
 - Leave the cloud photo reader off (no key) unless you intend to pay for it; screenshots are read on the device for free.
 - Production responses carry a strict Content Security Policy, HSTS and the usual hardening headers (`next.config.ts`).
+- The rate limits key on the visitor's IP from `x-forwarded-for`, which Vercel and Caddy overwrite. Behind another proxy (Cloudflare, nginx), set `CLIENT_IP_HEADER` to the header it sets (for example `cf-connecting-ip`), and make sure visitors can't reach the server directly.

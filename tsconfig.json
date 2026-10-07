@@ -39,8 +39,6 @@
   ],
   "exclude": [
     "node_modules",
-    "*.nosync",
-    "public",
-    "**/* 2.*"
+    "public"
   ]
 }

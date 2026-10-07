@@ -126,7 +126,7 @@ npm test             # unit tests plus real Stockfish runs in Node
 npm run lint && npm run typecheck && npm run build
 ```
 
-**Self-hosting:** `docker build -t whatsthisposition .` or the ready-made Docker Compose + Caddy setup for HTTPS. See [docs/DEPLOY.md](docs/DEPLOY.md) for that, Vercel, costs, and the domain.
+**Hosting your own copy:** import the repository on [Vercel](https://vercel.com/new) (the free plan is enough, and no settings are needed), or use the Docker image with the ready-made Compose + Caddy setup on any small server. Costs, limits and adding a domain: [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## How it works, in one paragraph
 

@@ -5,8 +5,7 @@ const config = [
   ...nextVitals,
   ...nextTs,
   {
-    // *.nosync: node_modules and .next live there on iCloud-synced folders (see .gitignore).
-    ignores: [".next/**", "node_modules/**", "*.nosync/**", "public/**", "next-env.d.ts", "coverage/**"],
+    ignores: [".next/**", "node_modules/**", "public/**", "next-env.d.ts", "coverage/**"],
   },
 ];
 

@@ -13,7 +13,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const MAX_BYTES = 6 * 1024 * 1024;
+// Below Vercel's 4.5 MB request limit, so visitors get this route's message, not the host's.
+const MAX_BYTES = 4 * 1024 * 1024;
 const TYPES = new Set<VisionInput["mediaType"]>(["image/jpeg", "image/png", "image/webp"]);
 
 function fail(status: number, code: RecognitionError["code"], message: string) {
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
   const file = form.get("image");
   if (!(file instanceof Blob)) return fail(400, "bad_request", "No image was attached.");
   if (!TYPES.has(file.type as VisionInput["mediaType"])) return fail(400, "bad_request", "Use a JPEG, PNG or WebP image.");
-  if (file.size > MAX_BYTES) return fail(413, "too_large", "That image is over 6 MB. Crop it or use a smaller photo.");
+  if (file.size > MAX_BYTES) return fail(413, "too_large", "That image is over 4 MB. Crop it or use a smaller photo.");
 
   try {
     const data = Buffer.from(await file.arrayBuffer());
