@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SOURCE_URL } from "@/lib/brand";
 import { Logo } from "./Logo";
 
 /** The author's site. */
@@ -42,6 +43,9 @@ export function SiteFooter() {
       </div>
       <nav className="footer-links" aria-label="Footer">
         <Link href="/credits">How it works, licences and privacy</Link>
+        <a href={SOURCE_URL} target="_blank" rel="noopener">
+          Source code
+        </a>
         <a href={AUTHOR_URL} target="_blank" rel="noopener">
           Built by Ayushman
         </a>

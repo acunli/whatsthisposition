@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BoardStage } from "../BoardStage";
+import { EngineLines } from "../EngineLines";
+import { PlayBoard } from "../PlayBoard";
+import { useLiveLines } from "../useLiveLines";
 import { EvalBar, EvalChip, sideName } from "../analysis/bits";
 import { VariationBar } from "../analysis/VariationBar";
 import { placementFromFen } from "@/lib/chess/fen";
@@ -36,6 +38,8 @@ interface LineView {
   variation: Variation;
   ply: number;
   eval: Evaluation;
+  /** Moves the user played on the board (its eval comes from the live engine lines). */
+  user?: boolean;
 }
 
 const KEY_CLASSES: MoveClass[] = ["brilliant", "great", "miss", "blunder", "mistake"];
@@ -126,7 +130,25 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
   const boardFen = line ? fenAtPly(line.variation, line.ply) : gm ? gm.fenAfter : game.startFen;
   const boardMove = line ? moveAtPly(line.variation, line.ply) : gm;
   const placement = useMemo(() => placementFromFen(boardFen), [boardFen]);
-  const shownEval = line ? line.eval : (r.positions[ply]?.eval ?? null);
+  // Top engine lines for whatever is on the board. During the review the pool's own lines
+  // stand in (no extra engine work); afterwards a dedicated engine searches deeper, live.
+  const live = useLiveLines(boardFen, { enabled: active && r.status === "done" });
+  const gameLines = !line ? (r.positions[ply]?.lines ?? []) : [];
+  const shownLines = live?.lines.length ? live.lines : gameLines;
+  const linesDepth = live?.lines.length ? live.depth : (gameLines[0]?.depth ?? null);
+  const shownEval = line ? (live?.lines[0]?.eval ?? (line.user ? null : line.eval)) : (r.positions[ply]?.eval ?? null);
+
+  /** A move played on the board: follows the game if it's the game's move, otherwise starts (or extends) "Your moves". */
+  const userMove = (uci: string) => {
+    if (!line && game.moves[ply]?.uci === uci) return go(ply + 1);
+    const start = line ? line.variation.startFen : boardFen;
+    const before = line ? line.variation.moves.slice(0, line.ply).map((m) => m.uci) : [];
+    const v = buildVariation(start, [...before, uci], 60);
+    if (v.moves.length !== before.length + 1) return;
+    setLine({ title: line?.user ? line.title : "Your moves", variation: v, ply: v.moves.length, eval: line?.eval ?? r.positions[ply]?.eval ?? { kind: "cp", cp: 0 }, user: true });
+    setHover(null);
+    setAnimKey((k) => k + 1);
+  };
 
   const marks = useMemo((): Marks => {
     if (hover) return hover;
@@ -207,7 +229,9 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
         <PlayerRow game={game} color={top} accuracy={r.accuracy?.[top]} active={turnAt === top} />
         <div className="board-wrap">
           <EvalBar e={shownEval} orientation={orientation} />
-          <BoardStage
+          <PlayBoard
+            fen={boardFen}
+            onMove={userMove}
             placement={placement}
             orientation={orientation}
             marks={marks}
@@ -299,6 +323,21 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
             ))}
           </div>
         </header>
+
+        <EngineLines
+          fen={boardFen}
+          lines={shownLines}
+          depth={linesDepth}
+          searching={!!live && !live.done}
+          onPlay={(pv, upto) => {
+            const v = buildVariation(boardFen, pv, 16);
+            if (!v.moves.length) return;
+            setLine({ title: "Engine line", variation: v, ply: Math.min(upto, v.moves.length), eval: shownLines.find((l) => l.pv === pv)?.eval ?? { kind: "cp", cp: 0 } });
+            setHover(null);
+            setAnimKey((k) => k + 1);
+          }}
+          onHover={setHover}
+        />
 
         <section className={`rv-card ${cm ? `rv-card-${cm.cls}` : ""}`} aria-live="polite" style={cm ? { ["--cls" as string]: CLASS_INFO[cm.cls].color } : undefined}>
           {ply === 0 ? (

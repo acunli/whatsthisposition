@@ -5,6 +5,7 @@
  *   Chess.com  api.chess.com/pub/player/{name}/games/archives → monthly archive
  * `fetch` is injected so the parsing can be tested without the network.
  */
+import { SITE_ASCII, SITE_URL } from "../brand";
 
 export type Site = "lichess" | "chesscom";
 
@@ -36,7 +37,7 @@ export class ImportError extends Error {
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 
-const USER_AGENT = "WhatsThisPosition game review (+https://whatsthisposition.com)";
+const USER_AGENT = `${SITE_ASCII} game review (+${SITE_URL})`;
 
 /** Usernames on both sites: letters, digits, _ and -, 2–30 characters. */
 export function validUsername(name: string): boolean {

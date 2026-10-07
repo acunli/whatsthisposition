@@ -13,7 +13,7 @@ if (!user || !out) {
   process.exit(1);
 }
 const months = Number(monthsArg ?? 3);
-const headers = { "User-Agent": "WhatsThisPosition evaluation (+https://whatsthisposition.com)" };
+const headers = { "User-Agent": "whatsthisposition evaluation (+https://whatsthisposition.com)" };
 const get = async (url) => {
   const r = await fetch(url, { headers });
   if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);

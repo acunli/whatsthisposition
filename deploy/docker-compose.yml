@@ -1,0 +1,27 @@
+# One small server (any VPS with Docker): the app plus Caddy, which gets and renews
+# HTTPS certificates for whatsthisposition.com automatically.
+#   cd deploy && docker compose up -d --build
+services:
+  app:
+    build: ..
+    restart: unless-stopped
+    env_file:
+      - ../.env.local
+    expose:
+      - "3000"
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+volumes:
+  caddy_data:
+  caddy_config:

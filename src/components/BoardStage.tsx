@@ -26,12 +26,15 @@ export interface BoardStageProps {
   className?: string;
   /** An icon pinned to a square's top-right corner (e.g. a move-classification badge). */
   stamp?: { sq: Square; node: ReactNode; key: string } | null;
+  /** Don't draw the piece on this square (it's being dragged). */
+  hide?: Square | null;
 }
 
-const col = (sq: Square, o: Color) => (o === "w" ? fileIndex(sq) : 7 - fileIndex(sq));
-const row = (sq: Square, o: Color) => (o === "w" ? 7 - rankIndex(sq) : rankIndex(sq));
-const cx = (sq: Square, o: Color) => col(sq, o) * 100 + 50;
-const cy = (sq: Square, o: Color) => row(sq, o) * 100 + 50;
+/** Board geometry, in the 800×800 SVG space the overlays use (one square = 100). */
+export const col = (sq: Square, o: Color) => (o === "w" ? fileIndex(sq) : 7 - fileIndex(sq));
+export const row = (sq: Square, o: Color) => (o === "w" ? 7 - rankIndex(sq) : rankIndex(sq));
+export const cx = (sq: Square, o: Color) => col(sq, o) * 100 + 50;
+export const cy = (sq: Square, o: Color) => row(sq, o) * 100 + 50;
 
 const ICONS: Record<IconName, string> = {
   shield: "M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z",
@@ -44,7 +47,7 @@ const ICONS: Record<IconName, string> = {
   eye: "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 110 6 3 3 0 010-6z",
 };
 
-function arrowPath(a: ArrowMark, o: Color): { d: string; head: string } {
+export function arrowPath(a: Pick<ArrowMark, "from" | "to" | "thin">, o: Color): { d: string; head: string } {
   const x1 = cx(a.from, o);
   const y1 = cy(a.from, o);
   const x2 = cx(a.to, o);
@@ -95,11 +98,11 @@ function BoardStageImpl(props: BoardStageProps) {
 
   const pieces = useMemo(
     () =>
-      ALL_SQUARES.filter((sq) => placement[sq]).map((sq) => {
+      ALL_SQUARES.filter((sq) => placement[sq] && sq !== props.hide).map((sq) => {
         const x = placement[sq]!;
         return { sq, code: `${x.color}${pieceToChar(x).toUpperCase()}` };
       }),
-    [placement],
+    [placement, props.hide],
   );
 
   const badges = marks?.badges ?? [];

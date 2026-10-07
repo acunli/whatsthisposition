@@ -28,3 +28,21 @@ export function resetBrowserEngine(): EngineClient {
   instance = null;
   return getBrowserEngine();
 }
+
+let lines: EngineClient | null = null;
+
+/**
+ * A second engine just for the live "top lines" panel next to the board, so those
+ * searches never wait behind (or slow down) the explanations on the page engine.
+ */
+export function getLinesEngine(): EngineClient {
+  if (lines && !lines.error) return lines;
+  lines?.terminate();
+  try {
+    lines = new EngineClient(createWorkerTransport("/engine/stockfish.js"));
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "The engine could not start.";
+    throw new EngineError(msg);
+  }
+  return lines;
+}

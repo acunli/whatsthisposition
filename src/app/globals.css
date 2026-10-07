@@ -1,5 +1,5 @@
 /* =====================================================================
-   WhatsThisPosition design system
+   what’sthisposition design system
    The page takes its colours from the board: a near-black from the dark
    square's green, bone text from the light square, sage for quiet UI, and one
    signal orange for the brand and primary actions. On the board, colours keep
@@ -3939,7 +3939,8 @@ textarea.input {
   align-items: stretch;
 }
 
-.board-wrap > .bs {
+.board-wrap > .bs,
+.board-wrap > .pb {
   flex: 1;
   min-width: 0;
 }
@@ -5945,4 +5946,218 @@ em {
 .rv-steps b {
   color: var(--bone);
   font-size: 14.5px;
+}
+
+/* PlayBoard: moves by click or drag, right-click drawings */
+.pb {
+  position: relative;
+}
+
+.pb-play {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.pb-play .bs-sq {
+  cursor: pointer;
+}
+
+.pb-shapes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+}
+
+/* Lichess's drawing colours */
+.pb-g {
+  --pb: 21 120 27;
+}
+.pb-r {
+  --pb: 136 32 32;
+}
+.pb-b {
+  --pb: 0 48 136;
+}
+.pb-y {
+  --pb: 230 143 0;
+}
+
+.pb-ring {
+  fill: none;
+  stroke: rgb(var(--pb) / 0.85);
+  stroke-width: 8;
+}
+
+.pb-arrow path {
+  fill: none;
+  stroke: rgb(var(--pb) / 0.8);
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+
+.pb-arrow polygon {
+  fill: rgb(var(--pb) / 0.8);
+}
+
+.pb-ghost {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  filter: drop-shadow(0 8px 12px rgb(0 0 0 / 0.45));
+}
+
+.pb-promo {
+  position: absolute;
+  z-index: 25;
+  width: 12.5%;
+  display: grid;
+  grid-template-rows: repeat(4, 1fr) auto;
+  background: var(--bone);
+  border-radius: 8px;
+  box-shadow: 0 18px 40px -10px rgb(0 0 0 / 0.6);
+  overflow: hidden;
+}
+
+.pb-promo button {
+  aspect-ratio: 1;
+  border: 0;
+  padding: 6%;
+  background: none;
+  display: grid;
+  place-items: center;
+}
+
+.pb-promo button:hover,
+.pb-promo button:focus-visible {
+  background: rgb(var(--brand) / 0.25);
+}
+
+.pb-promo img {
+  width: 100%;
+  height: 100%;
+}
+
+.pb-promo .pb-promo-x {
+  aspect-ratio: auto;
+  padding: 4px 0;
+  font-size: 18px;
+  color: var(--night);
+}
+
+/* Engine lines next to the board */
+.elines {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--slab);
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.elines-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.elines-head .muted {
+  font-weight: 500;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.elines-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sage);
+  animation: blink 1.2s ease-in-out infinite;
+}
+
+.elines-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.elines-list li {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.elines-list li:hover {
+  background: var(--slab-2);
+}
+
+.elines-list .evalchip {
+  justify-self: start;
+}
+
+.elines-moves {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, #000 85%, transparent);
+  gap: 2px;
+  font-size: 13.5px;
+}
+
+.elines-mv {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 2px 4px;
+  border-radius: 5px;
+  color: var(--bone-2);
+  white-space: nowrap;
+}
+
+.elines-mv:hover {
+  background: var(--slab-3);
+  color: var(--bone);
+}
+
+.elines-empty {
+  margin: 2px 0;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elines-dot {
+    animation: none;
+  }
+}
+
+/* 404 and error pages */
+.status-page {
+  min-height: 60svh;
+}
+
+.status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.prose .btn {
+  text-decoration: none;
+}
+
+.prose .btn-primary {
+  color: var(--night);
 }

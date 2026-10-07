@@ -1,0 +1,10 @@
+# Caddy serves the site over HTTPS (certificates from Let's Encrypt, renewed automatically)
+# and compresses responses. Point the domain's DNS A/AAAA records at this server first.
+whatsthisposition.com {
+	encode zstd gzip
+	reverse_proxy app:3000
+}
+
+www.whatsthisposition.com {
+	redir https://whatsthisposition.com{uri} permanent
+}

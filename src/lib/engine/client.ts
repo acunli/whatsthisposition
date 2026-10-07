@@ -222,9 +222,18 @@ export class EngineClient {
   }
 
   private snapshot(job: Job, done: boolean): AnalysisSnapshot {
-    // Only report lines from the deepest completed iteration consistently: a line
-    // from depth d-1 next to one from depth d is fine for display but sort by rank.
-    const lines = [...job.lines.values()].sort((a, b) => a.multipv - b.multipv);
+    // Stockfish reports a new depth one rank at a time, so mid-iteration a lower rank can
+    // still hold last depth's line for the move that has just moved up: the same first
+    // move twice. Keep the higher-ranked (fresher) one.
+    const seen = new Set<string>();
+    const lines = [...job.lines.values()]
+      .sort((a, b) => a.multipv - b.multipv)
+      .filter((l) => {
+        const first = l.pv[0] ?? "";
+        if (seen.has(first)) return false;
+        seen.add(first);
+        return true;
+      });
     return {
       fen: job.opts.fen,
       depth: job.depth,

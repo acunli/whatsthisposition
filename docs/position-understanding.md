@@ -1,6 +1,6 @@
 # What a player needs to see in a position
 
-Research notes behind WhatsThisPosition's analysis design. The goal is to turn every
+Research notes behind what’sthisposition's analysis design. The goal is to turn every
 concept an intermediate player uses to *read* a position into something the board can
 show and animate, with honest evidence behind it.
 

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import { PageVeil } from "@/components/PageVeil";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import "./globals.css";
 
 // One family for the whole site. Archivo's width axis gives the condensed display cut
@@ -14,11 +15,23 @@ const archivo = Archivo({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://whatsthisposition.com"),
-  title: "WhatsThisPosition: see what the engine sees",
-  description:
-    "Review any chess game move by move, with every label explained from Stockfish's own lines, or open a single position and see its threats, weaknesses and plans on the board.",
-  icons: { icon: "/icon.svg" },
+  metadataBase: new URL(SITE_URL),
+  title: { default: `${SITE_NAME}: ${SITE_TAGLINE.toLowerCase()}`, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: ["chess", "game review", "chess analysis", "Stockfish", "brilliant move", "chess explained", "opening book", "free", "open source"],
+  authors: [{ name: "Ayushman Chaudhuri", url: "https://ayushman.rocks" }],
+  alternates: { canonical: "/" },
+  icons: { icon: "/icon.svg", apple: "/apple-touch-icon.png" },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: `${SITE_NAME}: ${SITE_TAGLINE.toLowerCase()}`,
+    description: SITE_DESCRIPTION,
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: `${SITE_NAME}: chess games and positions, explained` }],
+  },
+  twitter: { card: "summary_large_image", title: `${SITE_NAME}: ${SITE_TAGLINE.toLowerCase()}`, description: SITE_DESCRIPTION, images: ["/og.png"] },
 };
 
 export const viewport: Viewport = {

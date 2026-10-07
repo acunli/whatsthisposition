@@ -1,6 +1,7 @@
 "use client";
 
 import { useId } from "react";
+import { WORDMARK } from "@/lib/brand";
 
 /**
  * The mark: a knight inside a scanning lens. The ring draws itself, the four
@@ -41,11 +42,12 @@ export function LogoMark({ size = 36, animate = true }: { size?: number; animate
   );
 }
 
-/** The wordmark on its own: "whatsthis" in bone, "position" in orange, one weight. */
+/** The wordmark on its own: "what’sthis" in bone, "position" in orange, one weight. */
 export function Wordmark({ className = "logo-word" }: { className?: string }) {
   return (
     <span className={className}>
-      whatsthis<span className="logo-pos">position</span>
+      {WORDMARK[0]}
+      <span className="logo-pos">{WORDMARK[1]}</span>
     </span>
   );
 }

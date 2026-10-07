@@ -1,9 +1,28 @@
 {
   "name": "whatsthisposition",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
-  "description": "WhatsThisPosition — see why the engine prefers a side, right on the board.",
+  "description": "what’sthisposition: free, open-source chess game review and position analysis that explains every move.",
   "license": "GPL-3.0-or-later",
+  "author": "Ayushman Chaudhuri (https://ayushman.rocks)",
+  "homepage": "https://whatsthisposition.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/acunli/whatsthisposition.git"
+  },
+  "bugs": {
+    "url": "https://github.com/acunli/whatsthisposition/issues"
+  },
+  "keywords": [
+    "chess",
+    "stockfish",
+    "game-review",
+    "chess-analysis",
+    "brilliant-moves",
+    "opening-book",
+    "nextjs",
+    "webassembly"
+  ],
   "type": "module",
   "engines": {
     "node": ">=20.9"

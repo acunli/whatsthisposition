@@ -1,14 +1,15 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { SiteCredit, SiteFooter, SupportButton } from "@/components/SiteLinks";
+import { SITE_NAME, SOURCE_URL } from "@/lib/brand";
 
-export const metadata = { title: "How it works and credits: WhatsThisPosition" };
+export const metadata = { title: `How it works and credits · ${SITE_NAME}` };
 
 export default function Credits() {
   return (
     <div className="shell">
       <header className="topbar">
-        <Link href="/" className="topbar-brand" aria-label="WhatsThisPosition home">
+        <Link href="/" className="topbar-brand" aria-label={`${SITE_NAME} home`}>
           <Logo size={34} animate={false} />
         </Link>
         <nav className="topbar-nav" aria-label="Site">
@@ -66,7 +67,8 @@ export default function Credits() {
           WebAssembly build) by Nathan Rugg and Chess.com, based on <a href="https://stockfishchess.org">Stockfish</a> by the
           Stockfish developers. It&apos;s free software under the GNU General Public License v3, served from this site with its licence at{" "}
           <a href="/engine/COPYING.txt">/engine/COPYING.txt</a>. Engine source is available from the Stockfish.js repository.
-          This website&apos;s own source is offered under the GPL v3 or later.
+          This website&apos;s own source code is free software under the GPL v3 or later, at{" "}
+          <a href={SOURCE_URL}>{SOURCE_URL.replace("https://", "")}</a>.
         </p>
 
         <h2>Pieces, type and libraries</h2>

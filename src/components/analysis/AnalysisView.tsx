@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BoardStage } from "../BoardStage";
 import { PeekOrientation } from "../peek/Peek";
+import { EngineLines } from "../EngineLines";
+import { PlayBoard } from "../PlayBoard";
+import { useLiveLines } from "../useLiveLines";
 import { placementFromFen } from "@/lib/chess/fen";
 import { other, type Color, type Square } from "@/lib/chess/types";
 import type { EngineLine } from "@/lib/engine/client";
@@ -167,10 +169,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- plyVersion signals cache updates
   }, [variation, rootEval, a.plyVersion]);
 
-  const targets = useMemo(() => {
-    if (!selected || !atRoot || line) return [];
-    return [...new Set(displayFacts.ctx.legal.filter((m) => m.from === selected).map((m) => m.to))];
-  }, [selected, atRoot, line, displayFacts]);
   const trace = useMemo(() => (selected ? traceSquare(displayFacts.ctx, selected) : null), [selected, displayFacts]);
 
   const selectLine = useCallback((l: LineRef, startPly = 1) => {
@@ -236,14 +234,20 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     }
   };
 
-  const onSquare = (sq: Square) => {
-    if (selected && targets.includes(sq)) {
-      const m = displayFacts.ctx.legal.find((x) => x.from === selected && x.to === sq);
-      if (m) void tryMove(m.lan);
-      return;
-    }
-    setPlaying(false);
-    setSelected((cur) => (cur === sq ? null : sq));
+  /** A move played on the board: from the analysed position it's explained; inside a line it continues the line. */
+  const userMove = (uci: string) => {
+    if (atRoot) return void tryMove(uci);
+    const pv = [...(variation?.moves.slice(0, ply).map((m) => m.uci) ?? []), uci];
+    selectLine({ key: `try-${pv.join("")}`, kind: "try", pv, eval: shown?.e ?? rootEval ?? { kind: "cp", cp: 0 }, depth: 0 }, pv.length);
+  };
+
+  // Top engine lines next to the board: the main search at the analysed position, a live search elsewhere in a line.
+  const live = useLiveLines(displayFen, { enabled: !atRoot });
+  const boardLines = atRoot ? lines : (live?.lines ?? []);
+  const playFromBoard = (pv: string[], upto: number) => {
+    const prefix = atRoot ? [] : (variation?.moves.slice(0, ply).map((m) => m.uci) ?? []);
+    const full = [...prefix, ...pv];
+    selectLine({ key: `side-${full.join("")}`, kind: "side", pv: full, eval: boardLines.find((l) => l.pv === pv)?.eval ?? rootEval ?? { kind: "cp", cp: 0 }, depth: 0 }, prefix.length + upto);
   };
 
   /** Play a line from the analysed position; an empty pv means "the line of the open explanation". */
@@ -461,24 +465,27 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
           </div>
           <div className="board-wrap">
             <EvalBar e={shown?.e ?? null} orientation={orientation} />
-            <BoardStage
+            <PlayBoard
+              fen={displayFen}
+              onMove={userMove}
+              onSelect={(sq) => {
+                setPlaying(false);
+                setSelected(sq);
+              }}
               placement={placement}
               orientation={orientation}
               marks={spot.marks}
               revealKey={`${spot.key}-${animKey}`}
               lastMove={boardMove ? { from: boardMove.from, to: boardMove.to } : null}
               animate={boardMove ? { from: boardMove.from, to: boardMove.to, key: `${animKey}-${storyScene?.id ?? ""}` } : null}
-              selected={selected}
-              targets={targets}
-              onSquareClick={onSquare}
               label={`Chess position, ${sideName(displayTurn)} to move`}
               dimPieces={!!hoverPoint}
             />
           </div>
           <Caption c={spot.caption} />
-          {targets.length > 0 && (
+          {selected && displayFacts.ctx.legal.some((m) => m.from === selected) && (
             <p className="hint" style={{ textAlign: "center" }}>
-              Tap a dotted square to try that move and ask the engine about it.
+              Drag the piece or tap a dotted square to play it; the engine answers. Right-click to draw arrows and circles.
             </p>
           )}
           {variation && (
@@ -494,6 +501,14 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
         </section>
 
         <aside className="desk" aria-label="Analysis">
+          <EngineLines
+            fen={displayFen}
+            lines={boardLines}
+            depth={boardLines[0]?.depth ?? null}
+            searching={atRoot ? running : !!live && !live.done}
+            onPlay={playFromBoard}
+            onHover={setHoverPoint}
+          />
           <div className="tabs" role="tablist">
             {TABS.map(([id, label, count]) => (
               <button

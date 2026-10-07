@@ -5,6 +5,7 @@ import Link from "next/link";
 import { EMPTY_CASTLING, parseFen, setupFromFen, setupToFen, START_FEN, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
 import type { ParsedGame } from "@/lib/review/pgn";
+import { SITE_NAME } from "@/lib/brand";
 import { Logo } from "./Logo";
 import { showPageChange } from "./PageVeil";
 import { SiteCredit, SiteFooter, SupportButton } from "./SiteLinks";
@@ -95,7 +96,7 @@ export function Studio() {
   return (
     <div className="shell">
       <header className={stage === "home" ? "topbar" : "topbar topbar-app"}>
-        <button className="topbar-brand" onClick={home} aria-label="WhatsThisPosition home">
+        <button className="topbar-brand" onClick={home} aria-label={`${SITE_NAME} home`}>
           <Logo size={34} animate={false} />
         </button>
         <nav className="topbar-nav" aria-label="Site">

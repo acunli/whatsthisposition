@@ -5,6 +5,7 @@
  * discarded when the request ends. Nothing is written to disk or logged.
  */
 import { NextResponse } from "next/server";
+import { clientIp, rateLimit } from "@/lib/server/rateLimit";
 import type { RecognitionError, RecognitionResponse } from "@/lib/vision/grid";
 import { VisionProviderError, getVisionProvider, type VisionInput } from "@/lib/vision/provider";
 
@@ -25,6 +26,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  // Each call costs a vision-API request: a few per minute per visitor is plenty.
+  const wait = rateLimit(`recognize:${clientIp(req)}`, 6, 60_000);
+  if (wait) return fail(429, "bad_request", `Too many photos in a short time. Try again in ${wait} s, or read the photo on your device.`);
   const provider = getVisionProvider();
   if (!provider) {
     return fail(

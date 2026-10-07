@@ -1,137 +1,171 @@
-# WhatsThisPosition
+<div align="center">
 
-> Working on this repo? Start with [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md).
+<img src="public/icon.svg" width="92" alt="" />
 
-An X-ray for chess games and positions, built for **whatsthisposition.com**.
+# what’sthisposition
 
-**Game review.** Bring a game from Chess.com (username), Lichess (game link) or a PGN. Stockfish reviews every move in your browser, and each move gets a Chess.com-style label: **Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder** or **Forced**. Each label comes with an explanation drawn from the engine's lines. The review also shows accuracy for both players, an eval graph, key moments and a per-player label table. From any move you can play out the better line, or **deep-analyse that position**. The labels follow the same rules for every game; see [How moves are labelled](docs/position-understanding.md#game-review-how-moves-are-labelled).
+**Chess games and positions, explained so anyone gets *why*.**
 
-**Openings, as deep as theory goes.** Book moves come from 1.84 million games between strong players, so theory follows the game until a move strong players don't really play (on average 7.9 plies on a club player's games, against 5.1 with named lines alone). Every book move says how often strong players choose it, how they score after it, the main line and the alternatives. The opening card says how long both sides followed theory, who left it, and what strong players play there instead.
+Free and open source. Stockfish 19 runs in your browser; nothing is uploaded.
 
-**Brilliant moves, explained.** A Brilliant label comes with the reasons a weak player needs: what is given up (and the threat it ignores), what the move does instead, what happens after each way of taking it, the opponent's best defence, and why the obvious move falls short. Checked on 213 brilliant moves from top players' games on Chess.com.
+[**whatsthisposition.com**](https://whatsthisposition.com) · [How it works](docs/HOW-IT-WORKS.md) · [How it compares](docs/COMPARISON.md) · [Self-host it](docs/DEPLOY.md)
 
-**Every line can be watched.** Wherever an explanation names a line ("Black answers 8…Nxe4", "the main line goes on 2…e6 3.Nc3 Nf6", "the engine plays it after 7.b4 Bb6 8.a4"), hover or tap the underlined moves and a small board plays the line out, move by move, in a floating window.
+[![CI](https://github.com/acunli/whatsthisposition/actions/workflows/ci.yml/badge.svg)](https://github.com/acunli/whatsthisposition/actions/workflows/ci.yml)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0--or--later-ff7629)](LICENSE)
+![Stockfish 19](https://img.shields.io/badge/engine-Stockfish%2019%20(WASM)-5e8a6f)
+![Next.js 16](https://img.shields.io/badge/Next.js-16-0c110f)
 
-**Position analysis.** Drop a screenshot (read on your device, no upload), paste a FEN or set up a board. After a 3D scan intro, the position's **threats, weaknesses, strengths and plans for both sides** light up on the squares, with Stockfish checking the concrete claims.
+<img src="docs/images/review-brilliant.jpg" alt="Game review: Hikaru's 30.Bxf8 labelled Brilliant, with a step-by-step explanation and the engine's top lines next to the board" width="100%" />
 
-**What you get after analysing a position**
+</div>
 
-- **Scoreboard:** the verdict in words, the eval (mate shown separately), a vertical eval bar beside the board, and each side's strength and weakness counts.
-- **Story:** a guided tour of the most important findings, animated one by one on the board. It ends with the engine's move.
-- **Strengths & weaknesses:** a Silman-style ledger for both sides, plus "what each side should try". Every item points at its squares.
-- **Moves:** Stockfish's candidate lines played out move by move, with a per-move eval strip, "Why this move?", "Why not?", Compare, and "Try it first". You can also play your own move and ask about it.
-- **Layers:** stackable overlays for threats, king safety, pawn structure, pieces, space & control, and material.
-- **Plans:** castling, pawn breaks, knight routes, rook lifts and passed-pawn pushes for both sides. For the side to move, the engine checks each one: good now, prepare first, or not now (with the reply that refutes it), and when the engine itself plays it. Each plan has its benefits and drawbacks drawn on the board, and an attack, defence, long-term and risk meter.
+## Why it exists
 
-How each concept is detected and drawn, with sources, is in [`docs/position-understanding.md`](docs/position-understanding.md).
+Game reviews are good at saying *what* happened. Here is how two popular sites describe Hikaru's 30.Bxf8!! against demon64fields (October 2026):
+
+> **Chess.com:** "Ignoring the threat on the rook, a difficult move to see!"
+>
+> **Chessigma:** "Clever choice: you leave a piece under threat and stay no worse."
+
+And here is ours:
+
+> **30.Bxf8!! ignores the attack on the rook on a4 and takes the bishop on f8 first. Black can take only one of the two, and either way White is winning.**
+>
+> 1. **What White gives up:** the rook on a4 is attacked by the knight on c3 and the queen on d7, and 30.Bxf8 doesn't save it.
+> 2. **What it does instead:** it takes the bishop on f8 first. Black has no bishop left to guard the dark squares around the king. Now Black can take only one of the two.
+> 3. **If Black takes the rook:** 30…Qxa4 is met by 31.Be7, and the bishop gets away. Then 32.Qh6 threatens mate.
+> 4. **If Black takes back on f8:** 30…Rxf8 is met by 31.Rh4, and the rook gets away. Then 32.Qh6 threatens mate.
+> 5. **Why not save the rook first?** 30.Rd4 is clearly weaker (+2.25 against +4.8): Black answers 30…Ne4, hitting the queen.
+>
+> Every move in that text can be hovered to watch it play out on a small board.
+
+That is the idea of the whole site: labels you already know, plus reasons a club player can follow, built from the board and from targeted engine searches, never invented.
+
+## What it does
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### Game review
+Bring a game by **Chess.com username**, **Lichess link** or **PGN**. Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
+
+</td>
+<td width="50%" valign="top">
+
+### Why it's brilliant
+For every Brilliant move: what is given up, what the move does instead, **what happens after each way of taking it**, the best defence, and why the obvious move falls short. Checked on 213 brilliant moves from top players' games.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+<img src="docs/images/opening.jpg" alt="Opening theory card and a book move" />
+
+### Openings, as deep as theory goes
+Book moves come from **1.84 million games between strong players**. Each one says how often strong players choose it and how they score; the opening card shows where the game left theory and what strong players play there.
+
+</td>
+<td valign="top">
+
+<img src="docs/images/line-preview.jpg" alt="Hovering a move in an explanation plays the line on a small board" />
+
+### Every line can be watched
+Hover or tap any move an explanation names (“31.Be7”, “the main line goes on 2…e6 3.Nc3”) and a small board plays the line out, move by move.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+<img src="docs/images/analysis.jpg" alt="Position analysis with engine lines next to the board, arrows and circles drawn by right-click" />
+
+### A board you can think on
+Top engine lines **next to the board**, live. **Play moves** by click or drag (the engine answers), and **draw arrows and circles** with right-click (Shift red, Alt blue), just like Lichess.
+
+</td>
+<td valign="top">
+
+<img src="docs/images/plans.jpg" alt="Plans for both sides with an engine verdict, a meter and reasons drawn on the board" />
+
+### Position X-ray and plans
+Any position (FEN, hand setup or a **screenshot read on your device**): threats, weaknesses and strengths for both sides drawn on the squares, and plans with an engine verdict: good now, prepare first, or not now (and why).
+
+</td>
+</tr>
+</table>
+
+## How it compares
+
+|  | what’sthisposition | Chess.com Game Review | Lichess analysis | Chessigma |
+| --- | --- | --- | --- | --- |
+| Price | Free, unlimited | Limited reviews on the free plan | Free | Free |
+| Source | Open (GPL-3.0) | Closed | Open (AGPL-3.0) | Not published |
+| Brilliant / Great / Miss labels | Yes, rules documented | Yes | No (inaccuracy / mistake / blunder) | Yes (its own names) |
+| *Why* a move is good or bad, in words | Step by step, from engine probes | Short coach comments | No | One-line comments |
+| Watch the lines an explanation names (hover) | Yes | No | n/a (no written explanations) | No |
+| Where the engine runs | Your browser | Their servers | Their servers or your browser | Not documented |
+| Engine strength | Stockfish 19 lite, depth 12–18 | Full Stockfish on servers | Full Stockfish (multi-threaded) | Not documented |
+
+Compiled in October 2026 from each site's public pages and our own use; details, sources and where others are stronger: [**the full comparison**](docs/COMPARISON.md).
 
 ## Quick start
 
 ```bash
+git clone https://github.com/acunli/whatsthisposition.git
+cd whatsthisposition
 npm install          # also copies the Stockfish WASM build into public/engine
-cp .env.example .env.local   # optional: the cloud photo reader and Lichess username import
 npm run dev          # http://localhost:3000
 ```
 
-Production build:
+No keys or accounts are needed: review, analysis and the photo reader all work out of the box. Optional settings are in [`.env.example`](.env.example).
 
 ```bash
-npm run build
-npm start
+npm test             # unit tests plus real Stockfish runs in Node
+npm run lint && npm run typecheck && npm run build
 ```
 
-Requires Node.js 20.9 or newer.
+**Self-hosting:** `docker build -t whatsthisposition .` or the ready-made Docker Compose + Caddy setup for HTTPS. See [docs/DEPLOY.md](docs/DEPLOY.md) for that, Vercel, costs, and the domain.
 
-### Scripts
+## How it works, in one paragraph
 
-| Script | What it does |
-| --- | --- |
-| `npm run dev` | Dev server (copies the engine first) |
-| `npm run build` / `npm start` | Production build / server |
-| `npm test` | Vitest suite, including a real Stockfish integration test |
-| `npm run lint` | ESLint (Next.js core-web-vitals + TypeScript rules) |
-| `npm run vision:check` | Checks the SoCLaaS key, lists models, tests image input |
-| `npm run typecheck` | `tsc --noEmit` |
+Everything heavy runs in the visitor's browser. Stockfish 19 (single-threaded WebAssembly) reviews a game on a small pool of workers, then re-searches the tactical moments deeper. Labels come from expected-score loss with Chess.com's published bands. Explanations come from rules over verified board facts plus targeted engine probes: a null-move search for threats, `searchmoves` to test each way of taking a sacrifice, the opponent's refutation, and the obvious alternative. A small CNN reads screenshots on the device. The server only serves files and proxies Chess.com and Lichess. **Details:** [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md).
 
-### Evaluating changes
-
-Changes to the analysis are checked on real games, using the owner's test account Ay7u on Chess.com:
-- `scripts/eval/README.md`: an explanation report to read and iterate on, and game accuracy compared with Chess.com's own numbers.
-- `scripts/vision/README.md`: the photo reader's training and held-out benchmark.
-
-These tests are opt-in, so `npm test` stays fast.
-
-## Environment variables
-
-Screenshots are read on the device and need no configuration. The keys below only enable the optional cloud reader for angled photos of real boards, and Lichess username import. Copy `.env.example` to `.env.local` and fill it in:
-
-| Variable | Purpose |
-| --- | --- |
-| `VISION_PROVIDER` | `soclaas` (default when `SOCLAAS_API_KEY` is set) or `anthropic` |
-| `SOCLAAS_BASE_URL` | NUS SoCLaaS OpenAI-compatible gateway, `https://soclaas-api.comp.nus.edu.sg/v1` |
-| `SOCLAAS_API_KEY` | Your SoCLaaS key. Server-side only. |
-| `SOCLAAS_MODEL` | Model id. It **must accept images**. Check with `npm run vision:check` (lists models and runs a tiny image test). |
-| `ANTHROPIC_API_KEY`, `VISION_MODEL` | Optional alternative provider |
-| `LICHESS_TOKEN` | Optional. Lets "Lichess username" list a player's games: Lichess only lists games to signed-in apps. A free personal token with no scopes is enough. Game links work without it. |
-
-The OpenAI-compatible provider asks for a compact answer: 8 rows of 8 characters plus the unsure squares. It strips `<think>` blocks, validates the answer with zod, and retries once if it's malformed.
-
-## How it's organised
+## Project layout
 
 ```
-src/lib/chess/      board geometry, attack maps, FEN parsing + validation
-src/lib/engine/     UCI parsing, score normalization, EngineClient (Web Worker transport)
-src/lib/review/     game review: PGN parsing, opening book, piece safety (SEE), move labels,
-                    accuracy, two-pass review, explanations, Chess.com/Lichess import
-src/lib/facts/      visual facts per lens (threats, king, pawns, structure, space, tactics,
-                    pieces, control, material), ledger, advice, tour, tracing,
-                    move explanations, plans
-src/lib/vision/     on-device board reader (local/), recognition schema, cloud provider adapter
-src/lib/reason/     move reasoning: board ideas, engine probes, refutations, line stories
-src/lib/plans/      plan cards (benefits, drawbacks, meter) and engine timing
-src/lib/variation.ts  engine lines → verified moves, navigation
-src/components/     BoardStage (animated board), home, game review, setup flow,
-                    analysis arena, scan intro
-src/app/api/recognize  POST photo → recognized grid (nothing is stored)
-src/app/api/games      GET recent Chess.com games / a Lichess game (nothing is stored)
-scripts/build-openings.mjs  rebuilds src/data/openings.json (opening names) from lichess-org/chess-openings
-scripts/build-book.mjs      rebuilds public/data/masters-book.bin.gz (what strong players play) from game databases
-                            (sources and command at the top of the file)
+src/app/            pages, API routes (games proxy, optional photo reader, health), metadata
+src/components/     the board (BoardStage, PlayBoard), review, analysis, setup, home, loading veil
+src/lib/engine/     UCI client, browser workers, review pool
+src/lib/review/     PGN, labels, accuracy, opening book, game explanations
+src/lib/reason/     move reasoning, line stories, "why it's brilliant"
+src/lib/facts/      board facts: threats, structure, king safety, plans, …
+src/lib/vision/     on-device photo reader (and the optional cloud reader)
+scripts/            engine copy, opening-book builders, evaluation and training tools
+docs/               how it works, comparison, deployment, research notes
 ```
 
-### Engine
+## Contributing
 
-- **Stockfish 19** via [Stockfish.js](https://github.com/nmrugg/stockfish.js), the *lite single-threaded* WASM build (~1.8 MB, no cross-origin isolation needed). It runs in a Web Worker, so the interface never blocks.
-- The binary comes from the pinned `stockfish` npm package and is copied to `public/engine/` by `scripts/copy-engine.mjs`. The copy runs on install, dev and build. Nothing is fetched from third-party hosts at runtime.
-- Users can pick depth (12–24) or time (5 s / 15 s) and the number of lines (1–5). A progress bar shows the search, and **Stop** keeps the partial result.
-- **Score perspective:** UCI reports scores from the side to move's view. `normalizeScore` converts every score to White's view once, and mates are kept as their own type (`{kind: "mate", moves, winner}`). `src/lib/engine/stockfish.test.ts` runs the real engine in Node to pin this down.
+Issues and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Two rules matter most here: **every explanation must come from the board or the engine** (no invented reasons), and **rules are fixed in general terms**, checked on games you haven't read yet, never tailored to one position.
 
-### Where explanations come from
+## Licences and credits
 
-Every claim on screen is tagged with its source:
+what’sthisposition is free software under the **GNU GPL v3 or later** ([LICENSE](LICENSE)), because it ships Stockfish to browsers.
 
-- **Board fact**: follows from the placement and legal moves (chess.js plus our own attack maps). Examples: hanging pieces (pins respected), forks, pins, overloaded defenders, escape squares, pawn classifications, outposts, open files, control counts.
-- **Engine**: from Stockfish. This covers candidate lines, evaluations, the per-move eval strip, "why not" costs, and the opponent's threat (found with a null-move search: "if you passed, they'd play…").
-- **Idea**: strategic interpretations such as pawn breaks, knight routes, rook lifts and castling. Each plan lists the conditions it depends on, checked against the board, and is upgraded to *Engine* only if an engine line actually plays it.
+- **Engine:** [Stockfish](https://stockfishchess.org) via [Stockfish.js](https://github.com/nmrugg/stockfish.js) (GPL-3.0).
+- **Pieces:** the "mpchess" set by Maxime Chupin (GPL-3.0+).
+- **Font:** Archivo (SIL OFL).
+- **Opening names:** [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings) (CC0).
+- **Opening statistics:** built from the [Lichess broadcast database](https://database.lichess.org/#broadcasts) (CC BY-SA 4.0; the book file `public/data/masters-book.bin.gz` is shared under the same licence) and the [Lichess Elite Database](https://database.nikonoel.fr/) (from the CC0 Lichess database).
+- **Libraries:** three.js and React Three Fiber (MIT), chess.js (BSD-2-Clause).
+- **Ideas:** the Brilliant and Great checks were informed by [WintrChess](https://github.com/WintrCat/wintrchess) (GPL-3.0), and reimplemented independently.
 
-Explanations are written from templates over these facts. **No language model writes or edits them**, so they can't invent moves or override the engine. The app never splits the evaluation into percentages for king safety, material and so on.
+Full list: [/credits](https://whatsthisposition.com/credits).
 
-## Privacy
+<div align="center">
 
-- Analysis and game review run locally in the browser. Imported games are fetched through this site's server from the public Chess.com and Lichess APIs, and are never stored.
-- Screenshots and photos are read in the browser by the on-device reader (`src/lib/vision/local/`) and never uploaded. Only if the player chooses the optional AI reader is the cropped picture sent through this site's server to the configured vision API, held in memory for that request, and discarded. The UI says this next to the upload control.
-- The side to move, castling rights and en passant are never inferred from a photo. The player sets them, and analysis stays blocked until they're valid.
+Built by [Ayushman](https://ayushman.rocks) · [buy me a cookie 🍪](https://www.buymeacoffee.com/ayushmanc)
 
-## Licences
-
-Stockfish is GPL-3.0, and this app ships it to browsers, so the project is licensed **GPL-3.0-or-later** (see `package.json`). The engine licence is served at `/engine/COPYING.txt`, and `/credits` lists the attributions. The piece artwork is the "mpchess" set by Maxime Chupin (GPL-3.0+), as distributed with Lichess. The font is Archivo by Omnibus-Type (SIL OFL), loaded with `next/font`. The 3D hero uses three.js and React Three Fiber (MIT). chess.js is BSD-2-Clause. Opening names come from the Lichess [chess-openings](https://github.com/lichess-org/chess-openings) dataset (CC0). The master opening book (`public/data/masters-book.bin.gz`, built by `scripts/build-book.mjs`) is derived from the [Lichess broadcast database](https://database.lichess.org/#broadcasts) (CC BY-SA 4.0, so the book file is shared under CC BY-SA 4.0 too) and the [Lichess Elite Database](https://database.nikonoel.fr/) (a selection of the CC0 Lichess database). The Brilliant/Great logic was informed by [WintrChess](https://github.com/WintrCat/wintrchess) (GPL-3.0); it is an independent reimplementation.
-
-## Known limitations
-
-- The on-device reader is built for screenshots and flat diagrams: 98.5% of squares right on a held-out set of unseen Chess.com and Lichess styles (`scripts/vision/README.md`). A few unusual piece sets still confuse it, and uncertain squares are marked for you to check. Angled photos of real boards go to the optional, less accurate AI reader.
-- Crop and rotate are a rectangle plus straightening; there's no perspective (keystone) correction.
-- Static facts use direct attacker/defender counts, not a full exchange evaluation. Where that matters, the text points to the engine line.
-- The lite engine is weaker than full Stockfish (still far beyond human strength). Deep settings on slow phones can take a while.
-- The eval strip uses quick depth-12 checks per move, which are shallower than the main analysis.
-- Game review labels depend on depth. Very deep combinations may only show as Brilliant on "Thorough". Labels won't always match Chess.com's, which uses a stronger server engine.
-- Chess.com game links can't be fetched (no per-game endpoint in the public API): enter the username or paste the PGN.
+</div>
