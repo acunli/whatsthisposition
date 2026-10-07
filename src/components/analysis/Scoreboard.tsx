@@ -87,7 +87,7 @@ export function Scoreboard(p: Props) {
         </div>
         <div className="engine-line">
           <span className={`dot dot-${p.status}`} aria-hidden />
-          <span>
+          <span className="engine-status">
             {p.status === "starting" && "Starting Stockfish"}
             {p.status === "running" && `Stockfish thinking · depth ${p.snapshot?.depth ?? 0}`}
             {p.status === "done" && `Stockfish 19 · depth ${p.snapshot?.depth ?? 0}`}

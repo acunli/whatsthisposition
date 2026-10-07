@@ -24,12 +24,16 @@ export function LogoMark({ size = 36, animate = true }: { size?: number; animate
       </defs>
       <circle className="mark-disc" cx="24" cy="24" r="17" />
       <g clipPath={`url(#${clip})`}>
-        <g className="mark-knight" transform="translate(5.6 4.4) scale(3.7)">
-          <g transform="matrix(1.07361 0 0 1 -.233 -286.97)">
-            <path d={KNIGHT_BASE} />
-            <path d={KNIGHT_HEAD} />
+        {/* The animated group has no transform attribute: Safari lets a CSS animation
+            replace that attribute outright, which shrank the knight out of the lens. */}
+        <g className="mark-knight">
+          <g transform="translate(5.6 4.4) scale(3.7)">
+            <g transform="matrix(1.07361 0 0 1 -.233 -286.97)">
+              <path d={KNIGHT_BASE} />
+              <path d={KNIGHT_HEAD} />
+            </g>
+            <circle className="mark-eye" cx="5.35" cy="4.05" r="0.34" />
           </g>
-          <circle className="mark-eye" cx="5.35" cy="4.05" r="0.34" />
         </g>
         <rect className="mark-scan" x="4" y="0" width="40" height="3" />
       </g>

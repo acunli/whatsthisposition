@@ -1,7 +1,7 @@
-import { ALL_SQUARES, attackersOf, attacksFrom } from "../chess/board";
+import { ALL_SQUARES, attackersOf, attacksFrom, fileIndex, rankIndex, toSquare } from "../chess/board";
 import { placementFromFen } from "../chess/fen";
 import { PIECE_NAME, PIECE_VALUE, other, type Color, type Placement, type Square } from "../chess/types";
-import { describe, enPrise, safeSquares, sideName, the, value, type Ctx } from "./context";
+import { describe, enPrise, onLine, safeSquares, sideName, the, value, type Ctx, type Pin } from "./context";
 import { emptyMarks, type Fact, type Marks } from "./types";
 
 export interface EngineHints {
@@ -152,6 +152,10 @@ export function threatFacts(ctx: Ctx, hints?: EngineHints): Fact[] {
   for (const pin of ctx.pins) {
     const pinned = p[pin.pinned]!;
     const behind = p[pin.behind]!;
+    const cost = pinCost(ctx, pin);
+    if (!cost.moves.length && !cost.guards.length) continue;
+    const where = cost.moves.length && cost.moves.length <= 3 ? ` (${cost.moves.join(", ")})` : "";
+    const guard = cost.guards.length ? ` It can't take back on ${cost.guards.join(" or ")} either, so ${cost.guards.map((g) => the(p, g)).join(" and ")} ${cost.guards.length > 1 ? "are" : "is"} short of a defender.` : "";
     facts.push({
       id: `pin-${pin.pinned}`,
       lens: "threats",
@@ -163,8 +167,8 @@ export function threatFacts(ctx: Ctx, hints?: EngineHints): Fact[] {
         ? `${describe(p, pin.pinned)} is pinned to its king by ${the(p, pin.pinner)}; it can't leave the line.`
         : `${describe(p, pin.pinned)} is pinned to the ${PIECE_NAME[behind.type]} on ${pin.behind} by ${the(p, pin.pinner)}.`,
       detail: pin.absolute
-        ? "Moving it off the line would be illegal. It also can't defend squares off that line."
-        : `If it moves, ${the(p, pin.pinner)} can take the ${PIECE_NAME[behind.type]} behind it.`,
+        ? `${cost.moves.length ? `Moving it off the line${where} would be illegal.` : "It has nowhere to go off the line anyway."}${guard}`
+        : `If it moves${where}, ${the(p, pin.pinner)} can take the ${PIECE_NAME[behind.type]} behind it.${guard}`,
       evidence: "rules",
       marks: marks({
         squares: [
@@ -306,4 +310,31 @@ export function threatFacts(ctx: Ctx, hints?: EngineHints): Fact[] {
   }
 
   return facts;
+}
+
+/**
+ * What a pin costs its side right now: the squares the pinned unit can't go to (off the
+ * line) and the attacked friends it can no longer defend (taking back off the line would
+ * expose what is behind it). A pin that costs nothing, like a pawn that couldn't move
+ * anyway, isn't worth a finding.
+ */
+export function pinCost(ctx: Ctx, pin: Pin): { moves: Square[]; guards: Square[] } {
+  const { p } = ctx;
+  const unit = p[pin.pinned]!;
+  const enemy = other(unit.color);
+  const off = (s: Square) => s !== pin.pinner && !onLine(pin.pinner, pin.behind, s);
+  let moves: Square[];
+  if (unit.type === "p") {
+    const dir = unit.color === "w" ? 1 : -1;
+    const f = fileIndex(pin.pinned);
+    const r = rankIndex(pin.pinned);
+    const one = toSquare(f, r + dir);
+    const two = toSquare(f, r + 2 * dir);
+    const pushes = one && !p[one] ? [one, ...(r === (unit.color === "w" ? 1 : 6) && two && !p[two] ? [two] : [])] : [];
+    moves = [...pushes, ...ctx.attacks(pin.pinned).filter((s) => p[s]?.color === enemy)];
+  } else {
+    moves = ctx.attacks(pin.pinned).filter((s) => p[s]?.color !== unit.color);
+  }
+  const guards = ctx.attacks(pin.pinned).filter((s) => off(s) && p[s]?.color === unit.color && p[s]!.type !== "k" && ctx.attackers(s, enemy).length > 0);
+  return { moves: moves.filter(off), guards };
 }

@@ -82,7 +82,8 @@ export function makeCtx(fen: string): Ctx {
   return { fen, p, turn, chess, legal, attacks, attackers, capturers, pins, inCheck: chess.inCheck() };
 }
 
-function onLine(a: Square, b: Square, x: Square): boolean {
+/** Whether `x` lies on the segment from `a` to `b` (both ends included). */
+export function onLine(a: Square, b: Square, x: Square): boolean {
   const dx1 = fileIndex(b) - fileIndex(a);
   const dy1 = rankIndex(b) - rankIndex(a);
   const dx2 = fileIndex(x) - fileIndex(a);

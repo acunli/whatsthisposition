@@ -121,7 +121,7 @@ export function Studio() {
               Last review
             </button>
           )}
-          <Link className="navlink navlink-wide" href="/credits">
+          <Link className="navlink navlink-wide navlink-how" href="/credits">
             How it works
           </Link>
           <SiteCredit className="navlink navlink-wide" />

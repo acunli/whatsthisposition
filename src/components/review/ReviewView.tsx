@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EngineLines } from "../EngineLines";
+import { SmoothHeight } from "../SmoothHeight";
 import { PlayBoard } from "../PlayBoard";
 import { useLiveLines } from "../useLiveLines";
 import { EvalBar, EvalChip, sideName } from "../analysis/bits";
@@ -134,8 +135,11 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
   // stand in (no extra engine work); afterwards a dedicated engine searches deeper, live.
   const live = useLiveLines(boardFen, { enabled: active && r.status === "done" });
   const gameLines = !line ? (r.positions[ply]?.lines ?? []) : [];
-  const shownLines = live?.lines.length ? live.lines : gameLines;
-  const linesDepth = live?.lines.length ? live.depth : (gameLines[0]?.depth ?? null);
+  // The review's own lines stay up until the live search is at least as deep, so the
+  // panel doesn't swap deeper lines for shallower ones (or 2 lines for 1) on every move.
+  const useLive = !!live?.lines.length && (live.done || !gameLines.length || live.depth >= (gameLines[0]?.depth ?? 0));
+  const shownLines = useLive ? live!.lines : gameLines;
+  const linesDepth = useLive ? live!.depth : (gameLines[0]?.depth ?? null);
   const shownEval = line ? (live?.lines[0]?.eval ?? (line.user ? null : line.eval)) : (r.positions[ply]?.eval ?? null);
 
   /** A move played on the board: follows the game if it's the game's move, otherwise starts (or extends) "Your moves". */
@@ -340,43 +344,45 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active }:
         />
 
         <section className={`rv-card ${cm ? `rv-card-${cm.cls}` : ""}`} aria-live="polite" style={cm ? { ["--cls" as string]: CLASS_INFO[cm.cls].color } : undefined}>
-          {ply === 0 ? (
-            <>
-              <p className="eyebrow">Start</p>
-              <p className="rv-headline">
-                {running
-                  ? "Moves get their labels as the engine finishes them; sharp moments are then double-checked deeper. Step through with ← → or pick a move."
-                  : "Step through with ← →, click the graph, or jump to a key moment below."}
-              </p>
-            </>
-          ) : !cm || !story ? (
-            <>
-              <p className="eyebrow">{gm ? moveName(gm) : ""}</p>
-              <p className="rv-headline muted">The engine hasn&apos;t reached this move yet…</p>
-            </>
-          ) : (
-            <>
-              <div className="rv-card-head">
-                <ClassIcon cls={cm.cls} size={30} />
-                <div>
-                  <span className="rv-cls">{CLASS_INFO[cm.cls].label}</span>
-                  <h3 className="rv-move">{moveName(cm.move)}</h3>
+          <SmoothHeight className="rv-card-body" keepHeight={reasoning?.status === "pending"}>
+            {ply === 0 ? (
+              <>
+                <p className="eyebrow">Start</p>
+                <p className="rv-headline">
+                  {running
+                    ? "Moves get their labels as the engine finishes them; sharp moments are then double-checked deeper. Step through with ← → or pick a move."
+                    : "Step through with ← →, click the graph, or jump to a key moment below."}
+                </p>
+              </>
+            ) : !cm || !story ? (
+              <>
+                <p className="eyebrow">{gm ? moveName(gm) : ""}</p>
+                <p className="rv-headline muted">The engine hasn&apos;t reached this move yet…</p>
+              </>
+            ) : (
+              <>
+                <div className="rv-card-head">
+                  <ClassIcon cls={cm.cls} size={30} />
+                  <div>
+                    <span className="rv-cls">{CLASS_INFO[cm.cls].label}</span>
+                    <h3 className="rv-move">{moveName(cm.move)}</h3>
+                  </div>
+                  <EvalChip e={cm.evalAfter} />
                 </div>
-                <EvalChip e={cm.evalAfter} />
-              </div>
-              <MoveInsight cm={cm} story={story} entry={reasoning} onHover={setHover} onPlay={playLine} />
-            </>
-          )}
-          <div className="rv-deep">
-            <button className="btn btn-primary btn-sm" onClick={() => onDeep(boardFen)}>
-              Deep-analyse this position
-            </button>
-            {gm && !line && (
-              <button className="linkish" onClick={() => onDeep(gm.fenBefore)}>
-                or the moment before {moveName(gm)}
-              </button>
+                <MoveInsight cm={cm} story={story} entry={reasoning} onHover={setHover} onPlay={playLine} />
+              </>
             )}
-          </div>
+            <div className="rv-deep">
+              <button className="btn btn-primary btn-sm" onClick={() => onDeep(boardFen)}>
+                Deep-analyse this position
+              </button>
+              {gm && !line && (
+                <button className="linkish" onClick={() => onDeep(gm.fenBefore)}>
+                  or the moment before {moveName(gm)}
+                </button>
+              )}
+            </div>
+          </SmoothHeight>
         </section>
 
         {openingStory && <OpeningCard story={openingStory} masters={r.review.masters} onGo={go} onHover={setHover} />}

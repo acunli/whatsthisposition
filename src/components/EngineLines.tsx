@@ -21,7 +21,9 @@ interface Props {
 
 /**
  * The engine's top lines for the position on the board, next to it: the evaluation and
- * the moves, each move clickable to play the line up to there.
+ * the moves, each move clickable to play the line up to there. It always has `max`
+ * rows of one line each (placeholders until a line arrives), so its height never
+ * changes and the cards below it stay put.
  */
 export function EngineLines({ fen, lines, depth, searching, onPlay, onHover, max = 3 }: Props) {
   const rows = useMemo(
@@ -41,29 +43,30 @@ export function EngineLines({ fen, lines, depth, searching, onPlay, onHover, max
           {searching ? <i className="elines-dot" aria-label="searching" /> : null}
         </span>
       </header>
-      {rows.length === 0 ? (
-        <p className="elines-empty muted">{searching ? "Thinking…" : "No lines for this position."}</p>
-      ) : (
-        <ol className="elines-list">
-          {rows.map(({ line, moves }, i) => (
-            <li
-              key={`${i}-${line.pv[0]}`}
-              onMouseEnter={() => moves[0] && onHover?.({ ...emptyMarks(), arrows: [{ from: moves[0].from, to: moves[0].to, tone: "opportunity" }] })}
-              onMouseLeave={() => onHover?.(null)}
-            >
-              <EvalChip e={line.eval} />
-              <span className="elines-moves">
-                {moves.map((m, k) => (
-                  <button key={k} className="elines-mv" onClick={() => onPlay(line.pv, k + 1)} title="Play the line to here">
-                    {m.color === "w" ? `${m.moveNumber}.` : k === 0 ? `${m.moveNumber}…` : ""}
-                    {m.san}
-                  </button>
-                ))}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
+      <ol className="elines-list">
+        {rows.map(({ line, moves }, i) => (
+          <li
+            key={i}
+            onMouseEnter={() => moves[0] && onHover?.({ ...emptyMarks(), arrows: [{ from: moves[0].from, to: moves[0].to, tone: "opportunity" }] })}
+            onMouseLeave={() => onHover?.(null)}
+          >
+            <EvalChip e={line.eval} />
+            <span className="elines-moves">
+              {moves.map((m, k) => (
+                <button key={k} className="elines-mv" onClick={() => onPlay(line.pv, k + 1)} title="Play the line to here">
+                  {m.color === "w" ? `${m.moveNumber}.` : k === 0 ? `${m.moveNumber}…` : ""}
+                  {m.san}
+                </button>
+              ))}
+            </span>
+          </li>
+        ))}
+        {Array.from({ length: Math.max(0, max - rows.length) }, (_, i) => (
+          <li key={`wait-${i}`} className="elines-wait" aria-hidden={rows.length > 0 || i > 0}>
+            {rows.length === 0 && i === 0 ? <span className="muted">{searching ? "Thinking…" : "No lines for this position."}</span> : searching ? <span className="elines-skel" /> : null}
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

@@ -3,9 +3,9 @@
  * (Silman's "improve your worst piece"), rooks on the seventh, knights on the rim.
  */
 import { ALL_SQUARES, fileIndex, rankIndex } from "../chess/board";
-import { PIECE_NAME, type Color, type Placement, type Square } from "../chess/types";
-import { safeMobility } from "./activity";
-import { describe, sideName, type Ctx } from "./context";
+import { PIECE_NAME, other, type Color, type Placement, type Square } from "../chess/types";
+import { TYPICAL, activityScore, ownBlockers, safeMobility } from "./activity";
+import { describe, sideName, the, type Ctx } from "./context";
 import { emptyMarks, type Fact, type Marks, type Tone } from "./types";
 
 const dist = (a: Square, b: Square) => Math.max(Math.abs(fileIndex(a) - fileIndex(b)), Math.abs(rankIndex(a) - rankIndex(b)));
@@ -35,8 +35,8 @@ export function mobilityOf(ctx: Ctx, color: Color): Mobility[] {
   }).map((sq) => ({ sq, safe: safeMobility(ctx.p, sq, ctx.attacks(sq)), covered: ctx.attacks(sq).length }));
 }
 
-/** Mobility relative to what that piece type typically has, so a queen isn't always "best". */
-const TYPICAL: Record<string, number> = { n: 5, b: 7, r: 8, q: 14 };
+
+const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 
 const MINOR_HOMES: Record<Color, Square[]> = { w: ["b1", "c1", "f1", "g1"], b: ["b8", "c8", "f8", "g8"] };
 
@@ -62,7 +62,8 @@ export function pieceFacts(ctx: Ctx): Fact[] {
     const ranked = [...mob].sort((a, b) => score(b) - score(a));
     const best = ranked[0];
     const home = c === "w" ? 0 : 7;
-    const candidates = ranked.filter((m) => {
+    const act = new Map(mob.map((m) => [m.sq, activityScore(ctx, m)]));
+    const candidates = [...mob].sort((a, b) => act.get(b.sq)! - act.get(a.sq)!).filter((m) => {
       const x = p[m.sq]!;
       if ((x.type === "r" || x.type === "q") && rankIndex(m.sq) === home) return false;
       if ((x.type === "n" || x.type === "b") && rankIndex(m.sq) === home) return false; // "undeveloped" covers these
@@ -85,7 +86,12 @@ export function pieceFacts(ctx: Ctx): Fact[] {
         priority: 52,
       });
     }
-    if (mob.length > 1 && worst !== best && score(worst) <= 0.45) {
+    if (mob.length > 1 && worst !== best && act.get(worst.sq)! <= 0.45) {
+      const blockers = ownBlockers(ctx, worst.sq);
+      const idle = !ctx.attacks(worst.sq).some((s) => p[s]?.color === other(c));
+      const room = worst.safe.length ? `${worst.safe.length} safe square${worst.safe.length === 1 ? "" : "s"}` : "no safe squares";
+      const named = blockers.map((s) => the(p, s));
+      const boxed = named.length >= 2 ? `${capital(named.slice(0, -1).join(", "))} and ${named[named.length - 1]} are in its way. ` : named.length ? `${capital(named[0])} is in its way. ` : "";
       facts.push({
         id: `worst-${worst.sq}`,
         lens: "activity",
@@ -93,8 +99,8 @@ export function pieceFacts(ctx: Ctx): Fact[] {
         side: c,
         tone: "danger",
         anchor: worst.sq,
-        title: `${describe(p, worst.sq)} is ${sideName(c)}'s worst piece, with ${worst.safe.length} safe square${worst.safe.length === 1 ? "" : "s"}. Improving it is a plan in itself.`,
-        detail: "A classic rule of thumb: when you don't know what to do, find your worst piece and give it a better job.",
+        title: `${describe(p, worst.sq)} is ${sideName(c)}'s worst piece: ${room}${idle ? " and nothing to attack" : ""}. Improving it is a plan in itself.`,
+        detail: `${boxed}A classic rule of thumb: when you don't know what to do, find your worst piece and give it a better job.`,
         evidence: "rules",
         label: `Passive ${PIECE_NAME[p[worst.sq]!.type]} ${worst.sq}`,
         polarity: "weakness",

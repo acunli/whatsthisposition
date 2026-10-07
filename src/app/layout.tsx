@@ -44,6 +44,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={archivo.variable}>
       <body>
+        {/* Without JavaScript nothing starts the loading logo (see .veil-play), so it plays at once. */}
+        <noscript dangerouslySetInnerHTML={{ __html: "<style>.veil-boot .veil-inner, .veil-boot .veil-inner * { animation-play-state: running !important; }</style>" }} />
         <PageVeil />
         {children}
       </body>

@@ -299,6 +299,20 @@ a {
   max-width: 100%;
 }
 
+/* Safari draws native selects at a fixed height and ignores min-height, which leaves
+   them too small to tap; with its own arrow the select sizes like any other control. */
+@media (pointer: coarse) {
+  .select {
+    -webkit-appearance: none;
+    appearance: none;
+    padding-right: 26px;
+    background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%), linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+    background-position: right 13px center, right 8px center;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+  }
+}
+
 .select-sm {
   padding: 5px 8px;
   font-size: 12.5px;
@@ -489,7 +503,7 @@ textarea.input {
 .coord {
   position: absolute;
   font-family: var(--font-mono);
-  font-size: clamp(7px, 1.1vw, 10.5px);
+  font-size: clamp(9px, 1.1vw, 10.5px);
   font-weight: 600;
   pointer-events: none;
   z-index: 3;
@@ -980,7 +994,7 @@ textarea.input {
   justify-content: space-between;
   gap: 16px;
   padding: 12px clamp(16px, 3vw, 36px);
-  background: rgb(12 17 15 / 0.88);
+  background: rgb(12 17 15 / 0.95);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -1005,6 +1019,7 @@ textarea.input {
   border: 0;
   background: none;
   padding: 0;
+  white-space: nowrap;
 }
 
 .navlink:hover {
@@ -1142,9 +1157,23 @@ textarea.input {
   display: none;
 }
 
-/* If scripts never run, the first-load veil still lifts. */
+/* If scripts never run, the first-load veil still lifts. Once they do, they lift it. */
 .veil-boot {
   animation: veil-out 0.42s ease 7.5s forwards;
+}
+
+.veil-boot.veil-play {
+  animation: none;
+}
+
+/*
+ * The first-load logo waits on its first frame until scripts have run (PageVeil adds
+ * .veil-play), so it plays in one smooth piece instead of unseen behind a busy main
+ * thread. Without JavaScript, a <noscript> style in the layout lets it play at once.
+ */
+.veil-boot:not(.veil-play) .veil-inner,
+.veil-boot:not(.veil-play) .veil-inner * {
+  animation-play-state: paused;
 }
 
 .veil-in {
@@ -1974,25 +2003,36 @@ textarea.input {
   position: absolute;
   left: -4%;
   right: -4%;
-  height: 3px;
-  background: rgb(var(--gold));
-  box-shadow: 0 0 0 1px rgb(var(--gold) / 0.35);
   top: 0;
+  height: 100%;
+  pointer-events: none;
   opacity: 0;
   animation: beam 0.9s linear 0.9s both;
 }
 
+/* The line is the top edge of a board-tall box, so the sweep is a transform, not a reflow. */
+.scan-beam::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: rgb(var(--gold));
+  box-shadow: 0 0 0 1px rgb(var(--gold) / 0.35);
+}
+
 @keyframes beam {
   0% {
-    top: 0;
+    transform: translateY(0);
     opacity: 1;
   }
   92% {
-    top: 100%;
+    transform: translateY(100%);
     opacity: 1;
   }
   100% {
-    top: 100%;
+    transform: translateY(100%);
     opacity: 0;
   }
 }
@@ -2288,6 +2328,9 @@ textarea.input {
   line-height: 0.95;
   letter-spacing: -0.02em;
   margin: 0;
+  /* Two lines kept free: the verdict changes as the search deepens ("Roughly equal",
+     "White is slightly better"), and the cards below shouldn't move when it wraps. */
+  min-height: 1.9em;
 }
 
 .verdict-num {
@@ -2351,6 +2394,16 @@ textarea.input {
   flex-wrap: wrap;
   font-size: 12px;
   color: var(--dim);
+}
+
+/* A fixed share of the row: the text changes as the engine runs ("Stockfish thinking ·
+   depth 12", "Stockfish 19 · depth 14"), and the row mustn't wrap differently each time. */
+.engine-status {
+  flex: 1 1 27ch;
+  min-width: 10ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dot {
@@ -3614,12 +3667,14 @@ textarea.input {
     position: static;
   }
 
+  /* Full width, but never taller than the screen: held sideways, a phone would
+     otherwise show two or three ranks of the board at a time. */
   .board-wrap,
   .board-bar,
   .lower-third,
   .varbar,
   .trace {
-    width: 100%;
+    width: min(100%, max(260px, calc(100svh - 80px)));
     min-width: 0;
   }
 
@@ -4023,11 +4078,12 @@ textarea.input {
 
 @media (max-width: 560px) {
   .vbar {
-    width: 18px;
+    width: 24px;
   }
 
   .vbar-label {
-    font-size: 8px;
+    font-size: 9.5px;
+    letter-spacing: -0.04em;
   }
 }
 
@@ -4092,6 +4148,7 @@ em {
 }
 
 .mark-anim .mark-ticks {
+  transform-box: view-box;
   transform-origin: 24px 24px;
   animation: ticks-in calc(0.5s * var(--mt, 1)) var(--ease-snap) calc(0.55s * var(--mt, 1)) both;
 }
@@ -4123,7 +4180,7 @@ em {
 
 @keyframes knight-rise {
   from {
-    transform: translate(5.6px, 16px) scale(3.7);
+    transform: translateY(11.6px);
     opacity: 0;
   }
 }
@@ -4413,12 +4470,14 @@ em {
   border: 0;
   padding: 0;
   background: var(--line-2);
+  background-clip: content-box;
   transition: width 0.3s var(--ease-out), background 0.2s;
 }
 
 .hero3d-dots button[aria-current="true"] {
   width: 32px;
   background: var(--bone-2);
+  background-clip: content-box;
 }
 
 /* Sections */
@@ -4696,6 +4755,18 @@ em {
     z-index: 5;
     background: var(--night);
     padding-bottom: 10px;
+  }
+
+  /* Text scrolling up under the pinned board fades out instead of being cut off. */
+  .story-board::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 28px;
+    background: linear-gradient(var(--night), transparent);
+    pointer-events: none;
   }
 
   .story-board-inner {
@@ -5046,11 +5117,14 @@ em {
 }
 
 .rv-card {
-  display: grid;
-  gap: 10px;
   border-color: color-mix(in srgb, var(--cls, var(--line)) 55%, var(--line));
   background: linear-gradient(180deg, color-mix(in srgb, var(--cls, var(--slab)) 12%, var(--slab)), var(--slab) 70%);
   animation: caption-in 0.35s var(--ease-out) both;
+}
+
+.rv-card-body {
+  display: grid;
+  gap: 10px;
 }
 
 .rv-card-head {
@@ -5426,7 +5500,7 @@ em {
   }
 
   .rv-board > * {
-    width: 100%;
+    width: min(100%, max(260px, calc(100svh - 80px)));
     min-width: 0;
   }
 
@@ -6070,6 +6144,7 @@ em {
 .elines-head .muted {
   font-weight: 500;
   font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -6096,8 +6171,29 @@ em {
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
-  padding: 4px 6px;
+  /* A fixed height: rows arriving or leaving never move the cards below. */
+  height: 32px;
+  padding: 0 6px;
   border-radius: 8px;
+}
+
+.elines-list li.elines-wait {
+  display: flex;
+  font-size: 13px;
+}
+
+.elines-list li.elines-wait:hover {
+  background: none;
+}
+
+/* A line still on its way: a faint bar where its moves will be. */
+.elines-skel {
+  height: 8px;
+  width: 55%;
+  margin-left: 74px;
+  border-radius: 4px;
+  background: var(--slab-3);
+  animation: blink 1.4s ease-in-out infinite;
 }
 
 .elines-list li:hover {
@@ -6132,13 +6228,9 @@ em {
   color: var(--bone);
 }
 
-.elines-empty {
-  margin: 2px 0;
-  font-size: 13px;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .elines-dot {
+  .elines-dot,
+  .elines-skel {
     animation: none;
   }
 }
@@ -6160,4 +6252,127 @@ em {
 
 .prose .btn-primary {
   color: var(--night);
+}
+
+/* ------------------------------------------------------------------ */
+/* Touch screens and small phones                                      */
+/* ------------------------------------------------------------------ */
+
+/* Fingers need bigger targets than a mouse (about 40px); the look stays the same. */
+@media (pointer: coarse) {
+  .tab {
+    min-height: 40px;
+  }
+
+  .select-sm {
+    min-height: 36px;
+    padding-right: 26px;
+  }
+
+  .navlink {
+    padding-block: 10px;
+  }
+
+  .footer-links a {
+    display: inline-block;
+    padding-block: 8px;
+  }
+
+  .chip-sm,
+  .rv-moment {
+    min-height: 34px;
+  }
+
+  .rv-count {
+    min-height: 36px;
+    min-width: 36px;
+  }
+
+  .rv-cell {
+    min-height: 34px;
+  }
+
+  .elines-list li {
+    height: 40px;
+  }
+
+  .elines-mv {
+    padding: 8px 5px;
+  }
+
+  /* The bars stay thin; the padding around them is what you tap. */
+  .tour-bars button {
+    box-sizing: content-box;
+    padding: 16px 0;
+    background-clip: content-box;
+    overflow: visible;
+  }
+
+  .tour-bars button[aria-current="true"]::after,
+  .tour-bars button.done::after {
+    inset: 16px 0;
+    border-radius: 3px;
+  }
+
+  .hero3d-dots {
+    gap: 0;
+  }
+
+  .hero3d-dots button,
+  .hero3d-dots button[aria-current="true"] {
+    box-sizing: content-box;
+    height: 4px;
+    padding: 18px 7px;
+  }
+}
+
+/* Tablets: the app screens' top bar also holds actions, so the extras get compact. */
+@media (max-width: 1100px) {
+  .topbar-app .bmc {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .topbar-app .bmc-text {
+    display: none;
+  }
+}
+
+@media (max-width: 960px) {
+  .topbar-app .navlink-how {
+    display: none;
+  }
+}
+
+/* The narrowest phones (320–380px): the cookie button shrinks to its cookie. */
+@media (max-width: 380px) {
+  .bmc {
+    padding: 0 10px;
+  }
+
+  .bmc-text {
+    display: none;
+  }
+}
+
+/* Phones held sideways: the top bar scrolls away instead of taking a sixth of the
+   height, and the board can use nearly all of what's left. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .topbar {
+    position: static;
+  }
+
+  .story-board {
+    top: 8px;
+  }
+
+  .board-wrap,
+  .board-bar,
+  .lower-third,
+  .varbar,
+  .trace,
+  .rv-board > * {
+    width: min(100%, max(240px, calc(100svh - 24px)));
+  }
 }

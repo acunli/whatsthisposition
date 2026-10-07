@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LogoMark, Wordmark } from "./Logo";
 
@@ -9,24 +9,59 @@ import { LogoMark, Wordmark } from "./Logo";
  * page underneath is ready to run smoothly, so the first thing you see doesn't stutter.
  *
  * - First load: the veil is in the server HTML, so it shows before any script runs.
- *   It lifts when all of these hold: the logo has played (BOOT_MS), fonts are in,
- *   every component holding the veil (`holdPageVeil`, e.g. the 3D hero until its first
- *   frames are drawn) has let go, and the browser is drawing frames smoothly again.
+ *   The logo waits on its first frame until the page has hydrated: a phone can spend
+ *   seconds running scripts before it paints, and an animation started earlier would
+ *   play unseen and appear already finished. Then it plays in one piece, and the veil
+ *   lifts when all of these hold: the logo has played to the end, fonts are in,
+ *   every component holding the veil
+ *   (`holdPageVeil`, e.g. the 3D hero until its first frames are drawn) has let go,
+ *   and the browser is drawing frames smoothly again. Heavy work waits for the logo
+ *   (`useBootLogoPlayed`), so the animation itself doesn't stutter.
  *   Caps keep it from ever waiting too long; if scripts never run, CSS lifts it.
  * - Page changes: `showPageChange(fn)` (the studio's stages) and clicks on internal
  *   links (other routes) bring the veil back with a quicker cut of the animation, run
- *   the change underneath it, and lift it the same way (at least NAV_MS).
+ *   the change underneath it, and lift it the same way (once that cut has played).
  * - When it lifts it fires "wtp:revealed", so intro animations start in view.
  * - Reduced motion: no veil on page changes; on first load a static logo and a short fade.
  */
+/** How long the logo takes, for browsers that can't report their animations. */
 const BOOT_MS = 2100;
-const BOOT_CAP_MS = 6000;
+/** The longest the first-load veil stays up once the logo starts playing. */
+const BOOT_CAP_MS = 5500;
 const NAV_MS = 1000;
 const NAV_CAP_MS = 3000;
+/** A beat on the finished logo before the veil lifts. */
+const BEAT_MS = 220;
 const IN_MS = 170;
 const OUT_MS = 360;
 const EVENT = "wtp:page-change";
 export const REVEALED_EVENT = "wtp:revealed";
+const LOGO_EVENT = "wtp:logo-played";
+
+// Whether the first-load logo animation has finished.
+let bootLogoPlayed = false;
+const subscribeLogo = (cb: () => void) => {
+  window.addEventListener(LOGO_EVENT, cb);
+  return () => window.removeEventListener(LOGO_EVENT, cb);
+};
+
+/**
+ * True once the first-load logo animation has played to the end. Heavy first renders
+ * (the 3D hero compiling its shaders) wait for it, so the animation runs smoothly.
+ */
+export function useBootLogoPlayed(): boolean {
+  return useSyncExternalStore(
+    subscribeLogo,
+    () => bootLogoPlayed,
+    () => false,
+  );
+}
+
+function markBootLogoPlayed() {
+  if (bootLogoPlayed) return;
+  bootLogoPlayed = true;
+  window.dispatchEvent(new Event(LOGO_EVENT));
+}
 
 // Components that need the veil to stay up a little longer (heavy first render).
 const holds = new Set<symbol>();
@@ -75,6 +110,19 @@ function smooth(frames = 8, budget = 34, maxMs = 1500): Promise<void> {
   });
 }
 
+/**
+ * Resolves when every animation in the logo has finished, wherever it started, or
+ * after `capMs`. Without the Web Animations API (or with reduced motion, where there
+ * are no animations) it waits `fallbackMs` from `since` instead.
+ */
+function logoPlayed(el: Element | null, since: number, fallbackMs: number, capMs: number): Promise<void> {
+  const anims = el && typeof el.getAnimations === "function" ? el.getAnimations({ subtree: true }) : [];
+  const elapsed = performance.now() - since;
+  if (!anims.length) return sleep(fallbackMs - elapsed);
+  const done = Promise.all(anims.map((a) => a.finished.catch(() => undefined))).then(() => sleep(BEAT_MS));
+  return Promise.race([done, sleep(capMs - elapsed)]);
+}
+
 type Phase = "boot" | "in" | "out" | "hidden";
 
 /** Runs `change` (e.g. switching the studio's stage) under the loading veil. */
@@ -89,11 +137,13 @@ const reducedMotion = () => typeof window !== "undefined" && window.matchMedia("
 
 export function PageVeil() {
   const [phase, setPhase] = useState<Phase>("boot");
+  const [playing, setPlaying] = useState(false);
   const [run, setRun] = useState(0);
   const phaseRef = useRef<Phase>("boot");
   const shownAt = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingRoute = useRef<string | null>(null);
+  const inner = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -103,18 +153,26 @@ export function PageVeil() {
   };
   const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
   const generation = useRef(0);
-  /** Lift once the minimum time has passed, holds are released (up to `capMs`), and frames are smooth. */
-  const lift = (minMs: number, capMs: number) => {
+  /**
+   * Lift once the logo has played (`played`), holds are released (up to `capMs`), and
+   * frames are smooth.
+   */
+  const lift = (played: Promise<void>, capMs: number) => {
     const gen = ++generation.current;
     const since = shownAt.current;
-    const elapsed = () => performance.now() - since;
-    void Promise.all([sleep(minMs - elapsed()), Promise.race([released(), sleep(capMs - elapsed())]).then(() => smooth(8, 34, Math.max(300, capMs - elapsed())))]).then(() => {
-      if (gen !== generation.current) return; // a newer page change took over
-      set("out");
-      window.dispatchEvent(new Event(REVEALED_EVENT));
-      later(OUT_MS, () => set("hidden"));
-    });
+    const left = () => capMs - (performance.now() - since);
+    // Holds are counted once the logo has played: by then everything that needs one has asked.
+    void played
+      .then(() => Promise.race([released(), sleep(left())]))
+      .then(() => smooth(8, 34, Math.max(300, left())))
+      .then(() => {
+        if (gen !== generation.current) return; // a newer page change took over
+        set("out");
+        window.dispatchEvent(new Event(REVEALED_EVENT));
+        later(OUT_MS, () => set("hidden"));
+      });
   };
+  const liftAfterLogo = (fallbackMs: number, capMs: number) => lift(logoPlayed(inner.current, shownAt.current, fallbackMs, capMs), capMs);
 
   // First load: lift once hydrated, fonts are in, and the logo has played.
   useEffect(() => {
@@ -122,15 +180,31 @@ export function PageVeil() {
     const elapsed = performance.now();
     if (elapsed > 7800) {
       // The CSS fallback has already lifted it.
+      markBootLogoPlayed();
       // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time sync with the CSS fallback
       set("hidden");
       return;
     }
-    shownAt.current = 0;
-    const min = reducedMotion() ? 250 : BOOT_MS;
     const fonts = document.fonts?.ready ?? Promise.resolve();
-    void fonts.then(() => lift(min, BOOT_CAP_MS));
-    return () => t.forEach(clearTimeout);
+    let raf = 0;
+    // Start once frames are flowing smoothly: right after hydration a phone can still
+    // stall (more scripts, the GPU starting up), and the logo would jump ahead unseen.
+    void fonts
+      .then(() => smooth(6, 34, 2000))
+      .then(() => {
+        shownAt.current = performance.now();
+        setPlaying(true);
+        // The animations run from the next style update; read them after it.
+        raf = requestAnimationFrame(() => {
+          const played = logoPlayed(inner.current, shownAt.current, reducedMotion() ? 250 : BOOT_MS, BOOT_CAP_MS);
+          void played.then(markBootLogoPlayed);
+          lift(played, BOOT_CAP_MS);
+        });
+      });
+    return () => {
+      cancelAnimationFrame(raf);
+      t.forEach(clearTimeout);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
   }, []);
 
@@ -153,7 +227,7 @@ export function PageVeil() {
       later(IN_MS, () => {
         change();
         // Two frames: the new page has rendered under the veil.
-        requestAnimationFrame(() => requestAnimationFrame(() => lift(NAV_MS, NAV_CAP_MS)));
+        requestAnimationFrame(() => requestAnimationFrame(() => liftAfterLogo(NAV_MS, NAV_CAP_MS)));
       });
     };
     window.addEventListener(EVENT, onChange);
@@ -186,15 +260,15 @@ export function PageVeil() {
   useEffect(() => {
     if (pendingRoute.current && pendingRoute.current === pathname) {
       pendingRoute.current = null;
-      requestAnimationFrame(() => lift(NAV_MS, NAV_CAP_MS));
+      requestAnimationFrame(() => liftAfterLogo(NAV_MS, NAV_CAP_MS));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reacts to the route only
   }, [pathname]);
 
   return (
-    <div className={`veil veil-${phase}`} aria-hidden="true">
+    <div className={`veil veil-${phase}${playing ? " veil-play" : ""}`} aria-hidden="true">
       {phase !== "hidden" && (
-        <div key={run} className={run ? "veil-inner veil-fast" : "veil-inner"}>
+        <div key={run} ref={inner} className={run ? "veil-inner veil-fast" : "veil-inner"}>
           <LogoMark size={92} />
           <Wordmark className="veil-word" />
         </div>

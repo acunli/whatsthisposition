@@ -217,3 +217,28 @@ describe("quiet move explanations", () => {
     expect(texts.join(" ")).not.toMatch(/safe squares/);
   });
 });
+
+describe("piece activity and pins judged by what they do", () => {
+  // Black's pawn on f7 is pinned by Bb3, but f6 holds Black's own knight: the pin costs nothing.
+  const FEN = "r2q1rk1/1b2bppp/p2p1n2/1p2p3/4P3/1BN2N2/PPP2PPP/R2Q1RK1 w - - 0 11";
+  const all = (fen: string) => Object.values(computeFacts(fen).byLens).flat();
+
+  it("leaves out a pin that costs nothing", () => {
+    expect(makeCtx(FEN).pins.some((p) => p.pinned === "f7")).toBe(true);
+    expect(all(FEN).some((f) => f.kind.startsWith("pin-") && f.anchor === "f7")).toBe(false);
+  });
+
+  it("keeps a pin that takes squares away, and says which", () => {
+    // Ruy Lopez after 3...d6: the knight on c6 is pinned to the king by Bb5.
+    const pin = all("r1bqkbnr/ppp2ppp/2np4/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 4").find((f) => f.kind === "pin-absolute" && f.anchor === "c6");
+    expect(pin?.detail).toMatch(/illegal/);
+  });
+
+  it("doesn't call a pinning bishop passive, but finds the bishop boxed in by its own pieces", () => {
+    const facts = all(FEN);
+    expect(facts.some((f) => (f.kind === "worst-piece" || f.kind === "restricted") && f.anchor === "b3")).toBe(false);
+    const worst = facts.find((f) => f.kind === "worst-piece" && f.side === "b");
+    expect(worst?.anchor).toBe("e7");
+    expect(worst?.detail).toMatch(/^The knight on f6 and the pawn on d6 are in its way/);
+  });
+});

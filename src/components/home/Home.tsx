@@ -6,7 +6,7 @@ import { BoardStage } from "../BoardStage";
 import { parseFen, placementFromFen, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
 import { PgnError, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
-import { holdPageVeil } from "../PageVeil";
+import { holdPageVeil, useBootLogoPlayed } from "../PageVeil";
 import { GameImport } from "../review/GameImport";
 import { computeFacts } from "@/lib/facts";
 import { buildLedger } from "@/lib/facts/ledger";
@@ -97,14 +97,18 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
     return () => io.disconnect();
   }, []);
 
-  // The loading veil waits for the 3D hero's first frames (shaders compile then), so the page doesn't stutter as it appears.
+  // The loading veil waits for the 3D hero's first frames (shaders compile then), so the
+  // page doesn't stutter as it appears. Asked for at once, before the veil counts holds.
   const releaseVeil = useRef<(() => void) | null>(null);
   useEffect(() => {
-    if (!webgl) return;
-    releaseVeil.current = holdPageVeil(5000);
+    if (!("WebGL2RenderingContext" in window || "WebGLRenderingContext" in window)) return;
+    releaseVeil.current = holdPageVeil(6000);
     return () => releaseVeil.current?.();
-  }, [webgl]);
+  }, []);
   const heroReady = () => releaseVeil.current?.();
+  // The 3D scene starts once the loading logo has played: compiling its shaders on a
+  // phone takes long enough to make the logo stutter if both run at once.
+  const logoPlayed = useBootLogoPlayed();
 
   const heroPlacement = useMemo(() => placementFromFen(HERO_FEN), []);
   const scenes = useMemo(() => {
@@ -165,7 +169,9 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
                 </div>
               }
             >
-              <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} onReady={heroReady} />
+              {logoPlayed && (
+                <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} onReady={heroReady} />
+              )}
             </HeroBoundary>
           ) : webgl === false ? (
             <div className="hero3d-fallback">

@@ -175,6 +175,8 @@ With the master book, Book lasts 7.9 plies on average on a club player's games, 
 Give it one position (FEN, hand setup, or a screenshot) and it shows why the engine prefers a side:
 
 - **Board facts** (`src/lib/facts`): attacks and threats, pins, loose and trapped pieces, king safety, pawn structure (isolated, doubled, backward, passed pawns, holes, colour complexes, chains, majorities), space, piece activity and control. Each is a fact with squares and a tone, drawn on the board.
+  - **A pin is only reported if it costs something now:** squares the pinned unit can't go to, or an attacked friend it can no longer take back on. A pawn pinned on f7 that couldn't move anyway isn't news.
+  - **Piece activity counts pressure, not just room:** safe squares, plus enemy units a piece attacks or pins, plus squares it covers in the enemy half. A bishop pinning a pawn to the king has few safe squares but isn't "passive"; a bishop behind its own pawns has neither, and the text names what is in its way.
 - **Strengths and weaknesses** for both sides, a guided tour that starts with the engine's best move, and layers you can stack.
 - **Moves:** the engine's candidate lines, "Why this move?" (the same reasoning engine as the review), "Why not?", a comparison, and "try it first".
 - **Plans:**
@@ -191,6 +193,8 @@ The board (`BoardStage`) is a custom layer stack: 64 squares, overlays (fills, r
 - **Play moves** by clicking a piece and then a square, or by dragging. A promotion asks which piece. In the review, playing the game's own move just advances the game; any other move starts "Your moves", and the engine follows along. In the analysis, moves played from the analysed position are explained; moves inside a line continue the line.
 - **Draw** with right-click on a square (a circle) or right-drag (an arrow). The colours match Lichess: green by default, Shift red, Alt blue, Shift+Alt yellow. The same shape again removes it, and a left click clears them all.
 - **Engine lines next to the board:** the top three lines for whatever position is shown, updating live as the search deepens, on a worker of their own. Click any move in a line to play it to there; hover a line to see its first move.
+  - **The panel never changes height:** it always has three one-line rows (a faint bar marks a line still on its way), it only shows complete sets of lines (mid-search Stockfish reports them one at a time), and it updates at most four times a second. In a review, the review's own deeper lines stay up until the live search is at least as deep.
+  - **The move card glides:** when an explanation changes length, the card's height animates once, so the cards below don't jump. While a deeper explanation is on its way, the card may grow but not shrink.
 
 ## 9. Reading a screenshot
 
@@ -204,7 +208,7 @@ On a held-out set of real game screenshots: **98.5% of squares** right, and 53 o
 
 ## 10. Speed and loading
 
-- **The loading screen is the logo animation.** On first load it stays up until three things have happened: the page has hydrated, the 3D hero has drawn its first frames (shader compilation happens under the veil), and the browser is drawing smoothly again (eight frames in a row under 34 ms). Caps keep it from ever hanging. Page changes play a quicker version.
+- **The loading screen is the logo animation, played whole.** The logo waits on its first frame until the page has hydrated and the browser is drawing smoothly; a phone can spend seconds running scripts before it paints, and an animation started earlier would play unseen and appear already finished. Then it plays from start to end, and only after that does the 3D hero start compiling its shaders, under the finished logo. The veil lifts once the logo has played, the hero has drawn its first frames and frames are smooth again (eight in a row under 34 ms). Caps keep it from ever hanging; without JavaScript the logo plays at once and CSS lifts the veil. Page changes play a quicker version the same way.
 - **Measured:** first paint in 0.46 s and 21 ms of total blocking time on the production build (with the 3D hero off).
 - **The 3D hero:** shadows are drawn once (nothing on the board moves), the pixel ratio is capped, and it stops rendering when it's off screen.
 - **Heavy data is loaded lazily:** the opening book only for reviews, the CNN weights only for photos.

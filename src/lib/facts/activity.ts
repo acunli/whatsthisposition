@@ -13,6 +13,36 @@ export function safeMobility(p: Placement, sq: Square, attacks: Square[]): Squar
   });
 }
 
+/** Mobility relative to what that piece type typically has, so a queen isn't always "best". */
+export const TYPICAL: Record<string, number> = { n: 5, b: 7, r: 8, q: 14 };
+
+/**
+ * How much a piece does, relative to its type: the safe squares it can go to, plus the
+ * pressure it already exerts (enemy units it attacks or pins, squares it covers in the
+ * enemy half). A bishop pinning a pawn to the king has few safe squares, but it is far
+ * from passive; a bishop behind its own pawns has neither.
+ */
+export function activityScore(ctx: Ctx, m: { sq: Square; safe: Square[] }): number {
+  const piece = ctx.p[m.sq]!;
+  const enemy = other(piece.color);
+  const hits = ctx.attacks(m.sq);
+  const targets = hits.filter((s) => ctx.p[s]?.color === enemy).length;
+  const deep = hits.filter((s) => (piece.color === "w" ? rankIndex(s) >= 4 : rankIndex(s) <= 3)).length;
+  const pins = ctx.pins.filter((x) => x.pinner === m.sq).length;
+  return (m.safe.length + targets + pins + 0.5 * deep) / TYPICAL[piece.type];
+}
+
+/**
+ * The piece's own side's units standing in front of it (toward the enemy, or level with
+ * it) on squares it would otherwise use. Pawns behind a piece don't hold it back.
+ */
+export function ownBlockers(ctx: Ctx, sq: Square, only?: "p"): Square[] {
+  const c = ctx.p[sq]!.color;
+  const ahead = (s: Square) => (c === "w" ? rankIndex(s) >= rankIndex(sq) : rankIndex(s) <= rankIndex(sq));
+  return ctx.attacks(sq).filter((s) => ctx.p[s]?.color === c && ahead(s) && (!only || ctx.p[s]!.type === only));
+}
+
+
 /**
  * An outpost for `color`: in the opponent's half (ranks 4–6 from its side),
  * defended by an own pawn, and no enemy pawn can ever attack it.
@@ -62,8 +92,13 @@ export function activityFacts(ctx: Ctx): Fact[] {
 
     if (onHome) {
       // Undeveloped pieces are summarised per side in pieces.ts (development lead).
-    } else if (mob.length <= limit && !((piece.type === "r" || piece.type === "q") && rankIndex(sq) === (piece.color === "w" ? 0 : 7))) {
-      const ownBlockers = ctx.attacks(sq).filter((t) => p[t]?.color === piece.color && p[t]?.type === "p");
+    } else if (
+      mob.length <= limit &&
+      !((piece.type === "r" || piece.type === "q") && rankIndex(sq) === (piece.color === "w" ? 0 : 7)) &&
+      // Few squares to go to, but already pressing (a pin, a target, the enemy half): not cramped.
+      activityScore(ctx, { sq, safe: mob }) <= 0.45
+    ) {
+      const blockers = ownBlockers(ctx, sq, "p");
       facts.push({
         id: `restricted-${sq}`,
         lens: "activity",
@@ -75,8 +110,8 @@ export function activityFacts(ctx: Ctx): Fact[] {
           mob.length === 0
             ? `${describe(p, sq)} has no safe square to move to.`
             : `${describe(p, sq)} is cramped: only ${mob.length} safe square${mob.length > 1 ? "s" : ""} (${mob.join(", ")}).`,
-        detail: ownBlockers.length
-          ? `Its own pawn${ownBlockers.length > 1 ? "s" : ""} on ${ownBlockers.join(", ")} block${ownBlockers.length > 1 ? "" : "s"} it.`
+        detail: blockers.length
+          ? `Its own pawn${blockers.length > 1 ? "s" : ""} on ${blockers.join(" and ")} block${blockers.length > 1 ? "" : "s"} it.`
           : "Squares attacked by enemy pawns don't count as safe.",
         evidence: "rules",
         marks: {
@@ -84,7 +119,7 @@ export function activityFacts(ctx: Ctx): Fact[] {
           squares: [
             { sq, tone: "danger", style: "ring" },
             ...mob.map((s) => ({ sq: s, tone: "info" as const, style: "dot" as const })),
-            ...ownBlockers.map((s) => ({ sq: s, tone: "info" as const, style: "dashed" as const })),
+            ...blockers.map((s) => ({ sq: s, tone: "info" as const, style: "dashed" as const })),
           ],
         },
         priority: 45,
