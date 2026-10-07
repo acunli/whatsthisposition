@@ -27,7 +27,6 @@ npm run lint && npm run typecheck && npm test && npm run build
 ## Where things live
 
 - [docs/HOW-IT-WORKS.md](docs/HOW-IT-WORKS.md): how every part works, with the exact rules.
-- [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md): the detailed hand-off document: architecture map, decisions, known limitations, history.
 - [docs/position-understanding.md](docs/position-understanding.md): research notes behind the analysis design.
 
 ## Style

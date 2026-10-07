@@ -39,7 +39,7 @@ For every Brilliant, Great, Mistake, Miss and Blunder, and a sample of Best and 
 
 To review one particular game, use `EVAL_PGN=game.pgn` (and `EVAL_FOCUS=42,43` for plies to always include). The owner's 21…Rh8 example is ply 42 of https://www.chess.com/game/live/184766330520 (Bisman_Chopra vs hanganggang4, in Bisman_Chopra's 2026/10 archive).
 
-Problems already found and fixed this way are listed in `docs/PROJECT_CONTEXT.md` (progress log, 2026-10-05).
+Problems already found and fixed this way are in the git history (commits from 2026-10-05 on).
 
 ## 3. Accuracy against Chess.com
 
