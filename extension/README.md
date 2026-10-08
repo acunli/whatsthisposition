@@ -23,7 +23,7 @@ It works in any Chromium browser (Chrome, Edge, Brave, Arc, Opera).
 2. Register at the [Chrome Web Store developer dashboard](https://chrome.google.com/webstore/devconsole) (a one-time $5 fee) and select **New item**, then upload the zip.
 3. Fill in the listing:
    - **Single purpose:** "Reviews a finished Chess.com game: accuracy and move labels, with a link to a full explanation."
-   - **Permissions:** none besides running on `https://www.chess.com/*`. It reads that page's own game data (the JSON Chess.com's game page loads) to get the moves.
+   - **Permissions:** `offscreen`, justified as "Runs the Stockfish chess engine in a hidden extension page to review the finished game on the user's computer." It also runs on `https://www.chess.com/*`, where it reads the page's own game data (the JSON Chess.com's game page loads) to get the moves.
    - **Data usage:** it collects nothing. The analysis runs on the user's computer; the review link carries the game in the URL's fragment (`#review=…`), which is never sent to a server.
    - **Screenshots:** at least one at 1280×800, e.g. the card next to a finished game.
 4. Submit for review. Updates: bump `version` in `package.json`, `npm run ext:zip`, upload.
@@ -38,6 +38,7 @@ It only acts on **finished** games: Chess.com's own game data (`isFinished`) dec
 
 - **`src/content.ts`** runs on Chess.com. It finds the game on screen from the URL (`/game/live/…`, `/game/daily/…`, `/game/…`, `/analysis/game/…`) or, on the play page, from the links in the game-over box, and asks Chess.com's game endpoint (`/callback/live/game/{id}`) whether it is over. A game that is still going is checked every 3 seconds (daily games every 30). When it ends while you watch, or it ended less than 10 minutes ago (the game's `endTime`), the card opens; otherwise the small button appears.
 - **The card** is `panel.html`, an extension page in an iframe, so its scripts and styles are separate from Chess.com's.
+- **Stockfish runs in a hidden engine page** (`engine.html`, an offscreen document that `src/background.ts` opens on demand and closes when no card needs it). The card sits inside Chess.com's page, and there the browser may refuse to start workers ("The engine failed to load"); the engine page is the extension's own, so it can. The card sends it searches over a runtime port (`src/remoteEngine.ts`) and falls back to workers in the card if the engine page can't open. If neither starts, the card says why and offers the review on the website instead.
 - **`src/panel.ts`** decodes the moves (Chess.com's compact TCN encoding, `src/lib/review/chesscomGame.ts`) into a PGN and runs **the website's own review** (`src/lib/review`): Stockfish 19 in Web Workers (`engine/`), the same labels, the same accuracy formula and the same opening book (`data/`), at the same default depth (Thorough, 18; Fast and Standard are one click away). Critical moments are searched deeper, as on the site.
 - **The link** opens `/#review=<PGN>&as=<your colour>&depth=<depth>`, and the site starts that review straight away.
 

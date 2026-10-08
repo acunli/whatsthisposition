@@ -5,7 +5,7 @@
  * how many moves of each kind each player made, and links to the full step-by-step
  * review on the website.
  */
-import { createEnginePool } from "@/lib/engine/pool";
+import { createEnginePool, type EnginePool } from "@/lib/engine/pool";
 import { gameAccuracy } from "@/lib/review/accuracy";
 import { loadBook } from "@/lib/review/book";
 import { CLASS_INFO, CLASS_ORDER, type MoveClass } from "@/lib/review/classify";
@@ -17,6 +17,7 @@ import { analysePositions, classifyGame, criticalPositions, tally } from "@/lib/
 import { reviewLink } from "@/lib/review/share";
 import { SITE_URL } from "@/lib/brand";
 import { markSvg } from "@/lib/logoPaths";
+import { remoteEnginePool } from "./remoteEngine";
 
 const PARENT = "https://www.chess.com";
 const TABLE: MoveClass[] = CLASS_ORDER.filter((c) => c !== "forced");
@@ -98,9 +99,38 @@ function renderDone(acc: Record<"w" | "b", number | null>, counts: Record<string
   bind();
 }
 
+/** What went wrong, plus a way out: the website runs the same review with its own engine. */
 function renderError(message: string) {
-  app.innerHTML = `${header()}${players()}<p class="status error">${esc(message)}</p><button class="primary" type="button" data-analyse>Try again</button>`;
+  const link = game ? reviewLink(SITE_URL, game.pgn, game.bottom, REVIEW_DEPTHS[depthIdx].depth) : SITE_URL;
+  app.innerHTML = `${header()}${players()}<p class="status error">${esc(message)}</p>
+    <button class="primary" type="button" data-analyse>Try again</button>
+    <a class="secondary" href="${esc(link)}" target="_blank" rel="noopener">Review it on what’sthisposition instead →</a>`;
   bind();
+}
+
+/**
+ * Engines for the review: in the hidden engine page first (the card itself sits inside
+ * Chess.com's page, where the browser may refuse to start workers), then in the card as
+ * a fallback. A pool only counts once its engine has answered a first search.
+ */
+async function startEngines(): Promise<EnginePool> {
+  const problems: string[] = [];
+  for (const [where, make] of [
+    ["engine page", remoteEnginePool],
+    ["card", async () => createEnginePool()],
+  ] as const) {
+    let pool: EnginePool | null = null;
+    try {
+      pool = await make();
+      await pool.searchers[0]({ fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", depth: 1 });
+      document.documentElement.dataset.engine = where; // which one runs (for tests and bug reports)
+      return pool;
+    } catch (e) {
+      pool?.dispose();
+      problems.push(`${where}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  throw new Error(`Stockfish couldn't start (${problems.join("; ")}).`);
 }
 
 async function analyse() {
@@ -108,17 +138,20 @@ async function analyse() {
   running = true;
   const g = parsed;
   const depth = REVIEW_DEPTHS[depthIdx].depth;
-  const pool = createEnginePool();
   const total = g.moves.length + 1;
+  let pool: EnginePool | null = null;
   try {
+    renderProgress("Starting Stockfish…", 0);
+    pool = await startEngines();
+    const engines = pool;
     const book = await loadBook().catch(() => null);
     let done = 0;
     renderProgress(`Stockfish is reviewing: 0/${total} positions · depth ${depth}`, 0);
-    const first = await analysePositions(g, pool.searchers, {
+    const first = await analysePositions(g, engines.searchers, {
       depth,
       onPosition: () => {
         done++;
-        renderProgress(`Stockfish is reviewing: ${done}/${total} positions${pool.size > 1 ? ` · ${pool.size} engines` : ""} · depth ${depth}`, (done / total) * 0.85);
+        renderProgress(`Stockfish is reviewing: ${done}/${total} positions${engines.size > 1 ? ` · ${engines.size} engines` : ""} · depth ${depth}`, (done / total) * 0.85);
       },
     });
     // Sharp moments are searched deeper, as on the website, so sacrifices and blunders aren't misjudged.
@@ -127,7 +160,7 @@ async function analyse() {
     if (crit.length) {
       let checked = 0;
       renderProgress(`Double-checking ${crit.length} critical positions at depth ${depth + VERIFY_EXTRA}`, 0.85);
-      positions = await analysePositions(g, pool.searchers, {
+      positions = await analysePositions(g, engines.searchers, {
         depth: depth + VERIFY_EXTRA,
         indices: crit,
         existing: first,
@@ -140,9 +173,10 @@ async function analyse() {
     const review = classifyGame(g, positions, book);
     renderDone(gameAccuracy(review.moves), tally(review.moves), review.opening ? `${review.opening.eco} · ${review.opening.name}` : null);
   } catch (e) {
-    renderError(e instanceof Error && e.message !== "cancelled" ? `The engine stopped: ${e.message}` : "The engine stopped.");
+    console.error("what’sthisposition review failed", e);
+    renderError(e instanceof Error && e.message !== "cancelled" ? e.message : "The engine stopped.");
   } finally {
-    pool.dispose();
+    pool?.dispose();
     running = false;
   }
 }

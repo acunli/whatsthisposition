@@ -10,8 +10,6 @@
 import { chessComGameRef, gameFromCallback, type ChessComCallback, type ChessComGame } from "@/lib/review/chesscomGame";
 import { markSvg } from "@/lib/logoPaths";
 
-declare const chrome: { runtime: { getURL(path: string): string } };
-
 type Ref = { id: number; kind: "live" | "daily" };
 
 const PANEL = chrome.runtime.getURL("panel.html");

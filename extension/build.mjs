@@ -26,7 +26,7 @@ mkdirSync(out, { recursive: true });
 
 await build({
   absWorkingDir: root,
-  entryPoints: { content: "extension/src/content.ts", panel: "extension/src/panel.ts" },
+  entryPoints: { content: "extension/src/content.ts", panel: "extension/src/panel.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
   outdir: out,
   bundle: true,
   format: "iife",
@@ -50,7 +50,7 @@ manifest.version = pkg.version;
 manifest.homepage_url = site;
 writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
-for (const f of ["panel.html", "panel.css"]) cpSync(join(root, "extension", f), join(out, f));
+for (const f of ["panel.html", "panel.css", "engine.html"]) cpSync(join(root, "extension", f), join(out, f));
 // The toolbar popup links to the same site as the card.
 writeFileSync(join(out, "popup.html"), readFileSync(join(root, "extension", "popup.html"), "utf8").replace("https://whatsthisposition.vercel.app", site));
 cpSync(join(root, "extension", "icons"), join(out, "icons"), { recursive: true });

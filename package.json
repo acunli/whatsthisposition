@@ -2,7 +2,7 @@
   "name": "whatsthisposition",
   "version": "1.0.0",
   "private": true,
-  "description": "what\u2019sthisposition: free, open-source chess game review and position analysis that explains every move.",
+  "description": "what’sthisposition: free, open-source chess game review and position analysis that explains every move.",
   "license": "GPL-3.0-or-later",
   "author": "Ayushman Chaudhuri (https://ayushman.rocks)",
   "homepage": "https://whatsthisposition.com",
@@ -56,6 +56,7 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@types/chrome": "^0.3.4",
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

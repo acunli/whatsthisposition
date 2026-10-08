@@ -82,7 +82,7 @@ The Chess.com extension (`extension/`) runs this same review on a finished Chess
 
 - **Finding the game:** from the page URL (`/game/live/…`, `/game/daily/…`, `/game/…`, `/analysis/game/…`), or on the play page from the links in the game-over box. Chess.com's own game endpoint (`/callback/live/game/{id}`) says whether the game is over (`isFinished`), so nothing happens during a game. A game that has just ended (seen ending, or ended in the last 10 minutes, from the game's `endTime`) opens the card by itself; an older game gets a small button.
 - **The moves** come in Chess.com's compact TCN encoding (two characters a move, with promotions packed into the target square), decoded in `src/lib/review/chesscomGame.ts` and replayed with chess.js into a PGN.
-- **The review** is the site's code, bundled with esbuild: the same worker pool, labels, accuracy formula, opening book and default depth, with the verification pass. The card shows both accuracies and the label counts per player, then links to the full review on the site.
+- **The review** is the site's code, bundled with esbuild: the same labels, accuracy formula, opening book and default depth, with the verification pass. Stockfish runs in a hidden extension page (an offscreen document), not in the card: the card is embedded in Chess.com's page, where the browser may not let it start workers. The card shows both accuracies and the label counts per player, then links to the full review on the site.
 
 ### 3.4 The labels
 

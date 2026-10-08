@@ -105,6 +105,16 @@ body {
   filter: brightness(1.07);
 }
 
+.secondary {
+  color: var(--bone-2);
+  font-size: 13px;
+  text-align: center;
+}
+
+.secondary:hover {
+  color: var(--bone);
+}
+
 .primary:focus-visible,
 .chip:focus-visible,
 .x:focus-visible {
