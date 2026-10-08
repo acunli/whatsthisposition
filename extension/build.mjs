@@ -46,6 +46,10 @@ await build({
 });
 
 const manifest = JSON.parse(readFileSync(join(root, "extension", "manifest.json"), "utf8"));
+// The Chrome Web Store refuses a package whose manifest goes over these lengths.
+for (const [field, max] of [["name", 75], ["short_name", 12], ["description", 132]]) {
+  if (manifest[field] && [...manifest[field]].length > max) throw new Error(`manifest.json: "${field}" is ${[...manifest[field]].length} characters; the Chrome Web Store allows ${max}.`);
+}
 manifest.version = pkg.version;
 manifest.homepage_url = site;
 writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
