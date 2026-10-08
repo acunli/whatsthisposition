@@ -47,6 +47,8 @@ export interface ChessComCallback {
     initialSetup?: string;
     resultMessage?: string;
     typeName?: string;
+    /** When the game ended, in Unix seconds. */
+    endTime?: number;
   };
   players?: Partial<Record<"top" | "bottom", { username?: string; color?: "white" | "black"; rating?: number }>>;
 }
@@ -63,6 +65,8 @@ export interface ChessComGame {
   /** The colour shown at the bottom of the board (on your own game: yours). */
   bottom: Color;
   url: string;
+  /** When the game ended (ms since the epoch), if Chess.com says. */
+  endedAt: number | null;
 }
 
 /** The PGN and summary of a finished standard game, or null if it isn't one. */
@@ -98,6 +102,7 @@ export function gameFromCallback(cb: ChessComCallback, kind: "live" | "daily"): 
     message: g.resultMessage ?? "",
     bottom: cb.players?.bottom?.color === "black" ? "b" : "w",
     url,
+    endedAt: typeof g.endTime === "number" ? g.endTime * 1000 : null,
   };
 }
 

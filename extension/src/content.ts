@@ -1,7 +1,7 @@
 /**
- * Runs on Chess.com. When a game ends while you watch, a card pops up in the corner
- * with an "Analyze" button; on a game that was already over, a small button offers the
- * same. The card is an extension page in an iframe (panel.html), so the analysis runs
+ * Runs on Chess.com. When a game has just ended (seen ending, or ended in the last
+ * few minutes), a card pops up in the corner with an "Analyze" button; on an older
+ * game, a small button offers the same. The card is an extension page in an iframe (panel.html), so the analysis runs
  * on your computer, apart from the page.
  *
  * It only ever acts on finished games: Chess.com's own game data (`isFinished`) decides,
@@ -19,6 +19,22 @@ const PANEL_ORIGIN = new URL(PANEL).origin;
 /** How often an unfinished game is checked: live games end fast, daily games slowly. */
 const POLL_MS = { live: 3000, daily: 30000 };
 const WATCH_MS = 1500;
+/**
+ * A game that ended this recently counts as just finished. Chess.com doesn't always put
+ * a game's id in the URL while it is being played, so the first look at a game you've
+ * just won may already find it over.
+ */
+const FRESH_MS = 10 * 60 * 1000;
+
+/** Games whose card you closed stay closed (this tab only), so a reload doesn't reopen them. */
+const closedKey = (id: number) => `whatsthisposition:closed:${id}`;
+const wasClosed = (id: number) => {
+  try {
+    return sessionStorage.getItem(closedKey(id)) === "1";
+  } catch {
+    return false;
+  }
+};
 
 const CSS = `
 :host { all: initial; }
@@ -91,7 +107,16 @@ function onMessage(e: MessageEvent) {
   const msg = e.data as { type?: string; height?: number };
   if (msg?.type === "wtp:ready" && game) frame.contentWindow?.postMessage({ type: "wtp:game", game }, PANEL_ORIGIN);
   else if (msg?.type === "wtp:size" && typeof msg.height === "number") frame.style.height = `${Math.min(Math.max(msg.height, 120), innerHeight - 36)}px`;
-  else if (msg?.type === "wtp:close") showPill();
+  else if (msg?.type === "wtp:close") {
+    if (game) {
+      try {
+        sessionStorage.setItem(closedKey(game.id), "1");
+      } catch {
+        /* storage blocked: it just may reopen after a reload */
+      }
+    }
+    showPill();
+  }
 }
 
 async function tick() {
@@ -121,8 +146,12 @@ async function tick() {
     }
     current.settled = true;
     game = r.game;
-    // It ended while you watched: offer the review at once. An old game: just the button.
-    if (game) (current.seenPlaying ? showCard : showPill)();
+    // Just finished (seen ending, or ended minutes ago): offer the review at once. An
+    // older game, or one whose card you closed: just the button.
+    if (game) {
+      const fresh = current.seenPlaying || (game.endedAt !== null && Date.now() - game.endedAt < FRESH_MS);
+      (fresh && !wasClosed(game.id) ? showCard : showPill)();
+    }
   } catch {
     current.settled = true;
   }

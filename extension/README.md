@@ -2,7 +2,7 @@
 
 When a Chess.com game ends, a card pops up in the corner of the page with an **Analyze** button. Press it and the game is reviewed on your own computer: both players' accuracy and how many Brilliant, Great, Best… Blunder moves each made. **See every move explained** then opens the full step-by-step review on what’sthisposition.
 
-On a game that was already over when you opened it, a small **Review with what’sthisposition** button offers the same.
+It pops up for a game that has just ended: one you watched end, or one that ended in the last 10 minutes (Chess.com doesn't always show a game's id while it's being played). On older games a small **Review with what’sthisposition** button offers the same. Close the card and it stays closed for that game until you reopen it from the button.
 
 ## Install it now (unpacked)
 
@@ -36,7 +36,7 @@ It only acts on **finished** games: Chess.com's own game data (`isFinished`) dec
 
 ## How it works
 
-- **`src/content.ts`** runs on Chess.com. It finds the game on screen from the URL (`/game/live/…`, `/game/daily/…`, `/game/…`, `/analysis/game/…`) or, on the play page, from the links in the game-over box, and asks Chess.com's game endpoint (`/callback/live/game/{id}`) whether it is over. A game that is still going is checked every 3 seconds (daily games every 30). When it ends while you watch, the card opens; otherwise the small button appears.
+- **`src/content.ts`** runs on Chess.com. It finds the game on screen from the URL (`/game/live/…`, `/game/daily/…`, `/game/…`, `/analysis/game/…`) or, on the play page, from the links in the game-over box, and asks Chess.com's game endpoint (`/callback/live/game/{id}`) whether it is over. A game that is still going is checked every 3 seconds (daily games every 30). When it ends while you watch, or it ended less than 10 minutes ago (the game's `endTime`), the card opens; otherwise the small button appears.
 - **The card** is `panel.html`, an extension page in an iframe, so its scripts and styles are separate from Chess.com's.
 - **`src/panel.ts`** decodes the moves (Chess.com's compact TCN encoding, `src/lib/review/chesscomGame.ts`) into a PGN and runs **the website's own review** (`src/lib/review`): Stockfish 19 in Web Workers (`engine/`), the same labels, the same accuracy formula and the same opening book (`data/`), at the same default depth (Thorough, 18; Fast and Standard are one click away). Critical moments are searched deeper, as on the site.
 - **The link** opens `/#review=<PGN>&as=<your colour>&depth=<depth>`, and the site starts that review straight away.

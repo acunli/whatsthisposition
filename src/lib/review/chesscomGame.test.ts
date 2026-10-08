@@ -34,12 +34,13 @@ describe("Chess.com games for the extension", () => {
         isFinished: true,
         resultMessage: "Ay7u won by checkmate",
         typeName: "Standard Chess",
+        endTime: 1790861375,
         pgnHeaders: { White: "AAchun", Black: "Ay7u", Result: "0-1", WhiteElo: 1484, BlackElo: 1507, SetUp: "1", FEN: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" },
       },
       players: { top: { username: "AAchun", color: "white" }, bottom: { username: "Ay7u", color: "black" } },
     };
     const g = gameFromCallback(cb, "live")!;
-    expect(g).toMatchObject({ white: "AAchun", black: "Ay7u", result: "0-1", bottom: "b", url: "https://www.chess.com/game/live/184654081790" });
+    expect(g).toMatchObject({ white: "AAchun", black: "Ay7u", result: "0-1", bottom: "b", url: "https://www.chess.com/game/live/184654081790", endedAt: 1790861375000 });
     expect(g.pgn).not.toMatch(/SetUp/);
     const parsed = parseFirstGame(g.pgn);
     expect(parsed.moves).toHaveLength(42);
