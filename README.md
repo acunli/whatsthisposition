@@ -48,7 +48,7 @@ That is the idea of the whole site: labels you already know, plus reasons a club
 <td width="50%" valign="top">
 
 ### Game review
-Bring a game by **Chess.com username**, **Lichess link** or **PGN**. Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
+Bring a game by **Chess.com or Lichess username**, **Lichess link** or **PGN**, or straight from Chess.com with the [browser extension](extension/README.md). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
 
 </td>
 <td width="50%" valign="top">
@@ -96,6 +96,10 @@ Any position (FEN, hand setup or a **screenshot read on your device**): threats,
 </tr>
 </table>
 
+## On Chess.com: the browser extension
+
+Finish a game on Chess.com and a card pops up in the corner: press **Analyze** and the game is reviewed on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here. It only acts on finished games and collects nothing. Install it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
+
 ## How it compares
 
 |  | what’sthisposition | Chess.com Game Review | Lichess analysis | Chessigma |
@@ -124,6 +128,7 @@ No keys or accounts are needed: review, analysis and the photo reader all work o
 ```bash
 npm test             # unit tests plus real Stockfish runs in Node
 npm run lint && npm run typecheck && npm run build
+npm run ext:build    # the Chess.com extension, in extension/dist
 ```
 
 **Hosting your own copy:** import the repository on [Vercel](https://vercel.com/new) (the free plan is enough, and no settings are needed), or use the Docker image with the ready-made Compose + Caddy setup on any small server. Costs, limits and adding a domain: [docs/DEPLOY.md](docs/DEPLOY.md).
@@ -142,6 +147,7 @@ src/lib/review/     PGN, labels, accuracy, opening book, game explanations
 src/lib/reason/     move reasoning, line stories, "why it's brilliant"
 src/lib/facts/      board facts: threats, structure, king safety, plans, …
 src/lib/vision/     on-device photo reader (and the optional cloud reader)
+extension/          the Chess.com browser extension (built from src/lib with esbuild)
 scripts/            engine copy, opening-book builders, evaluation and training tools
 docs/               how it works, comparison, deployment, research notes
 ```

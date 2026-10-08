@@ -1,0 +1,259 @@
+/* The review card on Chess.com: the website's colours (night, bone, the brand orange). */
+:root {
+  --night: #0c110f;
+  --slab: #131a17;
+  --slab-2: #1a2420;
+  --line: #24312b;
+  --bone: #f1ede2;
+  --bone-2: #c9c4b6;
+  --dim: #8e9a92;
+  --brand: #ff7629;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--bone);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+#app {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.word {
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+
+.word b {
+  color: var(--brand);
+  font-weight: 800;
+}
+
+.x {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--dim);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.x:hover {
+  background: var(--slab-2);
+  color: var(--bone);
+}
+
+.players {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-weight: 650;
+}
+
+.elo,
+.vs {
+  color: var(--dim);
+  font-weight: 500;
+}
+
+.result,
+.opening {
+  margin: -6px 0 0;
+  color: var(--bone-2);
+  font-size: 13px;
+}
+
+.primary {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--brand);
+  color: #160b04;
+  font: inherit;
+  font-weight: 750;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.primary:hover {
+  filter: brightness(1.07);
+}
+
+.primary:focus-visible,
+.chip:focus-visible,
+.x:focus-visible {
+  outline: 2px solid var(--bone);
+  outline-offset: 2px;
+}
+
+.depths {
+  display: flex;
+  gap: 6px;
+  margin-top: -2px;
+}
+
+.chip {
+  flex: 1;
+  padding: 7px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--bone-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chip.on {
+  border-color: var(--brand);
+  color: var(--bone);
+  background: rgb(255 118 41 / 0.12);
+}
+
+.note {
+  margin: 0;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.status {
+  margin: 0;
+  color: var(--bone-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.status.error {
+  color: #ff8a80;
+}
+
+.bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--slab-2);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--brand);
+  transition: width 0.3s ease;
+}
+
+.acc {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--slab);
+  text-align: center;
+}
+
+.acc div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.acc-num {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-who {
+  color: var(--dim);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acc-label {
+  align-self: center;
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table td {
+  padding: 4px 6px;
+  border-top: 1px solid var(--line);
+}
+
+.table th {
+  max-width: 90px;
+  padding: 0 4px 4px;
+  color: var(--dim);
+  font-size: 11px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table tbody tr:first-child td {
+  border-top: 0;
+}
+
+.table .n {
+  width: 44px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.table .cls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 650;
+}
+
+.table tr.zero {
+  opacity: 0.45;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar span {
+    transition: none;
+  }
+}

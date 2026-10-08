@@ -8,14 +8,8 @@ import type { PositionAnalysis } from "@/lib/review/classify";
 import type { ParsedGame } from "@/lib/review/pgn";
 import { analysePositions, classifyGame, criticalPositions, type ClassifyCache } from "@/lib/review/review";
 
-export const REVIEW_DEPTHS = [
-  { label: "Fast", depth: 12, note: "a few seconds" },
-  { label: "Standard", depth: 14, note: "recommended" },
-  { label: "Thorough", depth: 18, note: "slower, sharper" },
-];
-
-/** Critical positions are searched this much deeper in the second pass. */
-export const VERIFY_EXTRA = 4;
+export { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
+import { VERIFY_EXTRA } from "@/lib/review/depths";
 
 export type ReviewStatus = "loading" | "running" | "verifying" | "done" | "error";
 

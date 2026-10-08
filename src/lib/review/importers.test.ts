@@ -49,7 +49,7 @@ describe("game import", () => {
     expect(parseGame(games[1].pgn).moves).toHaveLength(6);
   });
 
-  it("reads Lichess games, and explains when a username listing isn't available", async () => {
+  it("reads Lichess games, with or without a token", async () => {
     const g = { id: "abcdEFGH", variant: "standard", speed: "rapid", status: "mate", winner: "black", players: { white: { user: { name: "ann" }, rating: 1800 }, black: { aiLevel: 3 } }, opening: { name: "Pirc Defense" }, pgn: PGN };
     expect(fromLichess(g as never)).toMatchObject({ white: "ann", black: "Stockfish level 3", result: "0-1", url: "https://lichess.org/abcdEFGH" });
     expect(fromLichess({ ...g, variant: "atomic" } as never)).toBeNull();
@@ -59,9 +59,18 @@ describe("game import", () => {
     const one = await lichessGame("abcdEFGH", async () => respond(g));
     expect(one.opening).toBe("Pirc Defense");
 
-    await expect(lichessUserGames("ann", async () => respond(""))).rejects.toThrow(/game link/);
-    const listed = await lichessUserGames("ann", async () => respond(`${JSON.stringify(g)}\n${JSON.stringify({ ...g, id: "zzzzzzzz" })}\n`), "token");
-    expect(listed.map((x) => x.id)).toEqual(["abcdEFGH", "zzzzzzzz"]);
+    // No token: Lichess still lists games as JSON lines, and the request asks for that form.
+    let asked: RequestInit | undefined;
+    const anon = await lichessUserGames("ann", async (_url, init) => {
+      asked = init;
+      return respond(`${JSON.stringify(g)}\n${JSON.stringify({ ...g, id: "zzzzzzzz" })}\n`);
+    });
+    expect(anon.map((x) => x.id)).toEqual(["abcdEFGH", "zzzzzzzz"]);
+    expect((asked?.headers as Record<string, string>).Accept).toBe("application/x-ndjson");
+    expect((asked?.headers as Record<string, string>).Authorization).toBeUndefined();
+    const listed = await lichessUserGames("ann", async () => respond(`${JSON.stringify(g)}\n`), "token");
+    expect(listed.map((x) => x.id)).toEqual(["abcdEFGH"]);
+    expect(await lichessUserGames("ann", async () => respond(""))).toEqual([]);
     const missing = lichessUserGames("nobody", async () => respond({ error: "Not found" }, 404), "token");
     await expect(missing).rejects.toThrow(/No Lichess player/);
   });

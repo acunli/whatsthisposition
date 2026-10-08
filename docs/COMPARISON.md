@@ -22,7 +22,7 @@ A fair comparison with the tools club players actually use to review games. It w
 
 **Where we differ:**
 - **Explanations.** For Hikaru's 30.Bxf8!! against demon64fields, the free review said: *"Ignoring the threat on the rook, a difficult move to see!"* That's true, but it doesn't say why the threat can be ignored. Ours shows both ways Black can take, what happens after each, and why saving the rook first is worse ([example in the README](../README.md#why-it-exists)).
-- **Transparency.** Chess.com publishes the outline of its model (expected points) but not the details. Our labels follow the same published bands, and every rule we add is in [HOW-IT-WORKS.md](HOW-IT-WORKS.md#33-the-labels).
+- **Transparency.** Chess.com publishes the outline of its model (expected points) but not the details. Our labels follow the same published bands, and every rule we add is in [HOW-IT-WORKS.md](HOW-IT-WORKS.md#34-the-labels).
 - **Accuracy.** Chess.com's accuracy formula is unpublished. Ours is fitted to its numbers and lands within about 3.5 points on reviewed games, so you can compare. It is an approximation, not Chess.com's number.
 - **Price and limits.** The free plan limits full reviews; ours is free with no limits, because the engine runs on your machine.
 

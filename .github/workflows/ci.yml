@@ -21,3 +21,4 @@ jobs:
       # Includes real Stockfish runs in Node (a few minutes).
       - run: npm test
       - run: npm run build
+      - run: npm run ext:build

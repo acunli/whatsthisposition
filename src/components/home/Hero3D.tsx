@@ -157,8 +157,10 @@ interface Props {
   reduced: boolean;
   /** Stop rendering when the hero is off screen. */
   active: boolean;
-  /** Lighter rendering for small screens. */
+  /** A small screen: the canvas renders at up to 2x for sharpness. */
   lite: boolean;
+  /** The hero is stacked under the text (narrow layouts): frame the whole board, centred. */
+  fit: boolean;
   /** Called once the first frames are drawn (shaders compiled): the loading veil can lift. */
   onReady?: () => void;
 }
@@ -291,8 +293,12 @@ function ScanBeam({ reduced }: { reduced: boolean }) {
   );
 }
 
-function Rig({ reduced }: { reduced: boolean }) {
-  const { camera, pointer, clock } = useThree();
+/** A sphere around the board, its frame and the tallest pieces, centred a little above the squares. */
+const BOARD_RADIUS = 6.1;
+const BOARD_CENTRE = new THREE.Vector3(0, 0.25, 0);
+
+function Rig({ reduced, fit }: { reduced: boolean; fit: boolean }) {
+  const { camera, pointer, clock, size } = useThree();
   // The camera's intro move starts when the loading veil lifts, so it plays in view.
   const revealedAt = useRef<number | null>(null);
   useEffect(() => {
@@ -310,6 +316,19 @@ function Rig({ reduced }: { reduced: boolean }) {
     const since = revealedAt.current === null ? 0 : t - revealedAt.current;
     const intro = reduced ? 1 : Math.min(1, since / 2.4);
     const e = 1 - Math.pow(1 - intro, 3);
+    // Stacked layouts (phones, tablets): the whole board, centred and fitted to the canvas's
+    // shape. The wide framing below leaves room for the text beside it.
+    if (fit) {
+      const aspect = size.width / Math.max(1, size.height);
+      const halfV = THREE.MathUtils.degToRad((camera as THREE.PerspectiveCamera).fov / 2);
+      const halfH = Math.atan(Math.tan(halfV) * aspect);
+      const d = (BOARD_RADIUS / Math.sin(Math.min(halfV, halfH))) * (1.12 - 0.12 * e);
+      const yaw = 0.5 + sway * 0.5;
+      const pitch = 0.82;
+      camera.position.set(Math.sin(yaw) * Math.cos(pitch) * d, Math.sin(pitch) * d, Math.cos(yaw) * Math.cos(pitch) * d).add(BOARD_CENTRE);
+      camera.lookAt(BOARD_CENTRE);
+      return;
+    }
     const radius = 18 - 2.6 * e;
     const angle = 0.5 + sway + (reduced ? 0 : pointer.x * 0.08);
     const height = 13.5 - 2 * e + (reduced ? 0 : pointer.y * 0.5);
@@ -319,12 +338,13 @@ function Rig({ reduced }: { reduced: boolean }) {
   return null;
 }
 
-export default function Hero3D({ placement, marks, sceneKey, reduced, active, lite, onReady }: Props) {
+export default function Hero3D({ placement, marks, sceneKey, reduced, active, lite, fit, onReady }: Props) {
   return (
     <Canvas
-      shadows={lite ? false : "percentage"}
+      shadows="percentage"
       frameloop={active ? "always" : "never"}
-      dpr={lite ? 1 : [1, 1.5]}
+      // Phones have small canvases on dense screens: up to 2x keeps the pieces sharp.
+      dpr={lite ? [1, 2] : [1, 1.5]}
       camera={{ fov: 30, position: [7, 9, 9], near: 0.1, far: 100 }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       onCreated={setupEnvironment}
@@ -348,7 +368,7 @@ export default function Hero3D({ placement, marks, sceneKey, reduced, active, li
       <Pieces placement={placement} />
       <Overlays marks={marks} sceneKey={sceneKey} reduced={reduced} />
       <ScanBeam reduced={reduced} />
-      <Rig reduced={reduced} />
+      <Rig reduced={reduced} fit={fit} />
     </Canvas>
   );
 }

@@ -4716,6 +4716,8 @@ em {
     position: relative;
     inset: auto;
     order: 2;
+    /* A set width: without one the canvas falls back to the browser's default 300px. */
+    width: 100%;
     height: min(92vw, 560px);
     left: 0;
     margin-top: -40px;

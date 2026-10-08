@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "what’sthisposition: free game review for Chess.com",
+  "short_name": "what’sthisposition",
+  "version": "0.0.0",
+  "description": "When a Chess.com game ends, review it on your own computer: accuracy and every move labelled, from Brilliant to Blunder. Free and open source.",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.chess.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "panel.html"
+      ],
+      "matches": [
+        "https://www.chess.com/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "homepage_url": "https://whatsthisposition.vercel.app",
+  "action": {
+    "default_title": "what’sthisposition",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
+  }
+}

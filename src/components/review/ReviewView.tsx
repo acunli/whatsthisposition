@@ -23,6 +23,7 @@ import { MoveInsight } from "./MoveInsight";
 import { OpeningCard } from "./OpeningCard";
 import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview } from "./useReview";
+import { depthIndex } from "@/lib/review/depths";
 
 interface Props {
   game: ParsedGame;
@@ -32,6 +33,8 @@ interface Props {
   onDeep: (fen: string) => void;
   /** False while the review is kept alive behind another screen (no keyboard handling). */
   active: boolean;
+  /** The search depth to start at (a link from the extension carries its own); else the default. */
+  depth?: number;
 }
 
 interface LineView {
@@ -62,8 +65,8 @@ function PlayerRow({ game, color, accuracy, active }: { game: ParsedGame; color:
   );
 }
 
-export function ReviewView({ game, orientation, onOrientation, onDeep, active }: Props) {
-  const [depthIdx, setDepthIdx] = useState(1);
+export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth }: Props) {
+  const [depthIdx, setDepthIdx] = useState(() => depthIndex(depth));
   const [run, setRun] = useState(0);
   const r = useReview(game, REVIEW_DEPTHS[depthIdx].depth, run);
   const n = game.moves.length;

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { EMPTY_CASTLING, parseFen, setupFromFen, setupToFen, START_FEN, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
-import type { ParsedGame } from "@/lib/review/pgn";
+import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
+import { readReviewHash } from "@/lib/review/share";
 import { SITE_NAME } from "@/lib/brand";
 import { Logo } from "./Logo";
 import { showPageChange } from "./PageVeil";
@@ -24,7 +25,7 @@ export function Studio() {
   const [photo, setPhoto] = useState<File | null>(null);
   const [runId, setRunId] = useState(0);
   // The reviewed game stays mounted (hidden) while one of its positions is analysed.
-  const [game, setGame] = useState<{ g: ParsedGame; id: number } | null>(null);
+  const [game, setGame] = useState<{ g: ParsedGame; id: number; depth?: number } | null>(null);
   const [reviewOrientation, setReviewOrientation] = useState<Color>("w");
   const [reviewScroll, setReviewScroll] = useState(0);
 
@@ -60,14 +61,27 @@ export function Studio() {
     }
   }, [analyze]);
 
-  const review = (g: ParsedGame, o?: Color) =>
+  const review = (g: ParsedGame, o?: Color, depth?: number) =>
     go("review", () => {
-      setGame((cur) => ({ g, id: (cur?.id ?? 0) + 1 }));
+      setGame((cur) => ({ g, id: (cur?.id ?? 0) + 1, depth }));
       setReviewOrientation(o ?? "w");
       const url = new URL(window.location.href);
       url.searchParams.delete("fen");
       window.history.replaceState(null, "", url);
     });
+
+  // A game handed over in the link (#review=…, e.g. from the browser extension): open its review.
+  useEffect(() => {
+    const shared = readReviewHash(window.location.hash);
+    if (!shared) return;
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    try {
+      review(parseFirstGame(shared.pgn), shared.as, shared.depth);
+    } catch {
+      /* not a readable game: stay on the home page */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
+  }, []);
 
   const deepFromReview = (f: string) => {
     setReviewScroll(window.scrollY);
@@ -175,6 +189,7 @@ export function Studio() {
             onOrientation={setReviewOrientation}
             onDeep={deepFromReview}
             active={stage === "review"}
+            depth={game.depth}
           />
         </div>
       )}

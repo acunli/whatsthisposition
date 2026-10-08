@@ -17,7 +17,7 @@ Before opening a pull request, run what CI runs:
 npm run lint && npm run typecheck && npm test && npm run build
 ```
 
-`npm test` includes real Stockfish searches in Node, so it takes a few minutes.
+`npm test` includes real Stockfish searches in Node, so it takes a few minutes. `npm run ext:build` builds the Chess.com extension into `extension/dist` (see [extension/README.md](extension/README.md)).
 
 ## The two rules
 

@@ -65,17 +65,26 @@ flowchart LR
 
 A game can come from:
 - a **Chess.com username** (the public PubAPI, last three monthly archives);
-- a **Lichess game link** (or username, if the host sets a Lichess token);
-- a **pasted or dropped PGN**.
+- a **Lichess username** or game link;
+- a **pasted or dropped PGN**;
+- a **link carrying the game** (`/#review=<PGN, base64url>&as=w|b&depth=18`), which is what the browser extension opens. The game is in the URL's fragment, which browsers never send to a server.
 
 The PGN parser handles real-world files: comments, clock times (`[%clk]`), variations, NAGs, several games in one file, and games starting from a FEN. Every move is replayed with chess.js, and the first illegal move is reported by move number.
 
 ### 3.2 Two passes with the engine
 
-1. **First pass.** Every position (the start, then after each move) goes to the worker pool in game order, with two lines per position (MultiPV 2), at the chosen depth: Fast 12, **Standard 14**, Thorough 18. Each search starts with a fresh hash (`ucinewgame`), so the result doesn't depend on which worker happened to search what before: reviews are reproducible. Moves get their labels as soon as both sides of them are known.
+1. **First pass.** Every position (the start, then after each move) goes to the worker pool in game order, with two lines per position (MultiPV 2), at the chosen depth: Fast 12, Standard 14, **Thorough 18** (the default). Each search starts with a fresh hash (`ucinewgame`), so the result doesn't depend on which worker happened to search what before: reviews are reproducible. Moves get their labels as soon as both sides of them are known.
 2. **Verification pass.** Shallow searches misjudge exactly the moves that matter: sacrifices and blunders. Both sides of every Brilliant, Great, Mistake, Miss and Blunder, and of every near-best sacrifice, are searched again **four plies deeper**. (In the Immortal Game, depth 14 calls 19.e5 a blunder; depth 18 calls it an inaccuracy.)
 
-### 3.3 The labels
+### 3.3 The browser extension
+
+The Chess.com extension (`extension/`) runs this same review on a finished Chess.com game, inside a card on the Chess.com page:
+
+- **Finding the game:** from the page URL (`/game/live/…`, `/game/daily/…`, `/game/…`, `/analysis/game/…`), or on the play page from the links in the game-over box. Chess.com's own game endpoint (`/callback/live/game/{id}`) says whether the game is over (`isFinished`), so nothing happens during a game. A game that ends while the page is open opens the card by itself; an older game gets a small button.
+- **The moves** come in Chess.com's compact TCN encoding (two characters a move, with promotions packed into the target square), decoded in `src/lib/review/chesscomGame.ts` and replayed with chess.js into a PGN.
+- **The review** is the site's code, bundled with esbuild: the same worker pool, labels, accuracy formula, opening book and default depth, with the verification pass. The card shows both accuracies and the label counts per player, then links to the full review on the site.
+
+### 3.4 The labels
 
 Each move is judged by how much of the mover's **expected score** it gives up compared with the engine's best move. Expected score comes from Lichess's win-probability curve, `1 / (1 + e^(−0.00368208 · centipawns))`; a forced mate counts as 1 or 0.
 
@@ -97,7 +106,7 @@ The bands follow Chess.com's published expected-points model; Great and Brillian
 
 **What counts as a real sacrifice.** Material is left or put where the opponent can win it, judged by **static exchange evaluation** with x-rays, with the first capture checked for legality. The opponent must win *more than the move itself just captured* (a rook that takes a knight and is taken by a knight, then taken back, is a trade). It isn't a sacrifice when the move rescues pieces, when the piece was trapped anyway, when every capture backfires, or when the same piece was already offered and declined on the opponent's previous move.
 
-### 3.4 Accuracy
+### 3.5 Accuracy
 
 Chess.com doesn't publish its accuracy formula, so ours is **fitted to Chess.com's output**:
 

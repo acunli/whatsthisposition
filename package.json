@@ -2,7 +2,7 @@
   "name": "whatsthisposition",
   "version": "1.0.0",
   "private": true,
-  "description": "what’sthisposition: free, open-source chess game review and position analysis that explains every move.",
+  "description": "what\u2019sthisposition: free, open-source chess game review and position analysis that explains every move.",
   "license": "GPL-3.0-or-later",
   "author": "Ayushman Chaudhuri (https://ayushman.rocks)",
   "homepage": "https://whatsthisposition.com",
@@ -38,7 +38,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "vision:check": "node scripts/vision-check.mjs"
+    "vision:check": "node scripts/vision-check.mjs",
+    "ext:build": "node extension/build.mjs",
+    "ext:zip": "node extension/build.mjs --zip"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",
@@ -58,6 +60,7 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/three": "^0.186.0",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.7",
     "typescript": "^6.0.3",

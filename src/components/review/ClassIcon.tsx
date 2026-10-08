@@ -1,24 +1,6 @@
 import { CLASS_INFO, type MoveClass } from "@/lib/review/classify";
+import { CLASS_PATHS as PATHS, CLASS_TEXT as TEXT, STROKED } from "@/lib/review/classGlyphs";
 
-/** Glyphs drawn in a 24×24 box, centred in the badge. */
-const PATHS: Partial<Record<MoveClass, string>> = {
-  best: "M12 4.2l2.3 4.9 5.3.6-3.9 3.6 1 5.3L12 16l-4.7 2.6 1-5.3-3.9-3.6 5.3-.6z",
-  excellent: "M8 11v8H5v-8zM10 19h6.6a2 2 0 002-1.6l1.1-5.3A1.8 1.8 0 0017.9 10H14.5l.6-3a1.7 1.7 0 00-3.1-1.2L10 10.5z",
-  good: "M6 12.5l4 4 8-9",
-  book: "M4 6.5c2.7-1 5.3-.8 8 .9 2.7-1.7 5.3-1.9 8-.9V18c-2.7-1-5.3-.8-8 .9-2.7-1.7-5.3-1.9-8-.9zM12 7.4v11.5",
-  miss: "M7 7l10 10M17 7L7 17",
-  forced: "M5 12h12M13 7l5 5-5 5",
-};
-
-const TEXT: Partial<Record<MoveClass, string>> = {
-  brilliant: "!!",
-  great: "!",
-  inaccuracy: "?!",
-  mistake: "?",
-  blunder: "??",
-};
-
-const STROKED = new Set<MoveClass>(["good", "book", "miss", "forced"]);
 
 export function ClassIcon({ cls, size = 20, title }: { cls: MoveClass; size?: number; title?: string }) {
   const info = CLASS_INFO[cls];

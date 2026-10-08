@@ -63,18 +63,21 @@ class HeroBoundary extends Component<{ fallback: ReactNode; children: ReactNode;
   }
 }
 
-function useReducedMotion() {
+/** Whether a media query matches, kept in sync as the window changes. */
+function useMedia(query: string) {
   const [r, setR] = useState(false);
   useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const m = window.matchMedia(query);
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync with the media query
     setR(m.matches);
     const on = () => setR(m.matches);
     m.addEventListener("change", on);
     return () => m.removeEventListener("change", on);
-  }, []);
+  }, [query]);
   return r;
 }
+
+const useReducedMotion = () => useMedia("(prefers-reduced-motion: reduce)");
 
 export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
   const [drag, setDrag] = useState(false);
@@ -87,6 +90,7 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
   const heroRef = useRef<HTMLElement>(null);
   const [heroOn, setHeroOn] = useState(true);
   const [lite, setLite] = useState(false);
+  const stacked = useMedia("(max-width: 960px)");
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time viewport check
     setLite(window.innerWidth < 760);
@@ -170,7 +174,7 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
               }
             >
               {logoPlayed && (
-                <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} onReady={heroReady} />
+                <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} fit={stacked} onReady={heroReady} />
               )}
             </HeroBoundary>
           ) : webgl === false ? (

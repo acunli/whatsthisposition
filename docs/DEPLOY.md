@@ -99,7 +99,7 @@ Everything is optional (see [`.env.example`](../.env.example)):
 
 | Variable | What it does |
 | --- | --- |
-| `LICHESS_TOKEN` | Lets "Lichess username" list a player's games (Lichess only lists games to signed-in apps). Game links and Chess.com usernames work without it. Create a free token with no scopes. |
+| `LICHESS_TOKEN` | Raises Lichess's rate limit for "Lichess username" imports. Not needed: usernames, game links and Chess.com all work without it. A free personal token with no scopes is enough. |
 | `NEXT_PUBLIC_SITE_URL` | The public address for metadata and the sitemap. Not needed on Vercel (it follows the production domain) or on whatsthisposition.com. Read at build time. |
 | `CLIENT_IP_HEADER` | Behind a proxy other than Vercel or Caddy, the header with the visitor's real IP (e.g. `cf-connecting-ip`), for the rate limits. |
 | `VISION_PROVIDER`, `ANTHROPIC_API_KEY`, `SOCLAAS_*` | The optional cloud photo reader, for angled photos of real boards. **Every photo is a paid API call**, so leave these empty on a public site unless you mean to pay; the route is limited to 6 photos per minute per visitor. Screenshots are always read on the device for free. |

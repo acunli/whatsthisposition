@@ -121,10 +121,10 @@ export function GameImport({ onGame }: Props) {
         >
           <input
             className="input"
-            placeholder={source === "chesscom" ? "Chess.com username" : "Lichess game link (or username)"}
+            placeholder={source === "chesscom" ? "Chess.com username" : "Lichess username or game link"}
             value={user}
             onChange={(e) => setUser(e.target.value)}
-            aria-label={source === "chesscom" ? "Chess.com username" : "Lichess game link or username"}
+            aria-label={source === "chesscom" ? "Chess.com username" : "Lichess username or game link"}
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"

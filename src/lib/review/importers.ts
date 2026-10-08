@@ -155,14 +155,12 @@ async function get(fetchImpl: Fetch, url: string, accept: string, token?: string
 }
 
 /**
- * Lichess lists a player's games only to signed-in API clients, so this needs a
- * personal API token (free, no scopes) on the server. Without one, or if the
- * listing is refused, the error says how to bring a game in another way.
+ * A Lichess player's recent games. Lichess lists them to anyone who asks for JSON lines
+ * (`application/x-ndjson`); only the PGN form of the same endpoint answers 404 without
+ * a login. A token (LICHESS_TOKEN) is optional and just raises the rate limit.
  */
 export async function lichessUserGames(user: string, fetchImpl: Fetch = fetch, token?: string, max = 20): Promise<GameSummary[]> {
   if (!validUsername(user)) throw new ImportError("That isn't a valid Lichess username.");
-  const noList = "Lichess only lists a player's games to signed-in apps. Paste a Lichess game link (lichess.org/…) or the game's PGN instead.";
-  if (!token) throw new ImportError(noList, 403);
   const url = `https://lichess.org/api/games/user/${encodeURIComponent(user)}?max=${max}&pgnInJson=true&opening=true&clocks=true&moves=true`;
   let res: Response;
   try {
@@ -173,7 +171,9 @@ export async function lichessUserGames(user: string, fetchImpl: Fetch = fetch, t
         (r) => r.ok,
         () => false,
       );
-      throw exists ? new ImportError(noList, 403) : new ImportError(`No Lichess player called ${user}.`, 404);
+      throw exists
+        ? new ImportError(`Lichess didn't list ${user}'s games just now. Try again, or paste a Lichess game link (lichess.org/…) or the PGN.`, 502)
+        : new ImportError(`No Lichess player called ${user}.`, 404);
     }
     throw e;
   }
