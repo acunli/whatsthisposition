@@ -1,8 +1,8 @@
 /**
  * Runs on Chess.com. When a game has just ended (seen ending, or ended in the last
  * few minutes), a card pops up in the corner with an "Analyze" button; on an older
- * game, a small button offers the same. The card is an extension page in an iframe (panel.html), so the analysis runs
- * on your computer, apart from the page.
+ * game, a small button offers the same. The card is an extension page in an iframe
+ * (panel.html); Stockfish runs in the extension's hidden engine page, on your computer.
  *
  * It only ever acts on finished games: Chess.com's own game data (`isFinished`) decides,
  * so nothing is shown or analysed while a game is being played.
@@ -51,17 +51,74 @@ let host: HTMLElement | null = null;
 let frame: HTMLIFrameElement | null = null;
 let game: ChessComGame | null = null;
 
-/** The game on screen: from the URL, or on the play page, from the links in its result box. */
+/** Pages where you play or look at games; elsewhere nothing is shown. */
+const GAME_PAGES = /^\/(play|game|analysis|live)\b/;
+/** How often your own game list is checked when the page itself doesn't name the game. */
+const ARCHIVE_MS = 15000;
+
+/**
+ * The game on screen, from the first of these that names one:
+ * 1. the page's URL (`/game/live/123`);
+ * 2. Chess.com's own "Game Review" button, a link to `/analysis/game/live/123?tab=review`
+ *    (in the game-over box and in the side panel, so it's there after the box is closed);
+ * 3. the newest game linked anywhere else on the page;
+ * 4. your own game list (`watchArchive`): a game of yours that ended while you were here.
+ *    Starting a game with "New 1 min" can keep the URL at /play/online, with no game id.
+ */
 function currentRef(): Ref | null {
   const fromUrl = chessComGameRef(location.href);
   if (fromUrl) return fromUrl;
-  if (!location.pathname.startsWith("/play")) return null;
-  const links = document.querySelectorAll<HTMLAnchorElement>('[class*="game-over"] a[href*="/game/"], [class*="modal"] a[href*="/game/"]');
-  for (let i = links.length - 1; i >= 0; i--) {
-    const r = chessComGameRef(links[i].href);
-    if (r) return r;
+  if (!GAME_PAGES.test(location.pathname)) return null;
+  const review = document.querySelector<HTMLAnchorElement>('a.game-over-primary-cta[href], a[href*="/analysis/game/"][href*="review"]');
+  const fromButton = review && chessComGameRef(review.href);
+  if (fromButton) return fromButton;
+  let newest: Ref | null = null;
+  for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href*="/game/live/"], a[href*="/game/daily/"], a[href*="/analysis/game/"]')) {
+    const r = chessComGameRef(a.href);
+    if (r && (!newest || r.id > newest.id)) newest = r;
   }
-  return null;
+  return newest ?? archiveRef;
+}
+
+/** Who is signed in: from Chess.com's page context, or the sidebar's link to your profile. */
+function signedInUser(): string | null {
+  for (const s of document.querySelectorAll("script:not([src])")) {
+    const t = s.textContent ?? "";
+    const at = t.indexOf('"user":{');
+    if (at < 0) continue;
+    const m = /"username"\s*:\s*"([A-Za-z0-9_-]{3,25})"/.exec(t.slice(at, at + 4000));
+    if (m) return m[1];
+  }
+  const link = document.querySelector<HTMLAnchorElement>('nav a[href*="/member/"], [class*="sidebar"] a[href*="/member/"], [class*="nav"] a[href*="/member/"]');
+  return (link && /\/member\/([A-Za-z0-9_-]{3,25})/.exec(link.href)?.[1]) ?? null;
+}
+
+const pageOpened = Date.now();
+let archiveRef: Ref | null = null;
+
+/**
+ * Your own newest game, from Chess.com's public game list (updated about a minute after
+ * a game ends), if it ended while this page was open. The fallback for when the page
+ * doesn't name the game.
+ */
+async function watchArchive() {
+  try {
+    const user = GAME_PAGES.test(location.pathname) && !chessComGameRef(location.href) ? signedInUser() : null;
+    if (user) {
+      const d = new Date();
+      const month = `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+      const res = await fetch(`https://api.chess.com/pub/player/${user.toLowerCase()}/games/${month}`, { cache: "no-store" });
+      if (res.ok) {
+        const { games = [] } = (await res.json()) as { games?: { url: string; end_time: number }[] };
+        const last = games.reduce<{ url: string; end_time: number } | null>((a, g) => (!a || g.end_time > a.end_time ? g : a), null);
+        const recent = last && last.end_time * 1000 > pageOpened - 60_000 && Date.now() - last.end_time * 1000 < FRESH_MS;
+        archiveRef = recent ? chessComGameRef(last.url) : null;
+      }
+    }
+  } catch {
+    /* offline or blocked: the page's own links still work */
+  }
+  setTimeout(watchArchive, ARCHIVE_MS);
 }
 
 async function readGame(ref: Ref): Promise<{ finished: boolean; game: ChessComGame | null }> {
@@ -161,4 +218,5 @@ if (!flag.__whatsthisposition) {
   flag.__whatsthisposition = true;
   addEventListener("message", onMessage);
   void tick();
+  void watchArchive();
 }
