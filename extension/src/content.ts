@@ -14,8 +14,17 @@ type Ref = { id: number; kind: "live" | "daily" };
 
 const PANEL = chrome.runtime.getURL("panel.html");
 const PANEL_ORIGIN = new URL(PANEL).origin;
-/** How often an unfinished game is checked: live games end fast, daily games slowly. */
-const POLL_MS = { live: 3000, daily: 30000 };
+/**
+ * How often an unfinished game is checked. Chess.com's game endpoint doesn't serve a
+ * live game until it ends (404), and it rate-limits quick repeats (429), so a live game
+ * is checked gently; its end shows on the page first (`gameOverOnPage`), and that
+ * triggers a check at once.
+ */
+const POLL_MS = { live: 15000, daily: 30000 };
+/** Right after the page shows the game is over, until the endpoint serves it (for about a minute). */
+const ENDED_RETRY_MS = 2000;
+const ENDED_RETRIES = 30;
+const RATE_LIMITED_MS = 30000;
 const WATCH_MS = 1500;
 /**
  * A game that ended this recently counts as just finished. Chess.com doesn't always put
@@ -46,7 +55,16 @@ iframe { display: block; width: 100%; height: 230px; border: 0; transition: heig
 @media (prefers-reduced-motion: reduce) { .card { animation: none; } iframe { transition: none; } }
 `;
 
-let current: { key: string; ref: Ref; seenPlaying: boolean; settled: boolean } | null = null;
+let current: { key: string; ref: Ref; seenPlaying: boolean; settled: boolean; nextCheck: number; endSeen: boolean; endTries: number } | null = null;
+
+/** Chess.com shows a finished game's result box and its Game Review button straight away. */
+const gameOverOnPage = () => !!document.querySelector('a.game-over-primary-cta[href], a[href*="/analysis/game/"][href*="review"], [class*="game-over-modal"]');
+
+class HttpError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+  }
+}
 let host: HTMLElement | null = null;
 let frame: HTMLIFrameElement | null = null;
 let game: ChessComGame | null = null;
@@ -123,7 +141,7 @@ async function watchArchive() {
 
 async function readGame(ref: Ref): Promise<{ finished: boolean; game: ChessComGame | null }> {
   const res = await fetch(`/callback/${ref.kind}/game/${ref.id}`, { credentials: "include", headers: { Accept: "application/json" } });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.ok) throw new HttpError(res.status);
   const cb = (await res.json()) as ChessComCallback;
   return { finished: !!cb.game?.isFinished, game: gameFromCallback(cb, ref.kind) };
 }
@@ -186,18 +204,27 @@ async function tick() {
     return void setTimeout(tick, WATCH_MS);
   }
   if (current?.key !== key) {
-    current = { key, ref, seenPlaying: false, settled: false };
+    current = { key, ref, seenPlaying: false, settled: false, nextCheck: 0, endSeen: false, endTries: 0 };
     game = null;
     removeUi();
   }
   // Settled (shown, or not a game we can review): only watch for the next game.
   if (current.settled) return void setTimeout(tick, WATCH_MS);
+  // The page showing the result is the moment to ask, whatever the schedule said.
+  const ended = gameOverOnPage();
+  if (ended && !current.endSeen) {
+    current.endSeen = true;
+    current.nextCheck = 0;
+  }
+  if (Date.now() < current.nextCheck) return void setTimeout(tick, WATCH_MS);
+  const soon = () => (current!.endSeen && ++current!.endTries <= ENDED_RETRIES ? ENDED_RETRY_MS : POLL_MS[ref.kind]);
   try {
     const r = await readGame(ref);
     if (current?.key !== key) return void setTimeout(tick, 0);
     if (!r.finished) {
       current.seenPlaying = true;
-      return void setTimeout(tick, POLL_MS[ref.kind]);
+      current.nextCheck = Date.now() + soon();
+      return void setTimeout(tick, WATCH_MS);
     }
     current.settled = true;
     game = r.game;
@@ -207,8 +234,13 @@ async function tick() {
       const fresh = current.seenPlaying || (game.endedAt !== null && Date.now() - game.endedAt < FRESH_MS);
       (fresh && !wasClosed(game.id) ? showCard : showPill)();
     }
-  } catch {
-    current.settled = true;
+  } catch (e) {
+    const status = e instanceof HttpError ? e.status : 0;
+    if (current?.key === key) {
+      // 404: a live game Chess.com doesn't serve yet, i.e. one being played. Keep watching.
+      if (status === 404) current.seenPlaying = true;
+      current.nextCheck = Date.now() + (status === 429 ? RATE_LIMITED_MS : soon());
+    }
   }
   setTimeout(tick, WATCH_MS);
 }
