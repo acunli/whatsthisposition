@@ -26,7 +26,7 @@ mkdirSync(out, { recursive: true });
 
 await build({
   absWorkingDir: root,
-  entryPoints: { content: "extension/src/content.ts", panel: "extension/src/panel.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
+  entryPoints: { content: "extension/src/content.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
   outdir: out,
   bundle: true,
   format: "iife",

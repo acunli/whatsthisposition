@@ -1,92 +1,49 @@
 /**
- * Runs on Chess.com. When a game has just ended (seen ending, or ended in the last
- * few minutes), a card pops up in the corner with an "Analyze" button; on an older
- * game, a small button offers the same. The card is an extension page in an iframe
- * (panel.html); Stockfish runs in the extension's hidden engine page, on your computer.
+ * Runs on Chess.com and waits to be asked. The toolbar button (popup.ts) asks which
+ * game is on screen ("wtp:find") and then to open its review ("wtp:open"): a card in the
+ * bottom-right corner, an extension page in an iframe (panel.html), with Stockfish in
+ * the extension's hidden engine page, on your computer.
  *
- * It only ever acts on finished games: Chess.com's own game data (`isFinished`) decides,
- * so nothing is shown or analysed while a game is being played.
+ * Nothing runs on its own and nothing is analysed during a game: Chess.com's own game
+ * data says whether the game is over (`isFinished`).
  */
 import { chessComGameRef, gameFromCallback, type ChessComCallback, type ChessComGame } from "@/lib/review/chesscomGame";
-import { markSvg } from "@/lib/logoPaths";
 
 type Ref = { id: number; kind: "live" | "daily" };
+export type FindReply = { ok: true; game: ChessComGame } | { ok: false; message: string };
 
 const PANEL = chrome.runtime.getURL("panel.html");
 const PANEL_ORIGIN = new URL(PANEL).origin;
-/**
- * How often an unfinished game is checked. Chess.com's game endpoint doesn't serve a
- * live game until it ends (404), and it rate-limits quick repeats (429), so a live game
- * is checked gently; its end shows on the page first (`gameOverOnPage`), and that
- * triggers a check at once.
- */
-const POLL_MS = { live: 15000, daily: 30000 };
-/** Right after the page shows the game is over, until the endpoint serves it (for about a minute). */
-const ENDED_RETRY_MS = 2000;
-const ENDED_RETRIES = 30;
-const RATE_LIMITED_MS = 30000;
-const WATCH_MS = 1500;
-/**
- * A game that ended this recently counts as just finished. Chess.com doesn't always put
- * a game's id in the URL while it is being played, so the first look at a game you've
- * just won may already find it over.
- */
-const FRESH_MS = 10 * 60 * 1000;
-
-/** Games whose card you closed stay closed (this tab only), so a reload doesn't reopen them. */
-const closedKey = (id: number) => `whatsthisposition:closed:${id}`;
-const wasClosed = (id: number) => {
-  try {
-    return sessionStorage.getItem(closedKey(id)) === "1";
-  } catch {
-    return false;
-  }
-};
 
 const CSS = `
 :host { all: initial; }
 .wrap { position: fixed; right: 18px; bottom: 18px; z-index: 2147483000; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-.pill { display: inline-flex; align-items: center; gap: 9px; height: 44px; padding: 0 16px 0 9px; border-radius: 999px; border: 1px solid #2b3a33; background: #0c110f; color: #f1ede2; font: 600 14px/1 system-ui, -apple-system, "Segoe UI", sans-serif; cursor: pointer; box-shadow: 0 10px 30px rgb(0 0 0 / 0.45); }
-.pill:hover { border-color: #ff7629; }
-.pill b { color: #ff7629; font-weight: 800; }
 .card { width: 360px; max-width: calc(100vw - 36px); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 50px rgb(0 0 0 / 0.55); background: #0c110f; animation: rise 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 iframe { display: block; width: 100%; height: 230px; border: 0; transition: height 0.24s cubic-bezier(0.4, 0, 0.2, 1); }
 @keyframes rise { from { opacity: 0; transform: translateY(12px); } }
 @media (prefers-reduced-motion: reduce) { .card { animation: none; } iframe { transition: none; } }
 `;
 
-let current: { key: string; ref: Ref; seenPlaying: boolean; settled: boolean; nextCheck: number; endSeen: boolean; endTries: number } | null = null;
-
-/** Chess.com shows a finished game's result box and its Game Review button straight away. */
-const gameOverOnPage = () => !!document.querySelector('a.game-over-primary-cta[href], a[href*="/analysis/game/"][href*="review"], [class*="game-over-modal"]');
+let host: HTMLElement | null = null;
+let frame: HTMLIFrameElement | null = null;
+let game: ChessComGame | null = null;
 
 class HttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
   }
 }
-let host: HTMLElement | null = null;
-let frame: HTMLIFrameElement | null = null;
-let game: ChessComGame | null = null;
 
-/** Pages where you play or look at games; elsewhere nothing is shown. */
-const GAME_PAGES = /^\/(play|game|analysis|live)\b/;
-/** How often your own game list is checked when the page itself doesn't name the game. */
-const ARCHIVE_MS = 15000;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * The game on screen, from the first of these that names one:
- * 1. the page's URL (`/game/live/123`);
- * 2. Chess.com's own "Game Review" button, a link to `/analysis/game/live/123?tab=review`
- *    (in the game-over box and in the side panel, so it's there after the box is closed);
- * 3. the newest game linked anywhere else on the page;
- * 4. your own game list (`watchArchive`): a game of yours that ended while you were here.
- *    Starting a game with "New 1 min" can keep the URL at /play/online, with no game id.
+ * The game on screen, from the first of these that names one: the URL (`/game/live/123`,
+ * `/game/123`); Chess.com's Game Review button, a link to `/analysis/game/live/123?tab=review`
+ * (in the result box and the side panel); the newest game linked elsewhere on the page.
  */
-function currentRef(): Ref | null {
+function gameOnPage(): Ref | null {
   const fromUrl = chessComGameRef(location.href);
   if (fromUrl) return fromUrl;
-  if (!GAME_PAGES.test(location.pathname)) return null;
   const review = document.querySelector<HTMLAnchorElement>('a.game-over-primary-cta[href], a[href*="/analysis/game/"][href*="review"]');
   const fromButton = review && chessComGameRef(review.href);
   if (fromButton) return fromButton;
@@ -95,7 +52,7 @@ function currentRef(): Ref | null {
     const r = chessComGameRef(a.href);
     if (r && (!newest || r.id > newest.id)) newest = r;
   }
-  return newest ?? archiveRef;
+  return newest;
 }
 
 /** Who is signed in: from Chess.com's page context, or the sidebar's link to your profile. */
@@ -111,32 +68,15 @@ function signedInUser(): string | null {
   return (link && /\/member\/([A-Za-z0-9_-]{3,25})/.exec(link.href)?.[1]) ?? null;
 }
 
-const pageOpened = Date.now();
-let archiveRef: Ref | null = null;
-
-/**
- * Your own newest game, from Chess.com's public game list (updated about a minute after
- * a game ends), if it ended while this page was open. The fallback for when the page
- * doesn't name the game.
- */
-async function watchArchive() {
-  try {
-    const user = GAME_PAGES.test(location.pathname) && !chessComGameRef(location.href) ? signedInUser() : null;
-    if (user) {
-      const d = new Date();
-      const month = `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-      const res = await fetch(`https://api.chess.com/pub/player/${user.toLowerCase()}/games/${month}`, { cache: "no-store" });
-      if (res.ok) {
-        const { games = [] } = (await res.json()) as { games?: { url: string; end_time: number }[] };
-        const last = games.reduce<{ url: string; end_time: number } | null>((a, g) => (!a || g.end_time > a.end_time ? g : a), null);
-        const recent = last && last.end_time * 1000 > pageOpened - 60_000 && Date.now() - last.end_time * 1000 < FRESH_MS;
-        archiveRef = recent ? chessComGameRef(last.url) : null;
-      }
-    }
-  } catch {
-    /* offline or blocked: the page's own links still work */
-  }
-  setTimeout(watchArchive, ARCHIVE_MS);
+/** Your newest finished game, from Chess.com's public game list (it appears there about a minute after the end). */
+async function newestOwnGame(user: string): Promise<Ref | null> {
+  const d = new Date();
+  const month = `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  const res = await fetch(`https://api.chess.com/pub/player/${user.toLowerCase()}/games/${month}`, { cache: "no-store" });
+  if (!res.ok) return null;
+  const { games = [] } = (await res.json()) as { games?: { url: string; end_time: number }[] };
+  const last = games.reduce<{ url: string; end_time: number } | null>((a, g) => (!a || g.end_time > a.end_time ? g : a), null);
+  return last ? chessComGameRef(last.url) : null;
 }
 
 async function readGame(ref: Ref): Promise<{ finished: boolean; game: ChessComGame | null }> {
@@ -146,109 +86,72 @@ async function readGame(ref: Ref): Promise<{ finished: boolean; game: ChessComGa
   return { finished: !!cb.game?.isFinished, game: gameFromCallback(cb, ref.kind) };
 }
 
+/** The finished game to review, or why there isn't one. */
+async function find(): Promise<FindReply> {
+  let ref = gameOnPage();
+  if (!ref) {
+    const user = signedInUser();
+    ref = user ? await newestOwnGame(user).catch(() => null) : null;
+  }
+  if (!ref) return { ok: false, message: "No game found here. Open one of your games on Chess.com (or finish one), then click again." };
+  // Chess.com serves a live game only once it has ended (404 before), sometimes a moment after.
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const r = await readGame(ref);
+      if (!r.finished) return { ok: false, message: "This game isn't over yet. Finish it, then click again." };
+      if (!r.game) return { ok: false, message: "Only standard chess games can be reviewed." };
+      return { ok: true, game: r.game };
+    } catch (e) {
+      const status = e instanceof HttpError ? e.status : 0;
+      if (status === 404 && attempt < 3) {
+        await sleep(1500);
+        continue;
+      }
+      if (status === 404) return { ok: false, message: "Chess.com hasn't published this game yet. If it's still being played, finish it first, then click again." };
+      if (status === 429) return { ok: false, message: "Chess.com is busy for a moment. Click again in a few seconds." };
+      return { ok: false, message: "Couldn't read this game from Chess.com. Check your connection and try again." };
+    }
+  }
+}
+
 function removeUi() {
   host?.remove();
   host = null;
   frame = null;
 }
 
-function mount(): ShadowRoot {
+/** The card: the panel page in an iframe, which gets the game once it says it's ready. */
+function showCard() {
   removeUi();
   host = document.createElement("div");
   host.id = "whatsthisposition-extension";
   const root = host.attachShadow({ mode: "open" });
-  document.documentElement.appendChild(host);
-  return root;
-}
-
-/** The small button for a game that was already over. */
-function showPill() {
-  const root = mount();
-  root.innerHTML = `<style>${CSS}</style><div class="wrap"><button class="pill" type="button" aria-label="Review this game with what’sthisposition">${markSvg(26)}<span>Review with <b>what’sthisposition</b></span></button></div>`;
-  root.querySelector("button")!.addEventListener("click", showCard);
-}
-
-/** The card: the panel page in an iframe, which gets the game once it says it's ready. */
-function showCard() {
-  const root = mount();
   root.innerHTML = `<style>${CSS}</style><div class="wrap"><div class="card"><iframe title="what’sthisposition game review" src="${PANEL}"></iframe></div></div>`;
+  document.documentElement.appendChild(host);
   frame = root.querySelector("iframe");
 }
 
-function onMessage(e: MessageEvent) {
+function onPanelMessage(e: MessageEvent) {
   if (e.origin !== PANEL_ORIGIN || !frame || e.source !== frame.contentWindow) return;
   const msg = e.data as { type?: string; height?: number };
   if (msg?.type === "wtp:ready" && game) frame.contentWindow?.postMessage({ type: "wtp:game", game }, PANEL_ORIGIN);
   else if (msg?.type === "wtp:size" && typeof msg.height === "number") frame.style.height = `${Math.min(Math.max(msg.height, 120), innerHeight - 36)}px`;
-  else if (msg?.type === "wtp:close") {
-    if (game) {
-      try {
-        sessionStorage.setItem(closedKey(game.id), "1");
-      } catch {
-        /* storage blocked: it just may reopen after a reload */
-      }
-    }
-    showPill();
-  }
-}
-
-async function tick() {
-  const ref = currentRef();
-  const key = ref ? `${ref.kind}/${ref.id}` : "";
-  if (!ref) {
-    if (current) {
-      current = null;
-      game = null;
-      removeUi();
-    }
-    return void setTimeout(tick, WATCH_MS);
-  }
-  if (current?.key !== key) {
-    current = { key, ref, seenPlaying: false, settled: false, nextCheck: 0, endSeen: false, endTries: 0 };
-    game = null;
-    removeUi();
-  }
-  // Settled (shown, or not a game we can review): only watch for the next game.
-  if (current.settled) return void setTimeout(tick, WATCH_MS);
-  // The page showing the result is the moment to ask, whatever the schedule said.
-  const ended = gameOverOnPage();
-  if (ended && !current.endSeen) {
-    current.endSeen = true;
-    current.nextCheck = 0;
-  }
-  if (Date.now() < current.nextCheck) return void setTimeout(tick, WATCH_MS);
-  const soon = () => (current!.endSeen && ++current!.endTries <= ENDED_RETRIES ? ENDED_RETRY_MS : POLL_MS[ref.kind]);
-  try {
-    const r = await readGame(ref);
-    if (current?.key !== key) return void setTimeout(tick, 0);
-    if (!r.finished) {
-      current.seenPlaying = true;
-      current.nextCheck = Date.now() + soon();
-      return void setTimeout(tick, WATCH_MS);
-    }
-    current.settled = true;
-    game = r.game;
-    // Just finished (seen ending, or ended minutes ago): offer the review at once. An
-    // older game, or one whose card you closed: just the button.
-    if (game) {
-      const fresh = current.seenPlaying || (game.endedAt !== null && Date.now() - game.endedAt < FRESH_MS);
-      (fresh && !wasClosed(game.id) ? showCard : showPill)();
-    }
-  } catch (e) {
-    const status = e instanceof HttpError ? e.status : 0;
-    if (current?.key === key) {
-      // 404: a live game Chess.com doesn't serve yet, i.e. one being played. Keep watching.
-      if (status === 404) current.seenPlaying = true;
-      current.nextCheck = Date.now() + (status === 429 ? RATE_LIMITED_MS : soon());
-    }
-  }
-  setTimeout(tick, WATCH_MS);
+  else if (msg?.type === "wtp:close") removeUi();
 }
 
 const flag = window as unknown as { __whatsthisposition?: boolean };
 if (!flag.__whatsthisposition) {
   flag.__whatsthisposition = true;
-  addEventListener("message", onMessage);
-  void tick();
-  void watchArchive();
+  addEventListener("message", onPanelMessage);
+  chrome.runtime.onMessage.addListener((msg: { type?: string }, _sender, reply: (r: FindReply) => void) => {
+    if (msg?.type !== "wtp:find" && msg?.type !== "wtp:open") return false;
+    void find().then((r) => {
+      if (r.ok && msg.type === "wtp:open") {
+        game = r.game;
+        showCard();
+      }
+      reply(r);
+    });
+    return true; // the reply comes later
+  });
 }

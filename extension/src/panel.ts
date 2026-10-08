@@ -14,7 +14,7 @@ import type { ChessComGame } from "@/lib/review/chesscomGame";
 import { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
 import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { analysePositions, classifyGame, criticalPositions, tally } from "@/lib/review/review";
-import { reviewLink } from "@/lib/review/share";
+import { packReview, reviewLink } from "@/lib/review/share";
 import { SITE_URL } from "@/lib/brand";
 import { markSvg } from "@/lib/logoPaths";
 import { remoteEnginePool } from "./remoteEngine";
@@ -79,13 +79,14 @@ function renderProgress(text: string, share: number) {
   app.querySelector<HTMLElement>("[data-bar]")!.style.width = `${Math.round(share * 100)}%`;
 }
 
-function renderDone(acc: Record<"w" | "b", number | null>, counts: Record<string, { w: number; b: number }>, opening: string | null) {
+/** The result; `data` is the finished review, so the website can show it without searching again. */
+function renderDone(acc: Record<"w" | "b", number | null>, counts: Record<string, { w: number; b: number }>, opening: string | null, data?: string) {
   const a = (v: number | null) => (v == null ? "–" : v.toFixed(1));
   const rows = TABLE.map((c) => {
     const t = counts[c] ?? { w: 0, b: 0 };
     return `<tr${t.w + t.b ? "" : ' class="zero"'}><td class="n">${t.w}</td><td class="cls">${classIconSvg(c, 18)}<span style="color:${CLASS_INFO[c].color}">${CLASS_INFO[c].label}</span></td><td class="n">${t.b}</td></tr>`;
   }).join("");
-  const link = reviewLink(SITE_URL, game!.pgn, game!.bottom, REVIEW_DEPTHS[depthIdx].depth);
+  const link = reviewLink(SITE_URL, game!.pgn, game!.bottom, REVIEW_DEPTHS[depthIdx].depth, data);
   app.innerHTML = `${header()}${players()}
     <div class="acc">
       <div><span class="acc-num">${a(acc.w)}</span><span class="acc-who">${esc(game!.white)}</span></div>
@@ -95,7 +96,7 @@ function renderDone(acc: Record<"w" | "b", number | null>, counts: Record<string
     ${opening ? `<p class="opening">${esc(opening)}</p>` : ""}
     <table class="table"><thead><tr><th>${esc(game!.white)}</th><th></th><th>${esc(game!.black)}</th></tr></thead><tbody>${rows}</tbody></table>
     <a class="primary" href="${esc(link)}" target="_blank" rel="noopener">See every move explained →</a>
-    <p class="note">Opens what’sthisposition with this game, step by step.</p>`;
+    <p class="note">Opens what’sthisposition with this game and this review, step by step: nothing is searched twice.</p>`;
   bind();
 }
 
@@ -171,7 +172,8 @@ async function analyse() {
       });
     }
     const review = classifyGame(g, positions, book);
-    renderDone(gameAccuracy(review.moves), tally(review.moves), review.opening ? `${review.opening.eco} · ${review.opening.name}` : null);
+    const data = await packReview(positions, depth).catch(() => undefined);
+    renderDone(gameAccuracy(review.moves), tally(review.moves), review.opening ? `${review.opening.eco} · ${review.opening.name}` : null, data);
   } catch (e) {
     console.error("what’sthisposition review failed", e);
     renderError(e instanceof Error && e.message !== "cancelled" ? e.message : "The engine stopped.");

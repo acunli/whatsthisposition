@@ -18,10 +18,18 @@ export type ReviewStatus = "loading" | "running" | "verifying" | "done" | "error
  * every position, moves are classified as soon as both sides of them are known,
  * and then the positions behind tactical labels are re-searched deeper.
  */
-export function useReview(game: ParsedGame, depth: number, run = 0) {
-  const [positions, setPositions] = useState<(PositionAnalysis | null)[]>(() => Array(game.moves.length + 1).fill(null));
+/** A review already done elsewhere (the browser extension): used as is, no engine needed. */
+export interface FinishedReview {
+  depth: number;
+  positions: (PositionAnalysis | null)[];
+}
+
+export function useReview(game: ParsedGame, depth: number, run = 0, finished?: FinishedReview) {
+  // A finished review counts only for the depth it was searched at, before any re-run.
+  const ready = finished && finished.depth === depth && run === 0 && finished.positions.length === game.moves.length + 1 ? finished.positions : null;
+  const [positions, setPositions] = useState<(PositionAnalysis | null)[]>(() => ready ?? Array(game.moves.length + 1).fill(null));
   const [book, setBook] = useState<OpeningBook | null>(null);
-  const [status, setStatus] = useState<ReviewStatus>("loading");
+  const [status, setStatus] = useState<ReviewStatus>(ready ? "done" : "loading");
   const [error, setError] = useState<string | null>(null);
   const [engines, setEngines] = useState(0);
   const [verify, setVerify] = useState({ done: 0, total: 0 });
@@ -64,6 +72,11 @@ export function useReview(game: ParsedGame, depth: number, run = 0) {
     };
 
     const work = async () => {
+      if (ready) {
+        setPositions(ready);
+        setStatus("done");
+        return;
+      }
       setPositions(Array(game.moves.length + 1).fill(null));
       setStatus("running");
       setError(null);
@@ -112,6 +125,7 @@ export function useReview(game: ParsedGame, depth: number, run = 0) {
       if (frame) cancelAnimationFrame(frame);
       pool?.dispose();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `ready` only matters for the first run
   }, [game, depth, run]);
 
   const review = useMemo(() => classifyGame(game, positions, book, cache), [game, positions, book, cache]);

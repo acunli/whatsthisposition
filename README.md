@@ -98,7 +98,7 @@ Any position (FEN, hand setup or a **screenshot read on your device**): threats,
 
 ## On Chess.com: the browser extension
 
-Finish a game on Chess.com and a card pops up in the corner: press **Analyze** and the game is reviewed on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here. It only acts on finished games and collects nothing. Install it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
+Finish a game on Chess.com and click the extension's toolbar button: a card opens in the corner, and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It does nothing until you click, reviews only finished games and collects nothing. Install it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
 
 ## How it compares
 

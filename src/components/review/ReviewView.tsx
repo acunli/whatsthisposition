@@ -22,7 +22,7 @@ import { PeekOrientation } from "../peek/Peek";
 import { MoveInsight } from "./MoveInsight";
 import { OpeningCard } from "./OpeningCard";
 import { useMoveReasoning } from "./useMoveReasoning";
-import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview } from "./useReview";
+import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview, type FinishedReview } from "./useReview";
 import { depthIndex } from "@/lib/review/depths";
 
 interface Props {
@@ -35,6 +35,8 @@ interface Props {
   active: boolean;
   /** The search depth to start at (a link from the extension carries its own); else the default. */
   depth?: number;
+  /** A review the extension already ran: shown at once instead of searching again. */
+  finished?: FinishedReview;
 }
 
 interface LineView {
@@ -65,10 +67,10 @@ function PlayerRow({ game, color, accuracy, active }: { game: ParsedGame; color:
   );
 }
 
-export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth }: Props) {
+export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth, finished }: Props) {
   const [depthIdx, setDepthIdx] = useState(() => depthIndex(depth));
   const [run, setRun] = useState(0);
-  const r = useReview(game, REVIEW_DEPTHS[depthIdx].depth, run);
+  const r = useReview(game, REVIEW_DEPTHS[depthIdx].depth, run, finished);
   const n = game.moves.length;
   const [ply, setPly] = useState(0);
   const [line, setLine] = useState<LineView | null>(null);

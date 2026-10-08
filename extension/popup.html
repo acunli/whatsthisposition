@@ -6,27 +6,33 @@
     <link rel="stylesheet" href="panel.css" />
     <style>
       body {
-        width: 300px;
+        width: 320px;
       }
-      ol {
+      .found {
         margin: 0;
-        padding-left: 18px;
+        font-weight: 650;
+      }
+      .found span {
+        display: block;
         color: var(--bone-2);
-        display: grid;
-        gap: 6px;
+        font-weight: 500;
+        font-size: 13px;
+      }
+      .primary:disabled {
+        opacity: 0.45;
+        cursor: default;
+        filter: none;
       }
     </style>
   </head>
   <body>
     <main id="app">
       <header class="head"><img src="icons/32.png" width="26" height="26" alt="" /><span class="word">what’sthis<b>position</b></span></header>
-      <ol>
-        <li>Finish a game on Chess.com, or open one you've played.</li>
-        <li>A card offers a review: press <b>Analyze</b>.</li>
-        <li>See the accuracy and every label, then open the full step-by-step review.</li>
-      </ol>
-      <p class="note">Only finished games. Stockfish 19 runs on your computer; nothing is uploaded.</p>
-      <a class="primary" id="site" href="https://whatsthisposition.vercel.app" target="_blank" rel="noopener">Open what’sthisposition</a>
+      <p class="status" id="status" aria-live="polite">Looking for a game on this page…</p>
+      <button class="primary" id="review" type="button" disabled>Review this game</button>
+      <p class="note">Opens a review card in the corner of the page. Finished games only; Stockfish 19 runs on your computer and nothing is uploaded.</p>
+      <a class="secondary" id="site" href="https://whatsthisposition.vercel.app" target="_blank" rel="noopener">Open what’sthisposition</a>
     </main>
+    <script src="popup.js"></script>
   </body>
 </html>

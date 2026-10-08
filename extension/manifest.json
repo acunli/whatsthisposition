@@ -3,7 +3,7 @@
   "name": "what’sthisposition: free game review for Chess.com",
   "short_name": "what’sthisposition",
   "version": "0.0.0",
-  "description": "When a Chess.com game ends, review it on your own computer: accuracy and every move labelled, from Brilliant to Blunder. Free and open source.",
+  "description": "Review a finished Chess.com game on your own computer: click the toolbar button for accuracy and every move labelled, from Brilliant to Blunder. Free and open source.",
   "icons": {
     "16": "icons/16.png",
     "32": "icons/32.png",
@@ -11,7 +11,9 @@
     "128": "icons/128.png"
   },
   "permissions": [
-    "offscreen"
+    "offscreen",
+    "activeTab",
+    "scripting"
   ],
   "background": {
     "service_worker": "background.js"
