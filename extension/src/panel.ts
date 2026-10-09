@@ -13,7 +13,7 @@ import { classIconSvg } from "@/lib/review/classGlyphs";
 import type { ChessComGame } from "@/lib/review/chesscomGame";
 import { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
 import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
-import { analysePositions, classifyGame, criticalPositions, tally } from "@/lib/review/review";
+import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves, tally } from "@/lib/review/review";
 import { packReview, reviewLink } from "@/lib/review/share";
 import { SITE_URL } from "@/lib/brand";
 import { markSvg } from "@/lib/logoPaths";
@@ -170,6 +170,12 @@ async function analyse() {
           renderProgress(`Double-checking ${checked}/${crit.length} critical positions at depth ${depth + VERIFY_EXTRA}`, 0.85 + (checked / crit.length) * 0.15);
         },
       });
+    }
+    // A sacrifice whose runner-up is a sacrifice too is measured against the best quiet move.
+    const quiet = quietSearchPositions(g, classifyGame(g, positions, book), positions);
+    if (quiet.length) {
+      renderProgress(`Weighing ${quiet.length} sacrifice${quiet.length > 1 ? "s" : ""} against the quiet alternative`, 0.97);
+      positions = await searchQuietMoves(g, positions, quiet, engines.searchers, { depth: depth + VERIFY_EXTRA });
     }
     const review = classifyGame(g, positions, book);
     const data = await packReview(positions, depth).catch(() => undefined);

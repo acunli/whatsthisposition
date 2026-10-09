@@ -7,7 +7,7 @@ import { makeBook } from "./book";
 import { classifyMove, expectedScore, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
 import { GAME_OF_THE_CENTURY, OPERA_GAME, SHILLING_TRAP } from "./fixtures/games";
 import { mainLineTokens, parseFirstGame, parseGame, splitGames } from "./pgn";
-import { analysePositions, classifyGame, criticalPositions } from "./review";
+import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves } from "./review";
 import { KASPAROV_TOPALOV } from "./samples";
 import { detectSacrifice, see, unsafePieces } from "./safety";
 import { placementFromFen } from "../chess/fen";
@@ -155,6 +155,62 @@ describe("classification rules (synthetic evaluations)", () => {
     expect(classifyMove({ ...at, before: pa(cp(430), ["h6f8"], cp(225)), after: pa(cp(430)) }).cls).toBe("brilliant");
     // The same sacrifice when a quiet move is just as good: not Brilliant (it isn't needed).
     expect(classifyMove({ ...at, before: pa(cp(80), ["h6f8"], cp(70)), after: pa(cp(80)) }).cls).not.toBe("brilliant");
+  });
+
+  it("measures a sacrifice against the best move that gives nothing away", () => {
+    // 14.dxe6 (Ay7u vs jross0120, 2026-10-09; Chess.com: Brilliant): leaves the bishop on c4 to the
+    // knight on a5, because 14…Nxc4 15.exf7+ wins the rook on e8. Depth-18 numbers: +0.32 against 14.Bb5's −0.06.
+    const fen = "r2qr1k1/ppp2pbp/4p1p1/n2P4/2B5/2P1PQ1P/P4PP1/R1B2RK1 w - - 1 14";
+    const move = parseGame(`[SetUp "1"]\n[FEN "${fen}"]\n\n14. dxe6 *`).moves[0];
+    const at = { ...base, move, legalMoves: 42, after: pa(cp(29)) };
+    const two = (second: string, ev: number): PositionAnalysis => ({
+      eval: cp(32),
+      depth: 18,
+      lines: [
+        { multipv: 1, depth: 18, eval: cp(32), pv: ["d5e6"] },
+        { multipv: 2, depth: 18, eval: cp(ev), pv: [second] },
+      ],
+    });
+    // 0.035 better than saving the bishop: Brilliant (a 0.04 margin used to lose it).
+    expect(classifyMove({ ...at, before: two("c4b5", -6) }).cls).toBe("brilliant");
+    // A quiet move just as good: the sacrifice isn't needed.
+    expect(classifyMove({ ...at, before: two("c4b5", 30) }).cls).toBe("best");
+    // The runner-up leaves the bishop hanging too (a3 is no better than a sacrifice), so it can't be
+    // the yardstick: until the quiet move is searched the label stays conservative...
+    const runnerUpSacrifices = two("a2a3", 31);
+    expect(classifyMove({ ...at, before: runnerUpSacrifices }).cls).toBe("best");
+    // ...and once it is, the sacrifice is measured against 14.Bb5.
+    const quiet = { multipv: 1, depth: 18, eval: cp(-6), pv: ["c4b5"] };
+    const withQuiet = classifyMove({ ...at, before: { ...runnerUpSacrifices, quiet } });
+    expect(withQuiet.cls).toBe("brilliant");
+    expect(withQuiet.quietLine?.pv[0]).toBe("c4b5");
+  });
+
+  it("searches the best quiet move only where a sacrifice needs it", async () => {
+    const pgn = `[SetUp "1"]\n[FEN "r2qr1k1/ppp2pbp/4p1p1/n2P4/2B5/2P1PQ1P/P4PP1/R1B2RK1 w - - 1 14"]\n\n14. dxe6 fxe6 *`;
+    const g = parseGame(pgn);
+    const line = (ev: number, pv: string[]) => ({ multipv: 1, depth: 18, eval: cp(ev), pv });
+    const positions: PositionAnalysis[] = [
+      { eval: cp(32), depth: 18, lines: [line(32, ["d5e6"]), { ...line(31, ["a2a3"]), multipv: 2 }] },
+      { eval: cp(29), depth: 18, lines: [line(29, ["f7e6"]), { ...line(400, ["a5c4"]), multipv: 2 }] },
+      { eval: cp(29), depth: 18, lines: [line(29, ["c4e2"])] },
+    ];
+    const review = classifyGame(g, positions, null);
+    expect(review.moves[0].cls).toBe("best");
+    expect(quietSearchPositions(g, review, positions)).toEqual([0]);
+    const asked: string[][] = [];
+    const fake = async (r: { searchmoves?: string[] }) => {
+      asked.push(r.searchmoves ?? []);
+      return [line(-6, ["c4b5", "c7c6"])];
+    };
+    return searchQuietMoves(g, positions, [0], [fake], { depth: 22 }).then((out) => {
+      // Only moves that save (or guard) the bishop are quiet; 14.a3 and 14.dxe6 are not.
+      expect(asked[0]).toContain("c4b5");
+      expect(asked[0]).not.toContain("a2a3");
+      expect(asked[0]).not.toContain("d5e6");
+      expect(out[0]?.quiet?.pv[0]).toBe("c4b5");
+      expect(classifyGame(g, out, null).moves[0].cls).toBe("brilliant");
+    });
   });
 
   it("calls an unpunished opponent mistake a Miss", () => {

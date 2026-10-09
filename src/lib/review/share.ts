@@ -4,6 +4,7 @@
  * browser extension uses it to open a game it has just summarised.
  */
 import type { Color } from "../chess/types";
+import type { EngineLine } from "../engine/client";
 import type { Evaluation } from "../engine/score";
 import type { PositionAnalysis } from "./classify";
 
@@ -41,11 +42,13 @@ export function readReviewHash(hash: string): { pgn: string; as?: Color; depth?:
 
 /**
  * A finished review travels with the game (`&data=…`), so the site can show it without
- * running Stockfish again: per position the depth, the evaluation and the engine lines,
- * packed small (evals as centipawns or "M3w", moves as one UCI string) and gzipped.
+ * running Stockfish again: per position the depth, the evaluation and the engine lines
+ * (plus the best quiet move, where a sacrifice needed one), packed small (evals as
+ * centipawns or "M3w", moves as one UCI string) and gzipped.
  */
 type PackedEval = number | string;
-type PackedPosition = [depth: number, ev: PackedEval, lines: [ev: PackedEval, pv: string, multipv: number, depth: number][]] | null;
+type PackedLine = [ev: PackedEval, pv: string, multipv: number, depth: number];
+type PackedPosition = [depth: number, ev: PackedEval, lines: PackedLine[], quiet?: PackedLine] | null;
 interface PackedReview {
   v: 1;
   depth: number;
@@ -81,7 +84,11 @@ export async function packReview(positions: (PositionAnalysis | null)[], depth: 
   const packed: PackedReview = {
     v: 1,
     depth,
-    p: positions.map((pa) => (pa ? [pa.depth, packEval(pa.eval), pa.lines.map((l) => [packEval(l.eval), l.pv.join(" "), l.multipv, l.depth])] : null)),
+    p: positions.map((pa): PackedPosition => {
+      if (!pa) return null;
+      const line = (l: EngineLine): PackedLine => [packEval(l.eval), l.pv.join(" "), l.multipv, l.depth];
+      return pa.quiet ? [pa.depth, packEval(pa.eval), pa.lines.map(line), line(pa.quiet)] : [pa.depth, packEval(pa.eval), pa.lines.map(line)];
+    }),
   };
   return bytesToBase64Url(await gzip(JSON.stringify(packed)));
 }
@@ -91,21 +98,18 @@ export async function unpackReview(data: string): Promise<{ depth: number; posit
   try {
     const raw = JSON.parse(await gunzip(base64UrlToBytes(data))) as PackedReview;
     if (raw?.v !== 1 || !Array.isArray(raw.p) || raw.p.length > 2000 || typeof raw.depth !== "number") return null;
+    const line = ([lev, pv, multipv, d]: PackedLine): EngineLine => {
+      const le = unpackEval(lev);
+      const moves = typeof pv === "string" && pv ? pv.split(" ") : [];
+      if (!le || !moves.every((m) => UCI.test(m)) || typeof multipv !== "number" || typeof d !== "number") throw new Error("bad line");
+      return { multipv, depth: d, eval: le, pv: moves };
+    };
     const positions = raw.p.map((x): PositionAnalysis | null => {
       if (x === null) return null;
-      const [depth, ev, lines] = x;
+      const [depth, ev, lines, quiet] = x;
       const e = unpackEval(ev);
-      if (typeof depth !== "number" || !e || !Array.isArray(lines)) throw new Error("bad position");
-      return {
-        depth,
-        eval: e,
-        lines: lines.map(([lev, pv, multipv, d]) => {
-          const le = unpackEval(lev);
-          const moves = typeof pv === "string" && pv ? pv.split(" ") : [];
-          if (!le || !moves.every((m) => UCI.test(m)) || typeof multipv !== "number" || typeof d !== "number") throw new Error("bad line");
-          return { multipv, depth: d, eval: le, pv: moves };
-        }),
-      };
+      if (typeof depth !== "number" || !e || !Array.isArray(lines) || (quiet !== undefined && !Array.isArray(quiet))) throw new Error("bad position");
+      return { depth, eval: e, lines: lines.map(line), ...(quiet ? { quiet: line(quiet) } : {}) };
     });
     return { depth: raw.depth, positions };
   } catch {

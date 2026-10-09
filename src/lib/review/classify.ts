@@ -8,8 +8,8 @@
  *   Book       the position after the move is opening theory (while the game is still in book)
  *   Forced     the only legal move
  *   Great      the best move when every alternative is clearly worse (≥ 10% loss)
- *   Brilliant  the best move, it really gives material away (see safety.ts), and it is clearly
- *              better than the next-best move (BRILLIANT_GAP)
+ *   Brilliant  the best move, it really gives material away (see safety.ts), and it beats the best
+ *              move that gives nothing away (SACRIFICE_MARGIN; see quietAlternative)
  *   Miss       failing to punish the opponent's mistake without actually making things worse
  *
  * Expected score uses Lichess's win% curve. Thresholds match Chess.com's published
@@ -52,8 +52,15 @@ export const CLASS_INFO: Record<MoveClass, { label: string; symbol: string; colo
   forced: { label: "Forced", symbol: "→", color: "#9aa3ad" },
 };
 
-/** How much better (expected score) a sacrifice must be than the next-best move to be Brilliant. */
-export const BRILLIANT_GAP = 0.04;
+/**
+ * How much better (expected score) a sacrifice must be than the best move that gives nothing away
+ * to be Brilliant: about the engine's noise, so only liquidations that a quiet move matches
+ * (a piece handed back into a dead-equal ending) are left out. Chess.com's and WintrChess's
+ * definitions have no margin at all; an earlier 0.04 against the second-best line lost real
+ * sacrifices in level positions (0.04 is about 40 centipawns there) and whenever the
+ * second-best move was itself a sacrifice.
+ */
+export const SACRIFICE_MARGIN = 0.01;
 
 /** Chess annotation marks, for writing a move as e.g. "16.Qb8+!!". */
 export const ANNOTATION: Partial<Record<MoveClass, string>> = { brilliant: "!!", great: "!", inaccuracy: "?!", mistake: "?", miss: "?", blunder: "??" };
@@ -71,6 +78,11 @@ export interface PositionAnalysis {
   /** Eval to use for the position (best line, or the game-over result). */
   eval: Evaluation;
   depth: number;
+  /**
+   * The best move that gives no material away, searched only when the top two lines are both
+   * sacrifices (`quietSearchPositions`): what a sacrifice is measured against for Brilliant.
+   */
+  quiet?: EngineLine;
 }
 
 export interface ClassifiedMove {
@@ -92,6 +104,8 @@ export interface ClassifiedMove {
   evalBefore: Evaluation;
   evalAfter: Evaluation;
   sacrifice: SacrificeInfo | null;
+  /** For a sacrifice the engine plays: the best move that gives nothing away, which it was measured against. */
+  quietLine?: EngineLine | null;
   /** For Miss: the opponent's mistake that went unpunished. */
   missedPly?: number;
   opening?: { eco: string; name: string } | null;
@@ -261,23 +275,45 @@ export function classifyMove(inp: ClassifyInput): ClassifiedMove {
 
   const prev = inp.previous;
   let sacrifice: SacrificeInfo | null = null;
+  let quietLine: EngineLine | null = null;
   if (candidate && nearBest) {
     // Pieces the opponent could already take on their last turn were offered (and declined) before this move.
     const declined = prev ? unsafePieces(prev.move.fenBefore, mover) : [];
     sacrifice = detectSacrifice(move.fenBefore, move.uci, declined);
-    // Brilliant: the sacrifice is the engine's choice and clearly better than not making it
-    // (a liquidation that any move would match, e.g. into a dead draw, isn't brilliant).
-    const needed = topPlayed && (secondEp === null || epBefore - secondEp >= BRILLIANT_GAP);
-    if (sacrifice?.pieces.length && needed) cls = "brilliant";
+    // Brilliant: the sacrifice is the engine's choice and better than playing it safe
+    // (a liquidation that a quiet move matches, e.g. into a dead draw, isn't brilliant).
+    if (sacrifice?.pieces.length && topPlayed) {
+      quietLine = quietAlternative(move.fenBefore, move.uci, before, declined);
+      if (!quietLine || epBefore - expectedScore(quietLine.eval, mover) >= SACRIFICE_MARGIN) cls = "brilliant";
+    }
   }
 
   // Miss: the opponent just erred, and this move lets the chance go without making things worse than before.
   if (prev && isBad(cls) && cls !== "inaccuracy" && (prev.cls === "mistake" || prev.cls === "blunder" || prev.cls === "miss")) {
     const beforeTheirMistake = 1 - prev.before; // our expected score before their move
-    if (epAfter >= beforeTheirMistake - 0.02) return { ...base, cls: "miss", missedPly: prev.move.ply, sacrifice };
+    if (epAfter >= beforeTheirMistake - 0.02) return { ...base, cls: "miss", missedPly: prev.move.ply, sacrifice, quietLine };
   }
 
-  return { ...base, cls, sacrifice };
+  return { ...base, cls, sacrifice, quietLine };
+}
+
+/**
+ * The line a sacrifice (`uci`) is measured against: the best move that gives no material away.
+ * That is the second-best line when it is quiet, the searched `quiet` line when the second-best
+ * is a sacrifice too, and (until that search has run) the second-best line itself, which can
+ * only understate the margin. Null when there is no other move to compare with.
+ */
+export function quietAlternative(fen: string, uci: string, before: PositionAnalysis, declined: ReturnType<typeof unsafePieces> = []): EngineLine | null {
+  const second = before.lines.find((l) => l.pv[0] && l.pv[0] !== uci) ?? null;
+  if (!second) return before.quiet ?? null;
+  if (!detectSacrifice(fen, second.pv[0], declined)?.pieces.length) return second;
+  return before.quiet ?? second;
+}
+
+/** True when the second-best line is a sacrifice too, so the margin needs the `quiet` search. */
+export function needsQuietSearch(fen: string, uci: string, before: PositionAnalysis, declined: ReturnType<typeof unsafePieces> = []): boolean {
+  const second = before.lines.find((l) => l.pv[0] && l.pv[0] !== uci);
+  return !!second && !before.quiet && !!detectSacrifice(fen, second.pv[0], declined)?.pieces.length;
 }
 
 interface LineLike {

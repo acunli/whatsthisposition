@@ -74,7 +74,7 @@ The PGN parser handles real-world files: comments, clock times (`[%clk]`), varia
 ### 3.2 Two passes with the engine
 
 1. **First pass.** Every position (the start, then after each move) goes to the worker pool in game order, with two lines per position (MultiPV 2), at the chosen depth: Fast 12, Standard 14, **Thorough 18** (the default). Each search starts with a fresh hash (`ucinewgame`), so the result doesn't depend on which worker happened to search what before: reviews are reproducible. Moves get their labels as soon as both sides of them are known.
-2. **Verification pass.** Shallow searches misjudge exactly the moves that matter: sacrifices and blunders. Both sides of every Brilliant, Great, Mistake, Miss and Blunder, and of every near-best sacrifice, are searched again **four plies deeper**. (In the Immortal Game, depth 14 calls 19.e5 a blunder; depth 18 calls it an inaccuracy.)
+2. **Verification pass.** Shallow searches misjudge exactly the moves that matter: sacrifices and blunders. Both sides of every Brilliant, Great, Mistake, Miss and Blunder, and of every near-best sacrifice, are searched again **four plies deeper**. (In the Immortal Game, depth 14 calls 19.e5 a blunder; depth 18 calls it an inaccuracy.) When a sacrifice's runner-up is a sacrifice too, one more search finds the best move that gives nothing away, so the sacrifice can be measured against playing it safe (§3.4).
 
 ### 3.3 The browser extension
 
@@ -100,7 +100,7 @@ Each move is judged by how much of the mover's **expected score** it gives up co
 | **Mistake** | Loses less than 0.20. |
 | **Blunder** | Loses 0.20 or more, or walks into a forced mate. |
 | **Great** | The top move when the second-best move loses at least 0.10: the only good move. Not a free capture, and not a mate the mover already had. |
-| **Brilliant** | The top move, a **real sacrifice**, and **clearly better than not sacrificing** (at least 0.04 better than the next-best move). |
+| **Brilliant** | The top move, a **real sacrifice**, and **better than playing it safe**: at least 0.01 better than the best move that gives nothing away (about the engine's noise, so a liquidation a quiet move matches doesn't count). When the second-best move is a sacrifice too, that quiet move gets a search of its own. |
 | **Miss** | A Mistake or Blunder right after the opponent's Mistake, Blunder or Miss, that doesn't leave the mover worse off than before the opponent's error: the chance was let go. |
 
 The bands follow Chess.com's published expected-points model; Great and Brilliant are only considered when the mover isn't already completely winning without the move (second-best below 0.93), is still doing fine after it (above 0.45), wasn't in check, and isn't simply promoting to a queen.
@@ -163,7 +163,7 @@ The headline sums it up, e.g. "30.Bxf8!! ignores the attack on the rook on a4 an
 - We collected every move our rules call Brilliant in 1,107 non-bullet games from 13 top Chess.com accounts (Hikaru, Magnus Carlsen, Fabiano Caruana, Wesley So, Daniel Naroditsky, Alireza Firouzja, Maxime Vachier-Lagrave, Nihal Sarin, Anish Giri, Gukesh D, Jan-Krzysztof Duda, Arjun Erigaisi, R Praggnanandhaa).
 - That gave 213 moves, and we explained all of them.
 - We read the explanations and fixed what read badly, as general rules.
-- That reading also exposed false Brilliants (trades, dead-draw liquidations), which is why the "real sacrifice" and "clearly better" rules above exist.
+- That reading also exposed false Brilliants (trades, dead-draw liquidations), which is why the "real sacrifice" and "better than playing it safe" rules above exist. The yardstick was first a 0.04 margin over the second-best move; it lost real sacrifices in level positions (where 0.04 is about 40 centipawns) and whenever the second-best move was a sacrifice too, so since 2026-10-10 a sacrifice is measured against the best quiet move instead (213 → 276 Brilliant moves in the corpus; the ones added were read and are real sacrifices).
 
 ## 6. Openings
 

@@ -51,6 +51,8 @@ export interface SacrificeInput {
   /** The engine's best and second-best lines before the move. */
   best?: LineInput;
   second?: LineInput;
+  /** The best move that gives nothing away (the review measured the sacrifice against it). */
+  quiet?: LineInput;
   /** The opponent's threat before the move, if known (null: none). */
   threatBefore?: ThreatInfo | null;
   search: Searcher;
@@ -459,7 +461,7 @@ export async function explainSacrifice(inp: SacrificeInput): Promise<SacrificeEx
         if (r) obvious = { pv: r.pv, eval: r.eval, title };
       }
     } else {
-      const alt = inp.best && inp.best.pv[0] !== inp.uci ? inp.best : inp.second;
+      const alt = inp.quiet && inp.quiet.pv[0] !== inp.uci ? inp.quiet : inp.best && inp.best.pv[0] !== inp.uci ? inp.best : inp.second;
       if (alt && alt.pv[0] !== inp.uci) obvious = { pv: alt.pv, eval: alt.eval, title: "Without the sacrifice" };
     }
     if (obvious) {

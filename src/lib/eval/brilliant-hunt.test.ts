@@ -11,11 +11,17 @@
  *   EVAL_GAMES=scripts/eval/out/hikaru.json,scripts/eval/out/top-LyonBeast.json \
  *   [EVAL_DEPTH=16] [EVAL_BULLET=0] [EVAL_SHARD=0/4] [EVAL_BUDGET_S=540] [EVAL_OUT=scripts/eval/out/brilliants.jsonl] \
  *     npx vitest run src/lib/eval/brilliant-hunt.test.ts
+ *
+ * EVAL_VERIFY=1 does what the review does: a sacrifice found at EVAL_DEPTH is searched again
+ * VERIFY_EXTRA deeper, with the best quiet move when the runner-up is a sacrifice too.
+ * EVAL_ALL=1 keeps every sacrifice the classifier weighed, Brilliant or not (field `cls`), so
+ * brilliant-rules.test.ts can compare rules on them offline.
  */
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { Chess } from "chess.js";
 import { it } from "vitest";
-import { classifyMove, terminalEval, type ClassifiedMove, type PositionAnalysis } from "../review/classify";
+import { classifyMove, needsQuietSearch, terminalEval, type ClassifiedMove, type MoveClass, type PositionAnalysis } from "../review/classify";
+import { VERIFY_EXTRA } from "../review/depths";
 import { parseGame } from "../review/pgn";
 import { detectSacrifice, unsafePieces } from "../review/safety";
 import { nodeSearcher, type SavedGame } from "./nodeEngine";
@@ -35,6 +41,8 @@ export interface BrilliantRecord {
   after: PositionAnalysis;
   /** The game moves just before and after, for context. */
   context: string;
+  /** The label when it was found (EVAL_ALL keeps sacrifices that aren't Brilliant too). */
+  cls?: MoveClass;
 }
 
 it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
@@ -54,10 +62,10 @@ it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
     .flatMap((f) => JSON.parse(readFileSync(f, "utf8")) as SavedGame[])
     .filter((g) => env.EVAL_BULLET === "1" || g.time_class !== "bullet")
     .filter((_, i) => i % shards === shard);
-  const analyse = async (fen: string, multipv: number): Promise<PositionAnalysis> => {
+  const analyse = async (fen: string, multipv: number, d = depth): Promise<PositionAnalysis> => {
     const t = terminalEval(fen);
     if (t) return { lines: [], eval: t, depth: 0 };
-    const lines = await search({ fen, depth, multipv, fresh: true });
+    const lines = await search({ fen, depth: d, multipv, fresh: true });
     return { lines, eval: lines[0].eval, depth: lines[0].depth };
   };
   let n = 0;
@@ -77,11 +85,25 @@ it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
       const prev = g.moves[i - 1];
       const declined = prev ? unsafePieces(prev.fenBefore, m.color) : [];
       if (!detectSacrifice(m.fenBefore, m.uci, declined)) continue;
-      const before = await analyse(m.fenBefore, 2);
-      const after = await analyse(m.fenAfter, 1);
+      let before = await analyse(m.fenBefore, 2);
+      let after = await analyse(m.fenAfter, 1);
       const previous = prev ? ({ move: prev, cls: "best", before: 0.5 } as unknown as ClassifiedMove) : undefined;
-      const c = classifyMove({ move: m, before, after, legalMoves: new Chess(m.fenBefore).moves().length, inBook: false, previous });
-      if (c.cls !== "brilliant") continue;
+      const legalMoves = new Chess(m.fenBefore).moves().length;
+      let c = classifyMove({ move: m, before, after, legalMoves, inBook: false, previous });
+      if (env.EVAL_VERIFY === "1" && c.sacrifice?.pieces.length) {
+        before = await analyse(m.fenBefore, 2, depth + VERIFY_EXTRA);
+        after = await analyse(m.fenAfter, 1, depth + VERIFY_EXTRA);
+        if (needsQuietSearch(m.fenBefore, m.uci, before, declined)) {
+          const quiet = new Chess(m.fenBefore)
+            .moves({ verbose: true })
+            .map((x) => x.lan)
+            .filter((u) => u !== m.uci && !detectSacrifice(m.fenBefore, u, declined)?.pieces.length);
+          const q = quiet.length ? (await search({ fen: m.fenBefore, depth: depth + VERIFY_EXTRA, multipv: 1, searchmoves: quiet, fresh: true }))[0] : undefined;
+          if (q) before = { ...before, quiet: q };
+        }
+        c = classifyMove({ move: m, before, after, legalMoves, inBook: false, previous });
+      }
+      if (c.cls !== "brilliant" && !(env.EVAL_ALL === "1" && c.sacrifice?.pieces.length)) continue;
       const rec: BrilliantRecord = {
         url: sg.url,
         white: g.white,
@@ -93,6 +115,7 @@ it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
         fenAfter: m.fenAfter,
         before,
         after,
+        cls: c.cls,
         context: g.moves
           .slice(Math.max(0, i - 3), i + 4)
           .map((x) => `${x.moveNumber}${x.color === "w" ? "." : "…"}${x.san}`)

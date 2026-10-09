@@ -103,8 +103,26 @@ C=$(ls scripts/eval/out/brilliants-*.jsonl | tr '\n' ',' | sed 's/,$//')
 EVAL_CORPUS=$C EVAL_N=600 npx vitest run src/lib/eval/brilliant-report.test.ts
 less scripts/eval/out/brilliant-report.txt
 
-# One position: EVAL_FEN="<fen before>" EVAL_UCI=h6f8 [EVAL_LINES=1] npx vitest run src/lib/eval/brilliant-report.test.ts
+# One position (writes brilliant-one.txt): EVAL_FEN="<fen before>" EVAL_UCI=h6f8 [EVAL_LINES=1] npx vitest run src/lib/eval/brilliant-report.test.ts
 ```
+
+**Why is (or isn't) a move Brilliant?** Run the review's two passes on one move of a game and print every gate (top move, runner-up, the best quiet move and the margin, the sacrifice check):
+
+```bash
+EVAL_PGN=game.pgn EVAL_PLY=27 [EVAL_DEPTH=18] npx vitest run src/lib/eval/brilliant-diagnose.test.ts
+cat scripts/eval/out/brilliant-diagnose.txt      # EVAL_PLY counts half-moves from 1: 14.dxe6 is ply 27
+```
+
+**Comparing rules.** Hunt with `EVAL_ALL=1` (keep every sacrifice the classifier weighed, not just Brilliant ones) and `EVAL_VERIFY=1` (do what the review does: search sacrifices again 4 plies deeper, plus the best quiet move when needed), then reclassify offline:
+
+```bash
+for s in 0 1 2 3 4 5 6 7; do EVAL_GAMES=scripts/eval/out/ay7u-3m.json EVAL_DEPTH=18 EVAL_VERIFY=1 EVAL_ALL=1 EVAL_SHARD=$s/8 \
+  EVAL_BUDGET_S=520 EVAL_OUT=scripts/eval/out/ay7u-sacs-$s.jsonl npx vitest run src/lib/eval/brilliant-hunt.test.ts > /dev/null 2>&1 & done; wait
+EVAL_CORPUS=$(ls scripts/eval/out/ay7u-sacs-*.jsonl | tr '\n' ',' | sed 's/,$//') npx vitest run src/lib/eval/brilliant-rules.test.ts
+less scripts/eval/out/brilliant-rules.txt         # counts under both rules, every move they disagree on
+```
+
+Edit the old rule in `brilliant-rules.test.ts` to compare any variant.
 
 **Results on 2026-10-06:**
 - 1,107 non-bullet games, about 1.5 hours of hunting in all.
@@ -112,6 +130,12 @@ less scripts/eval/out/brilliant-report.txt
 - The report runs in about 40 s with the stored analyses.
 - By player: Naroditsky 153 (he plays the most), Nihal Sarin 23, Duda 13, Giri 10, Hikaru 7, Vachier-Lagrave 6, Firouzja 5, Gukesh 3, Carlsen 2, So 1, Praggnanandhaa 1.
 - Hikaru's 30.Bxf8 against demon64fields is in the corpus.
+
+**2026-10-10: measuring a sacrifice against playing it safe.** The owner's 14.dxe6 (Ay7u vs jross0120, Chess.com: Brilliant) came out Best: it is the top move and a real sacrifice, but only 0.035 better than 14.Bb5, and Brilliant needed 0.04 over the second-best line. Neither Chess.com's definition nor WintrChess's has such a margin. A sacrifice now has to beat the best move that gives nothing away by `SACRIFICE_MARGIN` (0.01, the engine's noise); when the second-best line is a sacrifice too, that quiet move is searched (`searchQuietMoves`).
+- Top-player corpus (425 sacrifices with stored analyses): Brilliant 213 → **276**, none removed. The 63 added were read: real sacrifices (17.Bxb6 axb6 18.Nxb6, 16…Rxf3 17.gxf3, 8.Nd6+ exd6 9.exd6+, 18.Bxh6 …). Still left out: 36 where a quiet move is just as good (pieces handed back into dead-equal endings, e.g. 47…Bxc7 48.Nxc7+).
+- 19 of the 63 needed the quiet search: the runner-up was a second way to sacrifice (14…Nge6 against 14…Nce6: margin 0.22 over the best quiet move, 0.006 over the runner-up).
+- Ay7u's last 3 months (256 non-bullet games, depth 18 + 22 as the review runs): Brilliant 13 → **17** (14.dxe6, 26.Rd6, 45.Rxc5, 20…Bxb2+); two equal endgame trades stay out.
+- The explanations still read well on the new moves (269 explained, none empty). Exchange sacrifices are still worded as "a whole rook on offer".
 
 **What the report found, and what was fixed in general terms:**
 - false Brilliants: trades (R×N, N×R, Q×N) and dead-draw liquidations (the classifier now needs a margin and a real net loss);

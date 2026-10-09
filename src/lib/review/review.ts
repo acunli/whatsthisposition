@@ -6,9 +6,10 @@
 import { Chess } from "chess.js";
 import type { Searcher } from "../deep/deep";
 import type { OpeningBook } from "./book";
-import { classifyMove, expectedScore, terminalEval, type ClassifiedMove, type PositionAnalysis, type TheoryInfo, type TheoryOption } from "./classify";
+import { classifyMove, expectedScore, needsQuietSearch, terminalEval, type ClassifiedMove, type PositionAnalysis, type TheoryInfo, type TheoryOption } from "./classify";
 import { isTheory, mainLine, type MasterEntry, type MasterMove, type MastersBook } from "./masters";
 import type { ParsedGame } from "./pgn";
+import { detectSacrifice, unsafePieces } from "./safety";
 
 export interface ReviewOptions {
   depth: number;
@@ -106,7 +107,7 @@ export function theoryAt(masters: MastersBook, fen: string, entry: MasterEntry, 
  * first gap (so a partially analysed game gives a correct prefix). Pass the same
  * `cache` while a run fills in to avoid re-classifying the finished prefix.
  */
-export type ClassifyCache = Map<number, { c: ClassifiedMove; prev?: ClassifiedMove }>;
+export type ClassifyCache = Map<number, { c: ClassifiedMove; prev?: ClassifiedMove; quiet?: PositionAnalysis["quiet"] }>;
 
 export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | null)[], book: OpeningBook | null, cache?: ClassifyCache): GameReview {
   const out: ClassifiedMove[] = [];
@@ -132,7 +133,7 @@ export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | nu
     if (named && stillBook) opening = named;
     const previous = out[i - 1];
     const hit = cache?.get(i);
-    if (hit && hit.c.evalBefore === before.eval && hit.c.evalAfter === after.eval && hit.prev === previous) {
+    if (hit && hit.c.evalBefore === before.eval && hit.c.evalAfter === after.eval && hit.prev === previous && hit.quiet === before.quiet) {
       out.push(hit.c);
       continue;
     }
@@ -140,7 +141,7 @@ export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | nu
     // Book moves, and the move that left the book, carry what masters play here.
     const theory = wasBook && entry && masters ? theoryAt(masters, m.fenBefore, entry, played) : null;
     const c = classifyMove({ move: m, before, after, legalMoves: legal, inBook, previous, opening: inBook ? opening : null, theory });
-    cache?.set(i, { c, prev: previous });
+    cache?.set(i, { c, prev: previous, quiet: before.quiet });
     out.push(c);
   }
   return { moves: out, bookUntil, opening, masters: masters ? { games: masters.games, minElo: masters.minElo } : null };
@@ -161,6 +162,62 @@ export function criticalPositions(review: GameReview, positions: (PositionAnalys
     for (const k of [i, i + 1]) if (positions[k]?.lines.length && positions[k]!.depth < minDepth) out.add(k);
   });
   return [...out].sort((a, b) => a - b);
+}
+
+/**
+ * Positions whose move is a sacrifice and the engine's top move, but isn't Brilliant yet because
+ * the second-best line is a sacrifice too: the best move that gives nothing away has to be
+ * searched before the sacrifice can be measured (classify.ts, quietAlternative).
+ */
+export function quietSearchPositions(game: ParsedGame, review: GameReview, positions: (PositionAnalysis | null)[]): number[] {
+  const out: number[] = [];
+  review.moves.forEach((m, i) => {
+    const before = positions[i];
+    if (!before || m.cls === "brilliant" || !m.sacrifice?.pieces.length || m.bestUci !== m.move.uci) return;
+    const prev = i > 0 ? game.moves[i - 1] : null;
+    if (needsQuietSearch(m.move.fenBefore, m.move.uci, before, prev ? unsafePieces(prev.fenBefore, m.move.color) : [])) out.push(i);
+  });
+  return out;
+}
+
+/**
+ * Searches, in each of `indices`, the best move that gives no material away (`PositionAnalysis.quiet`),
+ * with the searchers in parallel. A failed search just leaves that position without one.
+ */
+export async function searchQuietMoves(
+  game: ParsedGame,
+  positions: (PositionAnalysis | null)[],
+  indices: number[],
+  searchers: Searcher[],
+  opts: { depth: number; signal?: { cancelled: boolean }; onPosition?: (index: number, analysis: PositionAnalysis) => void },
+): Promise<(PositionAnalysis | null)[]> {
+  const out = positions.slice();
+  const queue = [...indices];
+  const worker = async (search: Searcher) => {
+    while (queue.length && !opts.signal?.cancelled) {
+      const i = queue.shift()!;
+      const m = game.moves[i];
+      const pa = out[i];
+      if (!m || !pa) continue;
+      const prev = i > 0 ? game.moves[i - 1] : null;
+      const declined = prev ? unsafePieces(prev.fenBefore, m.color) : [];
+      const quiet = new Chess(m.fenBefore)
+        .moves({ verbose: true })
+        .map((x) => x.lan)
+        .filter((u) => u !== m.uci && !detectSacrifice(m.fenBefore, u, declined)?.pieces.length);
+      if (!quiet.length) continue;
+      try {
+        const line = (await search({ fen: m.fenBefore, depth: opts.depth, multipv: 1, searchmoves: quiet, fresh: true }))[0];
+        if (!line) continue;
+        out[i] = { ...pa, quiet: line };
+        opts.onPosition?.(i, out[i]!);
+      } catch {
+        if (opts.signal?.cancelled) return;
+      }
+    }
+  };
+  await Promise.all(searchers.map(worker));
+  return out;
 }
 
 /** Counts per class and colour, for the summary table. */

@@ -72,6 +72,7 @@ export function useMoveReasoning(cm: ClassifiedMove | undefined, enabled: boolea
             reply: cm.replyLine ? { pv: cm.replyLine.pv, eval: cm.evalAfter, depth: cm.replyLine.depth } : undefined,
             best: cm.bestLine ?? undefined,
             second: cm.secondLine ?? undefined,
+            quiet: cm.quietLine ?? undefined,
             threatBefore,
             search,
             depth: DEPTH,

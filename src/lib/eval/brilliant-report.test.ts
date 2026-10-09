@@ -5,6 +5,8 @@
  *   EVAL_CORPUS=scripts/eval/out/brilliants-0.jsonl,… [EVAL_SKIP=0] [EVAL_N=20] [EVAL_DEPTH=14] [EVAL_OUT=…] \
  *     npx vitest run src/lib/eval/brilliant-report.test.ts
  *   EVAL_FEN="<fen before>" EVAL_UCI=h6f8 npx vitest run src/lib/eval/brilliant-report.test.ts
+ *
+ * One position writes scripts/eval/out/brilliant-one.txt, so it never replaces the corpus report.
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { it } from "vitest";
@@ -70,5 +72,5 @@ it.skipIf(!env.EVAL_CORPUS && !env.EVAL_FEN)("write the brilliant report", async
     out.push(`HEADLINE: ${x.headline}`);
     for (const s of x.steps) out.push(`  [${s.title}] ${s.text}${env.EVAL_LINES === "1" && s.line ? `\n      line: ${buildVariation(s.line.fen, s.line.pv, 14).moves.map((m) => m.san).join(" ")}` : ""}`);
   }
-  writeFileSync(env.EVAL_OUT ?? "scripts/eval/out/brilliant-report.txt", out.join("\n"));
+  writeFileSync(env.EVAL_OUT ?? (env.EVAL_FEN ? "scripts/eval/out/brilliant-one.txt" : "scripts/eval/out/brilliant-report.txt"), out.join("\n"));
 }, 3_600_000);

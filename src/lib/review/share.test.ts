@@ -19,6 +19,8 @@ describe("a finished review carried in the link", () => {
       { depth: 0, eval: { kind: "mate", moves: 0, winner: "b" }, lines: [] },
       null,
       pos(-35, ["a7a8q", "b2b1n"]),
+      // A sacrifice's quiet alternative travels too, so the site labels the move as the extension did.
+      { ...pos(32, ["d5e6", "f7e6"]), quiet: { multipv: 1, depth: 22, eval: { kind: "cp", cp: -6 }, pv: ["c4b5", "c7c6"] } },
     ];
     const data = await packReview(positions, 18);
     expect(data).toMatch(/^[A-Za-z0-9_-]+$/);

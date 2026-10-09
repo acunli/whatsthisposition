@@ -6,7 +6,7 @@ import { gameAccuracy } from "@/lib/review/accuracy";
 import { loadBook, type OpeningBook } from "@/lib/review/book";
 import type { PositionAnalysis } from "@/lib/review/classify";
 import type { ParsedGame } from "@/lib/review/pgn";
-import { analysePositions, classifyGame, criticalPositions, type ClassifyCache } from "@/lib/review/review";
+import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves, type ClassifyCache } from "@/lib/review/review";
 
 export { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
 import { VERIFY_EXTRA } from "@/lib/review/depths";
@@ -86,20 +86,40 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
       const first = await analysePositions(game, pool.searchers, { depth, signal, onPosition: push });
       if (signal.cancelled) return;
       flush();
-      const crit = criticalPositions(classifyGame(game, first, await loadBook().catch(() => null)), first, depth + VERIFY_EXTRA);
+      const bookNow = await loadBook().catch(() => null);
+      const crit = criticalPositions(classifyGame(game, first, bookNow), first, depth + VERIFY_EXTRA);
       if (signal.cancelled) return;
+      let positions = first;
+      let done = 0;
+      let total = crit.length;
       if (crit.length) {
         setStatus("verifying");
-        setVerify({ done: 0, total: crit.length });
-        let done = 0;
-        await analysePositions(game, pool.searchers, {
+        setVerify({ done: 0, total });
+        positions = await analysePositions(game, pool.searchers, {
           depth: depth + VERIFY_EXTRA,
           indices: crit,
           existing: first,
           signal,
           onPosition: (i, pa) => {
             push(i, pa);
-            setVerify({ done: ++done, total: crit.length });
+            setVerify({ done: ++done, total });
+          },
+        });
+        if (signal.cancelled) return;
+        flush();
+      }
+      // A sacrifice whose runner-up is a sacrifice too is measured against the best quiet move.
+      const quiet = quietSearchPositions(game, classifyGame(game, positions, bookNow), positions);
+      if (quiet.length) {
+        setStatus("verifying");
+        total += quiet.length;
+        setVerify({ done, total });
+        await searchQuietMoves(game, positions, quiet, pool.searchers, {
+          depth: depth + VERIFY_EXTRA,
+          signal,
+          onPosition: (i, pa) => {
+            push(i, pa);
+            setVerify({ done: ++done, total });
           },
         });
         if (signal.cancelled) return;
