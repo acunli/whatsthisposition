@@ -1,7 +1,7 @@
 /**
  * Brilliant rule study: reclassifies a corpus of stored analyses (from brilliant-hunt.test.ts,
  * ideally run with EVAL_ALL=1) under the current rules, compares them with the earlier rule
- * (a 0.04 margin over the second-best line), and lists every move the two disagree on, with the
+ * (a 0.04 margin over the second-best line, and Lichess's curve for "already decided"), and lists every move the two disagree on, with the
  * numbers that decided it. Sacrifices whose runner-up is a sacrifice too get their quiet move
  * searched (as the review does) unless the record already has one.
  *
@@ -58,11 +58,13 @@ it.skipIf(!env.EVAL_CORPUS)("brilliant rule study", async () => {
       const q = quiet.length ? (await search({ fen: r.fenBefore, depth: before.depth, multipv: 1, searchmoves: quiet, fresh: true }))[0] : undefined;
       if (q) before = { ...before, quiet: q };
     }
-    const c = classifyMove({ move, before, after: r.after, legalMoves: new Chess(r.fenBefore).moves().length, inBook: false });
+    const c = classifyMove({ move, before, after: r.after, legalMoves: new Chess(r.fenBefore).moves().length, inBook: false, rating: r.rating });
     const second = before.lines[1];
     const gap = second ? c.before - expectedScore(second.eval, move.color) : null;
     const top = c.bestUci === move.uci;
-    const wasBrilliant = top && !!c.sacrifice?.pieces.length && (gap === null || gap >= OLD_GAP);
+    // The old rule: 0.04 over the runner-up, and "decided" on Lichess's curve against the runner-up.
+    const oldOpen = !(second ? expectedScore(second.eval, move.color) >= 0.93 : c.after >= 0.93) && c.after >= 0.45;
+    const wasBrilliant = oldOpen && top && !!c.sacrifice?.pieces.length && (gap === null || gap >= OLD_GAP);
     const isBrilliant = c.cls === "brilliant";
     now += +isBrilliant;
     old += +wasBrilliant;

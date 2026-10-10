@@ -6,7 +6,7 @@
 import { Chess } from "chess.js";
 import type { Searcher } from "../deep/deep";
 import type { OpeningBook } from "./book";
-import { classifyMove, expectedScore, needsQuietSearch, terminalEval, type ClassifiedMove, type PositionAnalysis, type TheoryInfo, type TheoryOption } from "./classify";
+import { classifyMove, expectedScore, gameRating, needsQuietSearch, terminalEval, type ClassifiedMove, type PositionAnalysis, type TheoryInfo, type TheoryOption } from "./classify";
 import { isTheory, mainLine, type MasterEntry, type MasterMove, type MastersBook } from "./masters";
 import type { ParsedGame } from "./pgn";
 import { detectSacrifice, unsafePieces } from "./safety";
@@ -115,6 +115,7 @@ export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | nu
   let stillBook = true;
   let bookUntil = -1;
   let opening: { eco: string; name: string } | null = null;
+  const rating = gameRating(game.whiteElo, game.blackElo);
   for (let i = 0; i < game.moves.length; i++) {
     const before = positions[i];
     const after = positions[i + 1];
@@ -140,7 +141,7 @@ export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | nu
     const legal = new Chess(m.fenBefore).moves().length;
     // Book moves, and the move that left the book, carry what masters play here.
     const theory = wasBook && entry && masters ? theoryAt(masters, m.fenBefore, entry, played) : null;
-    const c = classifyMove({ move: m, before, after, legalMoves: legal, inBook, previous, opening: inBook ? opening : null, theory });
+    const c = classifyMove({ move: m, before, after, legalMoves: legal, inBook, previous, opening: inBook ? opening : null, theory, rating });
     cache?.set(i, { c, prev: previous, quiet: before.quiet });
     out.push(c);
   }

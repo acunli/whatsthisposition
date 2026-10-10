@@ -123,8 +123,11 @@ export function isTrapped(fen: string, piece: BoardPiece): boolean {
 
 /**
  * True when every way of taking `piece` leaves the taker facing an equal or bigger
- * threat (a piece of theirs worth at least as much becomes winnable, or, for
- * pieces below a queen, an immediate mate). Then the piece isn't really offered.
+ * material threat (a piece of theirs worth at least as much becomes winnable). Then the
+ * piece isn't really offered, it is traded. Taking it into mate does NOT count here:
+ * WintrChess treats a piece that can't be taken because of mate as not offered, but
+ * Chess.com calls such moves Brilliant (16…Rxa3 in BLUNDER-MAN9999999 vs Ay7u, 2026-10-10,
+ * where 17.bxa3 allows 17…Bxa3#), and so do players: it is the classic brilliancy.
  */
 export function capturesBackfire(fen: string, piece: BoardPiece): boolean {
   let chess: Chess;
@@ -137,15 +140,7 @@ export function capturesBackfire(fen: string, piece: BoardPiece): boolean {
   if (chess.turn() !== taker) return false;
   const captures = chess.moves({ verbose: true }).filter((m) => m.to === piece.square);
   if (!captures.length) return false;
-  return captures.every((m) => {
-    const after = new Chess(m.after);
-    const counter = unsafePieces(m.after, taker).some((u) => val(u.type) >= val(piece.type));
-    if (counter) return true;
-    if (val(piece.type) < val("q")) {
-      return after.moves({ verbose: true }).some((r) => r.san.includes("#"));
-    }
-    return false;
-  });
+  return captures.every((m) => unsafePieces(m.after, taker).some((u) => val(u.type) >= val(piece.type)));
 }
 
 export interface SacrificeInfo {

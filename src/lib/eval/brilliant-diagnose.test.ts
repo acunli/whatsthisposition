@@ -10,7 +10,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { Chess } from "chess.js";
 import { it } from "vitest";
 import { VERIFY_EXTRA } from "../review/depths";
-import { SACRIFICE_MARGIN, classifyMove, expectedScore, needsQuietSearch, quietAlternative, terminalEval, type PositionAnalysis } from "../review/classify";
+import { SACRIFICE_MARGIN, classifyMove, decisiveSlope, expectedScore, expectedScoreAt, gameRating, needsQuietSearch, quietAlternative, terminalEval, type PositionAnalysis } from "../review/classify";
 import { parseGame } from "../review/pgn";
 import { detectSacrifice, unsafePieces } from "../review/safety";
 import { buildVariation } from "../variation";
@@ -25,6 +25,8 @@ it.skipIf(!env.EVAL_PGN || !env.EVAL_PLY)("diagnose one move", async () => {
   const depth = Number(env.EVAL_DEPTH ?? 18);
   const move = game.moves[ply - 1];
   const prevMove = ply > 1 ? game.moves[ply - 2] : null;
+  const rating = gameRating(game.whiteElo, game.blackElo);
+  const slope = decisiveSlope(rating);
   const out: string[] = [`${move.color === "w" ? `${Math.ceil(ply / 2)}.` : `${Math.ceil(ply / 2)}…`}${move.san}  ply ${ply}`, `fen before ${move.fenBefore}`];
 
   const analyse = async (fen: string, d: number): Promise<PositionAnalysis> => {
@@ -53,18 +55,20 @@ it.skipIf(!env.EVAL_PGN || !env.EVAL_PLY)("diagnose one move", async () => {
     let previous;
     if (prevMove) {
       const pb = await analyse(prevMove.fenBefore, d);
-      previous = classifyMove({ move: prevMove, before: pb, after: before, legalMoves: new Chess(prevMove.fenBefore).moves().length, inBook: false });
+      previous = classifyMove({ move: prevMove, before: pb, after: before, legalMoves: new Chess(prevMove.fenBefore).moves().length, inBook: false, rating });
     }
-    const c = classifyMove({ move, before, after, legalMoves: new Chess(move.fenBefore).moves().length, inBook: false, previous });
+    const c = classifyMove({ move, before, after, legalMoves: new Chess(move.fenBefore).moves().length, inBook: false, previous, rating });
     const mover = move.color;
     const secondEp = before.lines[1] ? expectedScore(before.lines[1].eval, mover) : null;
     out.push(`\n── depth ${d} (${((Date.now() - t0) / 1000).toFixed(0)} s): ${c.cls.toUpperCase()}`);
     before.lines.forEach((l, i) => out.push(`  line ${i + 1}: ${fmt(l.eval)} (E ${expectedScore(l.eval, mover).toFixed(3)})  ${san(move.fenBefore, l.pv)}`));
     out.push(`  played ${move.san}: after ${fmt(after.eval)} (E ${c.after.toFixed(3)}), loss ${c.loss.toFixed(3)}, top move ${c.bestSan}`);
-    out.push(`  gates: top=${c.bestUci === move.uci}  second<0.93=${secondEp === null || secondEp < 0.93}  after>=0.45=${c.after >= 0.45}  notInCheck=${!new Chess(move.fenBefore).inCheck()}`);
+    const onCurve = (e: PositionAnalysis["eval"]) => expectedScoreAt(e, mover, slope).toFixed(3);
+    out.push(`  rating ${rating ?? "unknown"} → slope ${slope.toFixed(5)} (Lichess 0.00368)`);
+    out.push(`  gates (players' curve): top=${c.bestUci === move.uci}  second ${before.lines[1] ? onCurve(before.lines[1].eval) : "n/a"} (<0.93 for Great)  after ${onCurve(after.eval)} (>=0.45)  notInCheck=${!new Chess(move.fenBefore).inCheck()}`);
     out.push(`  gap to second: ${secondEp === null ? "n/a" : (c.before - secondEp).toFixed(3)} (Great needs 0.10)`);
     const alt = quietAlternative(move.fenBefore, move.uci, before, declined);
-    out.push(`  best quiet move: ${alt ? `${san(move.fenBefore, alt.pv.slice(0, 1))} ${fmt(alt.eval)}${before.quiet === alt ? " (searched)" : ""}, margin ${(c.before - expectedScore(alt.eval, mover)).toFixed(3)} (Brilliant needs ${SACRIFICE_MARGIN})` : "none"}`);
+    out.push(`  best quiet move: ${alt ? `${san(move.fenBefore, alt.pv.slice(0, 1))} ${fmt(alt.eval)}${before.quiet === alt ? " (searched)" : ""}, margin ${(c.before - expectedScore(alt.eval, mover)).toFixed(3)} (Brilliant needs ${SACRIFICE_MARGIN}), on the players' curve ${onCurve(alt.eval)} (<0.93: not decided without it)` : "none"}`);
     out.push(`  sacrifice: ${c.sacrifice?.pieces.map((p) => `${p.type}${p.square}`).join(", ") || "none"}`);
     const unsafeBefore = unsafePieces(move.fenBefore.replace(/ [wb] /, ` ${mover === "w" ? "b" : "w"} `), mover);
     const unsafeAfter = unsafePieces(move.fenAfter, mover);

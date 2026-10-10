@@ -4,7 +4,7 @@ import { START_FEN } from "../chess/fen";
 import type { Evaluation } from "../engine/score";
 import { gameAccuracy } from "./accuracy";
 import { makeBook } from "./book";
-import { classifyMove, expectedScore, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
+import { classifyMove, decisiveSlope, expectedScore, gameRating, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
 import { GAME_OF_THE_CENTURY, OPERA_GAME, SHILLING_TRAP } from "./fixtures/games";
 import { mainLineTokens, parseFirstGame, parseGame, splitGames } from "./pgn";
 import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves } from "./review";
@@ -106,6 +106,12 @@ describe("piece safety and sacrifices (no engine)", () => {
     expect(detectSacrifice(bb7.fenBefore, bb7.uci, declined)).toBeNull();
   });
 
+  it("counts a piece that can't be taken because of mate as offered", () => {
+    // 16…Rxa3 (BLUNDER-MAN9999999 vs Ay7u, 2026-10-10; Chess.com: Brilliant): 17.bxa3 Bxa3#.
+    const fen = "r4rk1/4bppp/1qn2n2/4pPB1/2Bp4/P7/1PPQ1PPP/2KR3R b - - 3 16";
+    expect(detectSacrifice(fen, "a8a3")?.pieces.map((p) => p.type + p.square)).toEqual(["ra3"]);
+  });
+
   it("lists unsafe pieces", () => {
     expect(unsafePieces("4k3/8/3p4/4N3/8/8/8/4K3 b - - 0 1", "w").map((p) => p.square)).toEqual(["e5"]);
   });
@@ -184,6 +190,27 @@ describe("classification rules (synthetic evaluations)", () => {
     const withQuiet = classifyMove({ ...at, before: { ...runnerUpSacrifices, quiet } });
     expect(withQuiet.cls).toBe("brilliant");
     expect(withQuiet.quietLine?.pv[0]).toBe("c4b5");
+  });
+
+  it("judges 'already decided' on the players' own curve", () => {
+    expect(decisiveSlope(null)).toBeCloseTo(0.00368208, 8);
+    expect(decisiveSlope(1500) / decisiveSlope(null)).toBeCloseTo(0.73, 5);
+    expect(decisiveSlope(2800) / decisiveSlope(null)).toBeCloseTo(0.865, 5);
+    expect(decisiveSlope(3200)).toBeCloseTo(0.00368208, 8);
+    expect(gameRating("1479", "1474")).toBe(1476.5);
+    expect(gameRating("?", "2100")).toBe(2100);
+    expect(gameRating()).toBeNull();
+    // 16…Rxa3 at depth 18: −9.81, the runner-up 16…Bxa3 (a sacrifice too) −9.46, the best quiet move −8.16.
+    const fen = "r4rk1/4bppp/1qn2n2/4pPB1/2Bp4/P7/1PPQ1PPP/2KR3R b - - 3 16";
+    const move = parseGame(`[SetUp "1"]\n[FEN "${fen}"]\n\n16... Rxa3 *`).moves[0];
+    const line = (ev: number, pv: string[], k = 1) => ({ multipv: k, depth: 18, eval: cp(ev), pv });
+    const before: PositionAnalysis = { eval: cp(-981), depth: 18, lines: [line(-981, ["a8a3"]), line(-946, ["e7a3"], 2)], quiet: line(-816, ["f8b8"]) };
+    const at = (rating?: number) => classifyMove({ ...base, move, legalMoves: 45, before, after: pa(cp(-1039)), rating }).cls;
+    // For 1500-rated players −8 isn't yet a sure thing, so finding the sacrifice still counts...
+    expect(at(1476)).toBe("brilliant");
+    // ...while at 3100, or on Lichess's curve, the game was already decided without it.
+    expect(at(3100)).toBe("best");
+    expect(at()).toBe("best");
   });
 
   it("searches the best quiet move only where a sacrifice needs it", async () => {

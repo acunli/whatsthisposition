@@ -67,9 +67,29 @@ export const ANNOTATION: Partial<Record<MoveClass, string>> = { brilliant: "!!",
 
 /** Lichess's win-chance curve, as a 0–1 expected score for `color`. */
 export function expectedScore(e: Evaluation, color: Color): number {
+  return expectedScoreAt(e, color, LICHESS_SLOPE);
+}
+
+const LICHESS_SLOPE = 0.00368208;
+
+/**
+ * How steeply an evaluation turns into a result for players of this rating (the slope of the
+ * win-chance curve). Fitted on 42,000 positions from evenly matched Chess.com games
+ * (scripts/eval/fit-winprob.py, 2026-10-10): players below about 2600 convert an advantage like a
+ * curve 0.73 times as steep as Lichess's (which matches the 3000-level blitz games), so +7 is not
+ * yet "completely winning" for them; the factor rises to 1 at 3000. Without a rating: Lichess's.
+ */
+export function decisiveSlope(rating?: number | null): number {
+  if (!rating) return LICHESS_SLOPE;
+  const f = rating <= 2600 ? 0.73 : rating >= 3000 ? 1 : 0.73 + ((rating - 2600) / 400) * 0.27;
+  return LICHESS_SLOPE * f;
+}
+
+/** The win-chance curve with a given slope, as a 0–1 expected score for `color`. */
+export function expectedScoreAt(e: Evaluation, color: Color, slope: number): number {
   if (e.kind === "mate") return e.winner === color ? 1 : 0;
   const cp = color === "w" ? e.cp : -e.cp;
-  return 1 / (1 + Math.exp(-0.00368208 * cp));
+  return 1 / (1 + Math.exp(-slope * cp));
 }
 
 export interface PositionAnalysis {
@@ -213,6 +233,14 @@ export interface ClassifyInput {
   previous?: ClassifiedMove;
   opening?: { eco: string; name: string } | null;
   theory?: TheoryInfo | null;
+  /** The players' rating (their average when both are known): how decided a position is depends on it. */
+  rating?: number | null;
+}
+
+/** The players' rating for `decisiveSlope`: the average of the two when both are known. */
+export function gameRating(whiteElo?: string, blackElo?: string): number | null {
+  const r = [whiteElo, blackElo].map(Number).filter((x) => Number.isFinite(x) && x > 0);
+  return r.length ? r.reduce((a, b) => a + b, 0) / r.length : null;
 }
 
 /** Classifies one move. Pure: everything comes from the two position analyses. */
@@ -261,11 +289,14 @@ export function classifyMove(inp: ClassifyInput): ClassifiedMove {
   const topPlayed = bestUci === move.uci;
   let cls: MoveClass = topPlayed ? "best" : pointLossClass(evalBefore, evalAfter, mover, loss);
 
-  // Great / Brilliant candidates: not easy, not forced, not already decided.
+  // Great / Brilliant candidates: not easy, not forced, not already decided. "Decided" is judged on
+  // the players' own curve: the same +7 that wins for a 3000 player is still a game below 2600.
   const secondEp = second ? expectedScore(second.eval, mover) : null;
-  const stillWinningAnyway = secondEp !== null ? secondEp >= 0.93 : epAfter >= 0.93;
+  const slope = decisiveSlope(inp.rating);
+  const decided = (e: Evaluation) => expectedScoreAt(e, mover, slope) >= 0.93;
   const inCheckBefore = new Chess(move.fenBefore).inCheck();
-  const candidate = !stillWinningAnyway && epAfter >= 0.45 && !inCheckBefore && move.promotion !== "q";
+  const open = expectedScoreAt(evalAfter, mover, slope) >= 0.45 && !inCheckBefore && move.promotion !== "q";
+  const candidate = open && !(second ? decided(second.eval) : decided(evalAfter));
   const nearBest = topPlayed || loss < 0.02;
 
   if (candidate && topPlayed && !(evalAfter.kind === "mate" && evalAfter.winner === mover)) {
@@ -276,15 +307,19 @@ export function classifyMove(inp: ClassifyInput): ClassifiedMove {
   const prev = inp.previous;
   let sacrifice: SacrificeInfo | null = null;
   let quietLine: EngineLine | null = null;
-  if (candidate && nearBest) {
+  if (open && nearBest) {
     // Pieces the opponent could already take on their last turn were offered (and declined) before this move.
     const declined = prev ? unsafePieces(prev.move.fenBefore, mover) : [];
     sacrifice = detectSacrifice(move.fenBefore, move.uci, declined);
-    // Brilliant: the sacrifice is the engine's choice and better than playing it safe
-    // (a liquidation that a quiet move matches, e.g. into a dead draw, isn't brilliant).
+    // Brilliant: the sacrifice is the engine's choice and better than playing it safe (a liquidation
+    // that a quiet move matches, e.g. into a dead draw, isn't brilliant), and without sacrificing the
+    // game wouldn't already be decided. Both are measured against the best quiet move: a runner-up
+    // that sacrifices too is another way of finding the idea, not a way of doing without it.
     if (sacrifice?.pieces.length && topPlayed) {
       quietLine = quietAlternative(move.fenBefore, move.uci, before, declined);
-      if (!quietLine || epBefore - expectedScore(quietLine.eval, mover) >= SACRIFICE_MARGIN) cls = "brilliant";
+      const needed = !quietLine || epBefore - expectedScore(quietLine.eval, mover) >= SACRIFICE_MARGIN;
+      const decidedWithout = quietLine ? decided(quietLine.eval) : decided(evalAfter);
+      if (needed && !decidedWithout) cls = "brilliant";
     }
   }
 

@@ -137,6 +137,10 @@ Edit the old rule in `brilliant-rules.test.ts` to compare any variant.
 - Ay7u's last 3 months (256 non-bullet games, depth 18 + 22 as the review runs): Brilliant 13 → **17** (14.dxe6, 26.Rd6, 45.Rxc5, 20…Bxb2+); two equal endgame trades stay out.
 - The explanations still read well on the new moves (269 explained, none empty). Exchange sacrifices are still worded as "a whole rook on offer".
 
+**2026-10-10, later: club-level gates and pieces that can't be taken because of mate.** The owner's 16…Rxa3 (BLUNDER-MAN9999999 vs Ay7u, both about 1475; Chess.com: Brilliant) came out Best twice over: Black was "already winning" without it (runner-up −9.46, best quiet move −8.2: above 0.93 on Lichess's curve), and taking the rook allows 17…Bxa3#, which the WintrChess-style backfire check counted as "not really offered". Fixes: the "already decided" gates use a curve fitted to the players' rating (§6), judged against the best quiet move for Brilliant; a piece guarded only by mate is a sacrifice. 16…Rxa3: Brilliant at depth 18 and 22.
+- Ay7u's 256 games: Brilliant 17 → 20, none removed (23.Rxg4 and 21.Nxg6 by Ay7u, both in games Chess.com reviewed; 31.Nxe6 by an opponent).
+- Top players' games, every sacrifice the old mate clause hid: see the 2026-10-10 entry in the notes; the Brilliant ones are mating attacks (29…Ng3+ hxg3 Rh5#, 23.Ng6+) and real offers (21.Nxe6, 37.Bxg6).
+
 **What the report found, and what was fixed in general terms:**
 - false Brilliants: trades (R×N, N×R, Q×N) and dead-draw liquidations (the classifier now needs a margin and a real net loss);
 - grammar in threat and idea clauses;
@@ -149,6 +153,30 @@ Edit the old rule in `brilliant-rules.test.ts` to compare any variant.
 - the "why not save it" comparison now uses the verified second-best line.
 
 When reading, ask: would a 1000-rated player understand why the move works, and why the obvious move doesn't?
+
+## 6. Win probability by rating
+
+How sure a win is at a given evaluation depends on who is playing. Collect positions from evenly matched games (engine evaluation, both ratings, result) and fit the slope of the win-chance curve per rating band:
+
+```bash
+for s in 0 1 2 3 4 5 6 7; do EVAL_GAMES=scripts/eval/out/ay7u-3m.json EVAL_SHARD=$s/8 \
+  EVAL_OUT=scripts/eval/out/winprob-ay7u-$s.jsonl npx vitest run src/lib/eval/winprob-data.test.ts > /dev/null 2>&1 & done; wait
+python3 scripts/eval/fit-winprob.py scripts/eval/out/winprob-*.jsonl
+```
+
+`EVAL_DEPTH` (12), `EVAL_EVERY` (every 3rd ply from ply 12) and `EVAL_MAXGAP` (150 rating points) set the sampling. For a middle band, fetch a month of games from opponents in the top players' games (`scripts/eval/out/mid/`).
+
+**Results on 2026-10-10** (42,022 positions, evenly matched, |eval| ≤ 15):
+
+| Average rating | Positions | Slope vs Lichess's 0.00368 | 0.93 expected score at |
+| --- | --- | --- | --- |
+| below 1600 (Ay7u's games) | 3,909 | 0.71× | +9.9 |
+| 1600–2000 | 5,599 | 0.57× | +12.4 |
+| 2000–2400 | 10,986 | 0.86× | +8.2 |
+| 2400–2900 | 5,178 | 0.66× | +10.6 |
+| 2900 and up (top players) | 16,350 | 1.01× | +6.9 |
+
+Single 200-point bands are noisy (each is a few accounts, and depth-12 evaluations flatten every slope a little), but the split is clear: below about 2900 the curve is roughly 0.73× as steep (pooled), at the top it is Lichess's. `decisiveSlope` in `src/lib/review/classify.ts` uses 0.73× up to 2600, rising to 1× at 3000, only for the "already decided" gates of Great and Brilliant. Refit with more mid-rated games before changing it, and before using rating-aware curves for the bands or accuracy (which are calibrated on Lichess's curve).
 
 ## Notes
 

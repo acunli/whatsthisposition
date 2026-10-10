@@ -20,7 +20,7 @@
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
 import { Chess } from "chess.js";
 import { it } from "vitest";
-import { classifyMove, needsQuietSearch, terminalEval, type ClassifiedMove, type MoveClass, type PositionAnalysis } from "../review/classify";
+import { classifyMove, gameRating, needsQuietSearch, terminalEval, type ClassifiedMove, type MoveClass, type PositionAnalysis } from "../review/classify";
 import { VERIFY_EXTRA } from "../review/depths";
 import { parseGame } from "../review/pgn";
 import { detectSacrifice, unsafePieces } from "../review/safety";
@@ -43,6 +43,8 @@ export interface BrilliantRecord {
   context: string;
   /** The label when it was found (EVAL_ALL keeps sacrifices that aren't Brilliant too). */
   cls?: MoveClass;
+  /** The players' rating (gameRating), which the "already decided" gates depend on. */
+  rating?: number | null;
 }
 
 it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
@@ -89,7 +91,8 @@ it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
       let after = await analyse(m.fenAfter, 1);
       const previous = prev ? ({ move: prev, cls: "best", before: 0.5 } as unknown as ClassifiedMove) : undefined;
       const legalMoves = new Chess(m.fenBefore).moves().length;
-      let c = classifyMove({ move: m, before, after, legalMoves, inBook: false, previous });
+      const rating = gameRating(g.whiteElo, g.blackElo);
+      let c = classifyMove({ move: m, before, after, legalMoves, inBook: false, previous, rating });
       if (env.EVAL_VERIFY === "1" && c.sacrifice?.pieces.length) {
         before = await analyse(m.fenBefore, 2, depth + VERIFY_EXTRA);
         after = await analyse(m.fenAfter, 1, depth + VERIFY_EXTRA);
@@ -101,7 +104,7 @@ it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
           const q = quiet.length ? (await search({ fen: m.fenBefore, depth: depth + VERIFY_EXTRA, multipv: 1, searchmoves: quiet, fresh: true }))[0] : undefined;
           if (q) before = { ...before, quiet: q };
         }
-        c = classifyMove({ move: m, before, after, legalMoves, inBook: false, previous });
+        c = classifyMove({ move: m, before, after, legalMoves, inBook: false, previous, rating });
       }
       if (c.cls !== "brilliant" && !(env.EVAL_ALL === "1" && c.sacrifice?.pieces.length)) continue;
       const rec: BrilliantRecord = {
@@ -116,6 +119,7 @@ it.skipIf(!env.EVAL_GAMES)("hunt for brilliant moves", async () => {
         before,
         after,
         cls: c.cls,
+        rating,
         context: g.moves
           .slice(Math.max(0, i - 3), i + 4)
           .map((x) => `${x.moveNumber}${x.color === "w" ? "." : "…"}${x.san}`)
