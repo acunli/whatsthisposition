@@ -28,7 +28,7 @@ It works in any Chromium browser (Chrome, Edge, Brave, Arc, Opera).
    - **Screenshots:** at least one at 1280×800, e.g. the card next to a finished game.
 4. Submit for review. Updates: bump `version` in `package.json`, `npm run ext:zip`, upload.
 
-`EXT_SITE_URL=https://whatsthisposition.com npm run ext:zip` points the review link at another address (the default is `https://whatsthisposition.vercel.app`, which keeps working after a custom domain is added).
+The review link opens `https://www.whatsthisposition.com` (the site's primary address; the bare domain redirects there, keeping the `#review=…` part). `EXT_SITE_URL=https://whatsthisposition.vercel.app npm run ext:zip` points it at another address, e.g. a preview deployment.
 
 ## Fair play
 

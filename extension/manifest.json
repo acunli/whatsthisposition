@@ -49,5 +49,5 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
-  "homepage_url": "https://whatsthisposition.vercel.app"
+  "homepage_url": "https://www.whatsthisposition.com"
 }

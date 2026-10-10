@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "extension", "dist");
-const site = (process.env.EXT_SITE_URL ?? "https://whatsthisposition.vercel.app").replace(/\/+$/, "");
+const site = (process.env.EXT_SITE_URL ?? "https://www.whatsthisposition.com").replace(/\/+$/, "");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
 if (!existsSync(join(root, "public", "engine", "stockfish.wasm"))) {
@@ -56,7 +56,7 @@ writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\
 
 for (const f of ["panel.html", "panel.css", "engine.html"]) cpSync(join(root, "extension", f), join(out, f));
 // The toolbar popup links to the same site as the card.
-writeFileSync(join(out, "popup.html"), readFileSync(join(root, "extension", "popup.html"), "utf8").replace("https://whatsthisposition.vercel.app", site));
+writeFileSync(join(out, "popup.html"), readFileSync(join(root, "extension", "popup.html"), "utf8").replace("https://www.whatsthisposition.com", site));
 cpSync(join(root, "extension", "icons"), join(out, "icons"), { recursive: true });
 mkdirSync(join(out, "engine"));
 for (const f of ["stockfish.js", "stockfish.wasm", "COPYING.txt"]) cpSync(join(root, "public", "engine", f), join(out, "engine", f));

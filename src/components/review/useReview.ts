@@ -152,5 +152,5 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
   const accuracy = useMemo(() => (status === "done" ? gameAccuracy(review.moves) : null), [status, review]);
   const analysed = positions.filter(Boolean).length;
 
-  return { positions, review, accuracy, status, error, engines, verify, progress: analysed / positions.length, analysed, total: positions.length };
+  return { positions, review, book, accuracy, status, error, engines, verify, progress: analysed / positions.length, analysed, total: positions.length };
 }

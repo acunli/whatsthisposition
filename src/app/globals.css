@@ -1114,9 +1114,21 @@ textarea.input {
     display: inline;
   }
 
-  /* In the app screens the top bar holds actions; the mark alone links home. */
-  .topbar-app .logo-word {
-    display: none;
+  /* The app screens' top bar keeps the full name on phones too; when its actions don't
+     fit beside it they wrap onto a second row, right-aligned, instead of hiding the name. */
+  .topbar-app {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  .topbar-app .topbar-nav {
+    margin-left: auto;
+  }
+
+  /* The analysis screen's actions take a second row there: that bar scrolls away rather than
+     keeping 100+ px of a phone's height. */
+  .topbar-crowded {
+    position: static;
   }
 
   .topbar-app .bmc {
@@ -5308,9 +5320,86 @@ em {
   align-items: center;
 }
 
-.rv-row:nth-child(even) {
+.rv-row-group:nth-child(even) > .rv-row {
   background: rgb(255 255 255 / 0.02);
   border-radius: 8px;
+}
+
+/* Side lines: the player's own moves, under the game move they replace. */
+.rv-side {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 2px 0 6px 38px;
+  padding: 3px 3px 3px 8px;
+  border-left: 2px solid rgb(var(--brand) / 0.6);
+  background: rgb(var(--brand) / 0.05);
+  border-radius: 0 8px 8px 0;
+}
+
+.rv-side-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.rv-side-move {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.rv-side-move:hover {
+  background: var(--slab-3);
+}
+
+.rv-side-move .rv-wait-dot {
+  width: 13px;
+  height: 13px;
+}
+
+.rv-side-move.rv-cell-mark .rv-san {
+  color: var(--cls-c);
+}
+
+.rv-side-num {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--dim);
+}
+
+.rv-side-x {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--dim);
+  font-size: 17px;
+  line-height: 1;
+}
+
+.rv-side-x:hover {
+  background: var(--slab-3);
+}
+
+.rv-side-tag {
+  margin-left: 6px;
+  color: rgb(var(--brand));
+  font-weight: 600;
+}
+
+.rv-side-tag::before {
+  content: "· ";
 }
 
 .rv-num {
@@ -6292,6 +6381,15 @@ em {
 
   .rv-cell {
     min-height: 34px;
+  }
+
+  .rv-side-move {
+    min-height: 34px;
+  }
+
+  .rv-side-x {
+    width: 40px;
+    height: 40px;
   }
 
   .elines-list li {

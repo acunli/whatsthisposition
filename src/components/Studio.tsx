@@ -113,7 +113,7 @@ export function Studio() {
 
   return (
     <div className="shell">
-      <header className={stage === "home" ? "topbar" : "topbar topbar-app"}>
+      <header className={stage === "home" ? "topbar" : `topbar topbar-app${stage === "analysis" ? " topbar-crowded" : ""}`}>
         <button className="topbar-brand" onClick={home} aria-label={`${SITE_NAME} home`}>
           <Logo size={34} animate={false} />
         </button>
@@ -126,7 +126,8 @@ export function Studio() {
           )}
           {stage === "analysis" && (
             <button className="btn btn-sm" onClick={() => go("setup")}>
-              Edit position
+              <span className="only-wide">Edit position</span>
+              <span className="only-narrow">Edit</span>
             </button>
           )}
           {stage !== "home" && (

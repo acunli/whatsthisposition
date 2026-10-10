@@ -82,7 +82,7 @@ Hover or tap any move an explanation names (“31.Be7”, “the main line goes 
 <img src="docs/images/analysis.jpg" alt="Position analysis with engine lines next to the board, arrows and circles drawn by right-click" />
 
 ### A board you can think on
-Top engine lines **next to the board**, live. **Play moves** by click or drag (the engine answers), and **draw arrows and circles** with right-click (Shift red, Alt blue), just like Lichess.
+Top engine lines **next to the board**, live. **Play moves** by click or drag, and **draw arrows and circles** with right-click (Shift red, Alt blue), just like Lichess. In a review, **try your own moves**: anything other than the game's move becomes a side line under the move it replaces, searched and labelled (Brilliant to Blunder) by the same rules as the game.
 
 </td>
 <td valign="top">
