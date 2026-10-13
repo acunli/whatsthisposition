@@ -501,12 +501,12 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
           {running && (
             <div className="rv-progress" aria-live="polite">
               <div className={`rv-progress-bar ${verifying ? "rv-progress-verify" : ""}`}>
-                <span style={{ width: `${Math.round((verifying ? r.verify.done / Math.max(1, r.verify.total) : r.progress) * 100)}%` }} />
+                <span style={{ width: `${Math.round(r.progress * 100)}%` }} />
               </div>
               <span className="small muted">
                 {verifying
-                  ? `Double-checking ${r.verify.done}/${r.verify.total} critical positions at depth ${REVIEW_DEPTHS[depthIdx].depth + VERIFY_EXTRA}, so sacrifices and blunders aren't misjudged`
-                  : `Stockfish is reviewing: ${r.analysed}/${r.total} positions${r.engines > 1 ? ` · ${r.engines} engines in parallel` : ""} · depth ${REVIEW_DEPTHS[depthIdx].depth}`}
+                  ? `Double-checking sharp moments deeper (depth ${REVIEW_DEPTHS[depthIdx].depth + VERIFY_EXTRA}), so sacrifices and blunders aren't misjudged: ${r.verify.done}/${r.verify.total} done`
+                  : `Stockfish is reviewing: ${r.analysed}/${r.total} positions${r.engines > 1 ? ` · ${r.engines} engines in parallel` : ""} · depth ${REVIEW_DEPTHS[depthIdx].depth}${r.verify.total ? ` · double-checking ${r.verify.done}/${r.verify.total} sharp moments alongside` : ""}`}
               </span>
             </div>
           )}

@@ -15,9 +15,18 @@ export interface EnginePool {
   dispose(): void;
 }
 
+/**
+ * One engine per spare core: up to 7 on a computer (8 cores, 2026-10-13: a 38-move review took
+ * 63 s with 4 engines, 55 s with 6 and 50 s with 7), but at most 4 on phones and small-memory
+ * devices, where more workers mean more heat and a tab that gets killed in the background.
+ */
 export function poolSize(): number {
-  const cores = typeof navigator !== "undefined" ? navigator.hardwareConcurrency || 2 : 2;
-  return Math.max(1, Math.min(4, cores - 1));
+  if (typeof navigator === "undefined") return 2;
+  const cores = navigator.hardwareConcurrency || 2;
+  const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+  const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  const cap = touch || (memory !== undefined && memory < 8) ? 4 : 7;
+  return Math.max(1, Math.min(cap, cores - 1));
 }
 
 export function createEnginePool(size = poolSize()): EnginePool {

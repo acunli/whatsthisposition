@@ -13,7 +13,7 @@ import { classIconSvg } from "@/lib/review/classGlyphs";
 import type { ChessComGame } from "@/lib/review/chesscomGame";
 import { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
 import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
-import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves, tally } from "@/lib/review/review";
+import { classifyGame, runReview, tally } from "@/lib/review/review";
 import { packReview, reviewLink } from "@/lib/review/share";
 import { SITE_URL } from "@/lib/brand";
 import { markSvg } from "@/lib/logoPaths";
@@ -145,38 +145,27 @@ async function analyse() {
     renderProgress("Starting Stockfish…", 0);
     pool = await startEngines();
     const engines = pool;
-    const book = await loadBook().catch(() => null);
-    let done = 0;
+    const bookP = loadBook().catch(() => null);
     renderProgress(`Stockfish is reviewing: 0/${total} positions · depth ${depth}`, 0);
-    const first = await analysePositions(g, engines.searchers, {
+    let shown = 0; // the bar never goes back when a new sharp moment turns up
+    // One queue for both passes, as on the website: sharp moments are searched deeper as soon as
+    // an engine is free, so sacrifices and blunders aren't misjudged and no engine waits.
+    const positions = await runReview(g, engines.searchers, {
       depth,
-      onPosition: () => {
-        done++;
-        renderProgress(`Stockfish is reviewing: ${done}/${total} positions${engines.size > 1 ? ` · ${engines.size} engines` : ""} · depth ${depth}`, (done / total) * 0.85);
+      verifyDepth: depth + VERIFY_EXTRA,
+      book: bookP,
+      onProgress: (p) => {
+        shown = Math.max(shown, p.share);
+        const share = shown;
+        renderProgress(
+          p.analysed < p.total
+            ? `Stockfish is reviewing: ${p.analysed}/${p.total} positions${engines.size > 1 ? ` · ${engines.size} engines` : ""} · depth ${depth}`
+            : `Double-checking ${p.verified}/${p.toVerify} sharp moments at depth ${depth + VERIFY_EXTRA}`,
+          share,
+        );
       },
     });
-    // Sharp moments are searched deeper, as on the website, so sacrifices and blunders aren't misjudged.
-    const crit = criticalPositions(classifyGame(g, first, book), first, depth + VERIFY_EXTRA);
-    let positions = first;
-    if (crit.length) {
-      let checked = 0;
-      renderProgress(`Double-checking ${crit.length} critical positions at depth ${depth + VERIFY_EXTRA}`, 0.85);
-      positions = await analysePositions(g, engines.searchers, {
-        depth: depth + VERIFY_EXTRA,
-        indices: crit,
-        existing: first,
-        onPosition: () => {
-          checked++;
-          renderProgress(`Double-checking ${checked}/${crit.length} critical positions at depth ${depth + VERIFY_EXTRA}`, 0.85 + (checked / crit.length) * 0.15);
-        },
-      });
-    }
-    // A sacrifice whose runner-up is a sacrifice too is measured against the best quiet move.
-    const quiet = quietSearchPositions(g, classifyGame(g, positions, book), positions);
-    if (quiet.length) {
-      renderProgress(`Weighing ${quiet.length} sacrifice${quiet.length > 1 ? "s" : ""} against the quiet alternative`, 0.97);
-      positions = await searchQuietMoves(g, positions, quiet, engines.searchers, { depth: depth + VERIFY_EXTRA });
-    }
+    const book = await bookP;
     const review = classifyGame(g, positions, book);
     const data = await packReview(positions, depth).catch(() => undefined);
     renderDone(gameAccuracy(review.moves), tally(review.moves), review.opening ? `${review.opening.eco} · ${review.opening.name}` : null, data);

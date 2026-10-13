@@ -73,6 +73,210 @@ export async function analysePositions(game: ParsedGame, searchers: Searcher[], 
   return results;
 }
 
+export interface RunProgress {
+  /** First-pass positions analysed, of `total`. */
+  analysed: number;
+  total: number;
+  /** Second-pass searches (deeper, or the quiet move behind a sacrifice) done, of those known so far. */
+  verified: number;
+  toVerify: number;
+  /** Estimated share of the whole review done (0–1), counting searches still running by their elapsed time. */
+  share: number;
+}
+
+/** A search 4 plies deeper takes about 3.5 times as long as the first-pass search of the same position. */
+const DEEP_FACTOR = 3.5;
+
+export interface RunOptions {
+  depth: number;
+  /** Depth of the second-pass searches. */
+  verifyDepth: number;
+  /** The opening book: second-pass choices wait for it, so they don't depend on when it loads. */
+  book: Promise<OpeningBook | null>;
+  signal?: { cancelled: boolean };
+  /** A position's analysis, whenever it is new or deeper (index 0 = start position). */
+  onPosition?: (index: number, analysis: PositionAnalysis) => void;
+  onProgress?: (p: RunProgress) => void;
+}
+
+/**
+ * The whole review on a pool of searchers, as one queue so no engine sits idle: every position
+ * at `depth` in game order; as soon as a move's first-pass labels are known, the positions behind
+ * tactical labels are searched `verifyDepth` deep (the slowest first, so the last one doesn't hold
+ * up the end); and once a sacrifice's positions are final, the best quiet move it is measured
+ * against. Which positions get the second pass is decided exactly as by `criticalPositions` and
+ * `quietSearchPositions` on the finished passes, so the result doesn't depend on timing.
+ */
+export async function runReview(game: ParsedGame, searchers: Searcher[], opts: RunOptions): Promise<(PositionAnalysis | null)[]> {
+  const fens = gamePositions(game);
+  const n = fens.length;
+  const first: (PositionAnalysis | null)[] = Array(n).fill(null);
+  const merged: (PositionAnalysis | null)[] = Array(n).fill(null);
+  const cost: number[] = Array(n).fill(0);
+  const firstQueue = fens.map((_, i) => i);
+  const deepWanted = new Set<number>();
+  const deepStarted = new Set<number>();
+  const deepDone = new Set<number>();
+  const quietWanted = new Set<number>();
+  const quietStarted = new Set<number>();
+  const quietDone = new Set<number>();
+  const cacheFirst: ClassifyCache = new Map();
+  const cacheMerged: ClassifyCache = new Map();
+  let analysed = 0;
+  let running = 0;
+  let book: OpeningBook | null | undefined;
+  let alive = searchers.length;
+  let lastError: unknown = null;
+  let wake: (() => void)[] = [];
+  const notify = () => {
+    const w = wake;
+    wake = [];
+    for (const f of w) f();
+  };
+  void opts.book.then(
+    (b) => {
+      book = b;
+      plan();
+      notify();
+    },
+    () => {
+      book = null;
+      plan();
+      notify();
+    },
+  );
+
+  // For the share of work done: each search's expected length (first-pass searches by their average
+  // so far, deeper ones from their own first-pass time) and when the running ones started.
+  const started = new Map<string, number>();
+  const firstAvg = () => {
+    const done = cost.filter((c) => c > 0);
+    return done.length ? done.reduce((a, b) => a + b, 0) / done.length : 2000;
+  };
+  const expect = (kind: "first" | "deep" | "quiet", i: number) =>
+    kind === "first" ? firstAvg() : kind === "deep" ? DEEP_FACTOR * Math.max(cost[i], firstAvg() / 2) : 2 * firstAvg();
+  const share = () => {
+    let done = 0;
+    let left = 0;
+    for (let i = 0; i < n; i++) if (first[i]) done += expect("first", i);
+    for (const k of deepDone) done += expect("deep", k);
+    for (const i of quietDone) done += expect("quiet", i);
+    left += firstQueue.length * firstAvg();
+    for (const k of deepWanted) if (!deepDone.has(k) && !deepStarted.has(k)) left += expect("deep", k);
+    for (const i of quietWanted) if (!quietDone.has(i) && !quietStarted.has(i)) left += expect("quiet", i);
+    const now = Date.now();
+    for (const [key, t0] of started) {
+      const [kind, i] = key.split(":") as ["first" | "deep" | "quiet", string];
+      const e = expect(kind, Number(i));
+      const ran = Math.min(now - t0, 0.95 * e);
+      done += ran;
+      left += e - ran;
+    }
+    return done + left > 0 ? done / (done + left) : 0;
+  };
+  const progress = () =>
+    opts.onProgress?.({ analysed, total: n, verified: deepDone.size + quietDone.size, toVerify: deepWanted.size + quietWanted.size, share: share() });
+  const ticker = opts.onProgress ? setInterval(progress, 500) : null;
+
+  /** What the second pass needs, from what is known now. */
+  const plan = () => {
+    if (book === undefined) return;
+    // First-pass labels decide the deeper searches, as criticalPositions does on the finished first pass.
+    const r1 = classifyGame(game, first, book, cacheFirst);
+    for (const k of criticalPositions(r1, first, opts.verifyDepth)) deepWanted.add(k);
+    // A position is final once the moves on both sides of it have first-pass labels and any deeper search is back.
+    const decided = (k: number) => r1.moves.length >= Math.min(k + 1, game.moves.length);
+    const final = (k: number) => !!merged[k] && decided(k) && (!deepWanted.has(k) || deepDone.has(k));
+    const r2 = classifyGame(game, merged, book, cacheMerged);
+    for (const i of quietSearchPositions(game, r2, merged)) if (final(i) && final(i + 1) && !quietDone.has(i)) quietWanted.add(i);
+    progress();
+  };
+
+  const next = (): { kind: "first" | "deep" | "quiet"; i: number } | null => {
+    if (firstQueue.length) return { kind: "first", i: firstQueue.shift()! };
+    let best = -1;
+    for (const k of deepWanted) if (!deepStarted.has(k) && first[k] && (best < 0 || cost[k] > cost[best])) best = k;
+    if (best >= 0) return { kind: "deep", i: best };
+    for (const i of quietWanted) if (!quietStarted.has(i)) return { kind: "quiet", i };
+    return null;
+  };
+  const finished = () =>
+    !firstQueue.length && !running && book !== undefined && [...deepWanted].every((k) => deepDone.has(k)) && [...quietWanted].every((i) => quietDone.has(i));
+
+  const set = (i: number, pa: PositionAnalysis) => {
+    merged[i] = pa;
+    opts.onPosition?.(i, pa);
+  };
+
+  const worker = async (search: Searcher) => {
+    for (;;) {
+      if (opts.signal?.cancelled) return;
+      const job = next();
+      if (!job) {
+        if (finished()) return;
+        await new Promise<void>((r) => wake.push(r));
+        continue;
+      }
+      const { kind, i } = job;
+      if (kind === "deep") deepStarted.add(i);
+      if (kind === "quiet") quietStarted.add(i);
+      running++;
+      started.set(`${kind}:${i}`, Date.now());
+      try {
+        if (kind === "first") {
+          const terminal = terminalEval(fens[i]);
+          if (terminal) {
+            first[i] = { lines: [], eval: terminal, depth: 0 };
+          } else {
+            const t0 = Date.now();
+            // A fresh hash per search keeps the review reproducible whichever engine gets what.
+            const lines = await search({ fen: fens[i], depth: opts.depth, multipv: 2, fresh: true });
+            cost[i] = Date.now() - t0;
+            if (lines.length) first[i] = { lines, eval: lines[0].eval, depth: lines[0].depth };
+          }
+          if (first[i]) {
+            analysed++;
+            set(i, first[i]!);
+          }
+        } else if (kind === "deep") {
+          const lines = await search({ fen: fens[i], depth: opts.verifyDepth, multipv: 2, fresh: true });
+          if (lines.length) set(i, { lines, eval: lines[0].eval, depth: lines[0].depth, quiet: merged[i]?.quiet });
+          deepDone.add(i);
+        } else {
+          const m = game.moves[i];
+          const quiet = quietMoves(m, i > 0 ? game.moves[i - 1] : null);
+          const line = quiet.length ? (await search({ fen: m.fenBefore, depth: opts.verifyDepth, multipv: 1, searchmoves: quiet, fresh: true }))[0] : undefined;
+          if (line && merged[i]) set(i, { ...merged[i]!, quiet: line });
+          quietDone.add(i);
+        }
+      } catch (e) {
+        running--;
+        started.delete(`${kind}:${i}`);
+        if (opts.signal?.cancelled) return;
+        // This engine is out: its job goes back for the others.
+        if (kind === "first") firstQueue.unshift(i);
+        if (kind === "deep") deepStarted.delete(i);
+        if (kind === "quiet") quietStarted.delete(i);
+        lastError = e;
+        alive--;
+        notify();
+        return;
+      }
+      running--;
+      started.delete(`${kind}:${i}`);
+      plan();
+      notify();
+    }
+  };
+  try {
+    await Promise.all(searchers.map(worker));
+  } finally {
+    if (ticker) clearInterval(ticker);
+  }
+  if (!opts.signal?.cancelled && (!alive || firstQueue.length)) throw lastError instanceof Error ? lastError : new Error("The engine stopped.");
+  return merged;
+}
+
 export interface GameReview {
   moves: ClassifiedMove[];
   /** Index of the last move that is part of opening theory (−1 if none). */

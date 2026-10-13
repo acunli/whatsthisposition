@@ -7,7 +7,7 @@ import { makeBook } from "./book";
 import { classifyMove, decisiveSlope, expectedScore, gameRating, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
 import { GAME_OF_THE_CENTURY, OPERA_GAME, SHILLING_TRAP } from "./fixtures/games";
 import { mainLineTokens, parseFirstGame, parseGame, splitGames } from "./pgn";
-import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves } from "./review";
+import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, runReview, searchQuietMoves } from "./review";
 import { KASPAROV_TOPALOV } from "./samples";
 import { detectSacrifice, see, unsafePieces } from "./safety";
 import { placementFromFen } from "../chess/fen";
@@ -296,6 +296,77 @@ describe("two-pass review", () => {
     expect(calls.map((c) => c.depth)).toEqual([14, 14]);
     expect(second[8]!.depth).toBe(14);
     expect(second[3]).toBe(first[3]);
+  });
+});
+
+describe("single-queue review", () => {
+  const g = parseGame(SHILLING_TRAP);
+  const fens = [g.startFen, ...g.moves.map((m) => m.fenAfter)];
+  const at = (fen: string) => fens.indexOf(fen);
+  // Level until White's 5.Nxf7, then Black is winning (as in the two-pass test).
+  const lineFor = (r: { fen: string; depth: number }) => [{ multipv: 1, depth: r.depth, eval: at(r.fen) >= 9 ? cp(-900) : cp(20), pv: [] }];
+  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it("double-checks the same positions as the two passes did", async () => {
+    const calls: { i: number; depth: number }[] = [];
+    const fake = async (r: { fen: string; depth: number }) => {
+      calls.push({ i: at(r.fen), depth: r.depth });
+      return lineFor(r);
+    };
+    const out = await runReview(g, [fake, fake], { depth: 10, verifyDepth: 14, book: Promise.resolve(book) });
+    expect(calls.filter((c) => c.depth === 10)).toHaveLength(14);
+    expect(calls.filter((c) => c.depth === 14).map((c) => c.i).sort((a, b) => a - b)).toEqual([8, 9]);
+    expect(out[8]!.depth).toBe(14);
+    expect(out[3]!.depth).toBe(10);
+    expect(classifyGame(g, out, book).moves[8].cls).toBe("blunder");
+  });
+
+  it("starts the deeper checks while a slow last position is still being searched, slowest first", async () => {
+    const log: string[] = [];
+    const fake = async (r: { fen: string; depth: number }) => {
+      const i = at(r.fen);
+      log.push(`start ${i}@${r.depth}`);
+      // The last searched position is slow; of the two to double-check, 9 was slower than 8.
+      await delay(r.depth === 10 ? (i === 13 ? 80 : i === 9 ? 6 : 1) : 1);
+      log.push(`end ${i}@${r.depth}`);
+      return lineFor(r);
+    };
+    const progress: number[] = [];
+    await runReview(g, [fake, fake], { depth: 10, verifyDepth: 14, book: Promise.resolve(book), onProgress: (p) => progress.push(p.analysed) });
+    expect(log.indexOf("start 9@14")).toBeLessThan(log.indexOf("end 13@10"));
+    expect(log.indexOf("start 9@14")).toBeLessThan(log.indexOf("start 8@14"));
+    expect(Math.max(...progress)).toBe(15);
+  });
+
+  it("waits for the opening book before choosing what to double-check", async () => {
+    let release!: (b: typeof book) => void;
+    const later = new Promise<typeof book>((r) => (release = r));
+    const depths: number[] = [];
+    const fake = async (r: { fen: string; depth: number }) => {
+      depths.push(r.depth);
+      return lineFor(r);
+    };
+    const run = runReview(g, [fake], { depth: 10, verifyDepth: 14, book: later });
+    await delay(20);
+    expect(depths.every((d) => d === 10)).toBe(true);
+    release(book);
+    await run;
+    expect(depths.filter((d) => d === 14)).toHaveLength(2);
+  });
+
+  it("hands a failed engine's work to the others", async () => {
+    let broken = true;
+    const flaky = async (r: { fen: string; depth: number }) => {
+      if (broken) {
+        broken = false;
+        throw new Error("worker died");
+      }
+      return lineFor(r);
+    };
+    const ok = async (r: { fen: string; depth: number }) => lineFor(r);
+    const out = await runReview(g, [flaky, ok], { depth: 10, verifyDepth: 14, book: Promise.resolve(book) });
+    expect(out.filter(Boolean)).toHaveLength(15);
+    await expect(runReview(g, [async () => Promise.reject(new Error("no engine"))], { depth: 10, verifyDepth: 14, book: Promise.resolve(book) })).rejects.toThrow("no engine");
   });
 });
 

@@ -6,12 +6,13 @@ import { gameAccuracy } from "@/lib/review/accuracy";
 import { loadBook, type OpeningBook } from "@/lib/review/book";
 import type { PositionAnalysis } from "@/lib/review/classify";
 import type { ParsedGame } from "@/lib/review/pgn";
-import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, searchQuietMoves, type ClassifyCache } from "@/lib/review/review";
+import { classifyGame, runReview, type ClassifyCache } from "@/lib/review/review";
 
 export { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
 import { VERIFY_EXTRA } from "@/lib/review/depths";
 
 export type ReviewStatus = "loading" | "running" | "verifying" | "done" | "error";
+
 
 /**
  * Runs a full-game review in the browser: a pool of Stockfish workers analyses
@@ -33,6 +34,9 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
   const [error, setError] = useState<string | null>(null);
   const [engines, setEngines] = useState(0);
   const [verify, setVerify] = useState({ done: 0, total: 0 });
+  // Both passes as one estimated share of the work (runReview), never going backwards when a new
+  // sharp moment turns up.
+  const [share, setShare] = useState(0);
   // Classified prefix of this run; a new game, depth or book means classifying from scratch.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the deps exist to reset the cache
   const cache = useMemo((): ClassifyCache => new Map(), [game, depth, run, book]);
@@ -81,50 +85,25 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
       setStatus("running");
       setError(null);
       setVerify({ done: 0, total: 0 });
+      setShare(0);
       pool = createEnginePool();
       setEngines(pool.size);
-      const first = await analysePositions(game, pool.searchers, { depth, signal, onPosition: push });
+      // One queue for both passes: the deeper checks start as soon as an engine is free and a
+      // sharp move is known, instead of waiting for the slowest first-pass search to finish.
+      await runReview(game, pool.searchers, {
+        depth,
+        verifyDepth: depth + VERIFY_EXTRA,
+        book: loadBook().catch(() => null),
+        signal,
+        onPosition: push,
+        onProgress: (p) => {
+          setVerify({ done: p.verified, total: p.toVerify });
+          setShare((s) => Math.max(s, p.share));
+          if (p.analysed >= p.total && p.verified < p.toVerify) setStatus("verifying");
+        },
+      });
       if (signal.cancelled) return;
       flush();
-      const bookNow = await loadBook().catch(() => null);
-      const crit = criticalPositions(classifyGame(game, first, bookNow), first, depth + VERIFY_EXTRA);
-      if (signal.cancelled) return;
-      let positions = first;
-      let done = 0;
-      let total = crit.length;
-      if (crit.length) {
-        setStatus("verifying");
-        setVerify({ done: 0, total });
-        positions = await analysePositions(game, pool.searchers, {
-          depth: depth + VERIFY_EXTRA,
-          indices: crit,
-          existing: first,
-          signal,
-          onPosition: (i, pa) => {
-            push(i, pa);
-            setVerify({ done: ++done, total });
-          },
-        });
-        if (signal.cancelled) return;
-        flush();
-      }
-      // A sacrifice whose runner-up is a sacrifice too is measured against the best quiet move.
-      const quiet = quietSearchPositions(game, classifyGame(game, positions, bookNow), positions);
-      if (quiet.length) {
-        setStatus("verifying");
-        total += quiet.length;
-        setVerify({ done, total });
-        await searchQuietMoves(game, positions, quiet, pool.searchers, {
-          depth: depth + VERIFY_EXTRA,
-          signal,
-          onPosition: (i, pa) => {
-            push(i, pa);
-            setVerify({ done: ++done, total });
-          },
-        });
-        if (signal.cancelled) return;
-        flush();
-      }
       setStatus("done");
     };
 
@@ -152,5 +131,5 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
   const accuracy = useMemo(() => (status === "done" ? gameAccuracy(review.moves) : null), [status, review]);
   const analysed = positions.filter(Boolean).length;
 
-  return { positions, review, book, accuracy, status, error, engines, verify, progress: analysed / positions.length, analysed, total: positions.length };
+  return { positions, review, book, accuracy, status, error, engines, verify, progress: status === "done" ? 1 : share, analysed, total: positions.length };
 }
