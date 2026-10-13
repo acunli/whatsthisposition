@@ -1,5 +1,6 @@
 "use client";
 
+import { countUse } from "@/lib/usage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { gridToPlacement, type Recognition, type RecognitionError, type RecognitionResponse } from "@/lib/vision/grid";
 import type { Placement, Square } from "@/lib/chess/types";
@@ -143,7 +144,8 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
     render(q * 90 + f);
   };
 
-  const apply = (r: Recognition["rows"], wab: boolean, notes: string) => {
+  const apply = (r: Recognition["rows"], wab: boolean, notes: string, by: "device" | "cloud") => {
+    countUse("photo", by);
     setRows(r);
     setWhiteAtBottom(wab);
     const { placement, uncertain } = gridToPlacement(r, wab);
@@ -175,7 +177,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
       setFound(useCrop ? null : { ...rec.grid, w: src.width, h: src.height });
       setOrientationSure(rec.orientationSure);
       setReadConfidence(rec.confidence);
-      apply(toRecognition(rec).rows, rec.whiteAtBottom, "");
+      apply(toRecognition(rec).rows, rec.whiteAtBottom, "", "device");
     } catch (e) {
       setError(e instanceof Error ? e.message : "The board couldn't be read.");
       setStage("error");
@@ -205,7 +207,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
       setFound(null);
       setOrientationSure(true);
       setReadConfidence(1);
-      apply(json.rows, whiteAtBottom, json.notes);
+      apply(json.rows, whiteAtBottom, json.notes, "cloud");
     } catch (e) {
       if (ac.signal.aborted) {
         setStage("crop");

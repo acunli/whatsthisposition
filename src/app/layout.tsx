@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import { PageVeil } from "@/components/PageVeil";
+import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import "./globals.css";
 
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <noscript dangerouslySetInnerHTML={{ __html: "<style>.veil-boot .veil-inner, .veil-boot .veil-inner * { animation-play-state: running !important; }</style>" }} />
         <PageVeil />
         {children}
+        <SiteAnalytics />
       </body>
     </html>
   );

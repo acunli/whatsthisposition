@@ -28,7 +28,8 @@ interface Props {
   onChange: (s: PositionSetup) => void;
   orientation: Color;
   onOrientation: (c: Color) => void;
-  onAnalyze: (s: PositionSetup) => void;
+  /** `fromPhoto`: the position was read from a photo here (for counting how analyses start). */
+  onAnalyze: (s: PositionSetup, fromPhoto: boolean) => void;
   initialPhoto?: File | null;
   onPhotoConsumed?: () => void;
 }
@@ -48,6 +49,7 @@ function withPlacement(s: PositionSetup, placement: Placement): PositionSetup {
 
 export function SetupView({ setup, onChange, orientation, onOrientation, onAnalyze, initialPhoto, onPhotoConsumed }: Props) {
   const [tab, setTab] = useState<Tab>(initialPhoto ? "photo" : "hand");
+  const [readFromPhoto, setReadFromPhoto] = useState(false);
   const [tool, setTool] = useState<Tool>("move");
   const [from, setFrom] = useState<Square | null>(null);
   const [uncertain, setUncertain] = useState<Square[]>([]);
@@ -166,6 +168,7 @@ export function SetupView({ setup, onChange, orientation, onOrientation, onAnaly
               initialFile={initialPhoto ?? null}
               onInitialConsumed={onPhotoConsumed}
               onRecognized={(placement, unsure, notes, whiteAtBottom) => {
+                setReadFromPhoto(true);
                 setUncertain(unsure);
                 setPhotoNote(notes || null);
                 onOrientation(whiteAtBottom ? "w" : "b");
@@ -299,7 +302,7 @@ export function SetupView({ setup, onChange, orientation, onOrientation, onAnaly
           {status && status.kind !== "ongoing" && <p className={status.kind === "insufficient" ? "issue issue-note" : "issue"}>{status.message}</p>}
         </div>
 
-        <button className="btn btn-primary btn-big btn-wide" disabled={!!blocking} onClick={() => onAnalyze(setup)}>
+        <button className="btn btn-primary btn-big btn-wide" disabled={!!blocking} onClick={() => onAnalyze(setup, readFromPhoto)}>
           X-ray this position
         </button>
       </section>

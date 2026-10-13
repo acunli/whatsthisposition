@@ -57,7 +57,7 @@ flowchart LR
 
 - **Engine:** Stockfish 19, the "lite" single-threaded WebAssembly build (about 1.8 MB), runs in Web Workers. A game review uses a pool of up to four workers (one fewer than the CPU's cores). Explanations and plan checks use one more worker, and the live "engine lines" panel a third, so they never wait on each other.
 - **Server:** Next.js serves the static files and two small API routes. `/api/games` exists because Chess.com and Lichess want a proper User-Agent and because some of their endpoints don't allow cross-origin requests from browsers. The optional `/api/recognize` reads angled photos of real boards with a vision model, when the host configures a key.
-- **No database, no accounts.** Nothing a visitor imports is stored anywhere.
+- **No accounts, and nothing a visitor imports is stored anywhere.** The only database holds anonymous daily usage counts (§11).
 
 ## 3. Game review
 
@@ -228,7 +228,8 @@ On a held-out set of real game screenshots: **98.5% of squares** right, and 53 o
 
 ## 11. Privacy and security
 
-- **Nothing is stored or tracked.** There are no accounts, cookies or analytics. Imported games and photos never leave the browser, except that Chess.com and Lichess usernames go through our proxy to those sites.
+- **No accounts or cookies, and nothing you bring is stored.** Imported games and photos never leave the browser, except that Chess.com and Lichess usernames go through our proxy to those sites.
+- **Usage is counted anonymously,** so the owner knows how many people use the site (`src/lib/usage.ts`, `src/lib/server/usage.ts`, the owner-only dashboard at `/stats`). The browser sends only the kind of use and where it started ("review", "chesscom"): never the game, position, photo or username. The server counts it per UTC day in a Redis database (Upstash, from the Vercel Marketplace). To tell visitors apart within a day it computes a keyed hash of the day, IP address and browser and adds it only to a HyperLogLog, which estimates how many distinct members it has seen without storing any; the IP and the hash are never stored, and one day's hash can't be linked to the next. Do Not Track and Global Privacy Control turn counting off; bots and headless browsers aren't counted; previews and local runs count separately from the real site. Page views also go to Vercel Web Analytics, which is cookieless and keeps no personal identifiers.
 - **A strict Content Security Policy:** everything loads from our own origin. There are no third-party scripts; even the Buy Me a Coffee button is drawn natively.
 - **Other security headers:** HSTS, `X-Frame-Options: DENY`, nosniff, a restrictive Permissions-Policy.
 - **The API routes:**

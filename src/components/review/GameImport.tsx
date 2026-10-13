@@ -1,5 +1,6 @@
 "use client";
 
+import { countUse } from "@/lib/usage";
 import { useRef, useState } from "react";
 import type { Color } from "@/lib/chess/types";
 import type { GameSummary } from "@/lib/review/importers";
@@ -26,8 +27,14 @@ function when(ms?: number) {
 }
 
 /** Bring a game in: Chess.com / Lichess username, a Lichess game link, or a pasted / uploaded PGN. */
-export function GameImport({ onGame }: Props) {
+export function GameImport({ onGame: openGame }: Props) {
   const [source, setSource] = useState<Source>("chesscom");
+  const fromFile = useRef(false);
+  /** A review starts: counted (anonymously) by where the game came from. */
+  const onGame = (g: ParsedGame, orientation?: Color) => {
+    countUse("review", source === "pgn" ? (fromFile.current ? "file" : "pgn") : source);
+    openGame(g, orientation);
+  };
   const [user, setUser] = useState("");
   const [pgn, setPgn] = useState("");
   const [busy, setBusy] = useState(false);
@@ -139,7 +146,10 @@ export function GameImport({ onGame }: Props) {
             className="input gimport-text"
             placeholder={'Paste a PGN, e.g. from Chess.com (Share → PGN) or Lichess (Share & export), or a move list: 1. e4 e5 2. Nf3 Nc6 …'}
             value={pgn}
-            onChange={(e) => setPgn(e.target.value)}
+            onChange={(e) => {
+              fromFile.current = false;
+              setPgn(e.target.value);
+            }}
             aria-label="PGN"
             spellCheck={false}
             rows={4}
@@ -163,6 +173,7 @@ export function GameImport({ onGame }: Props) {
                 if (f.size > 5 * 1024 * 1024) return setError("That file is over 5 MB. Export a single game instead.");
                 const text = await f.text();
                 setPgn(text);
+                fromFile.current = true;
                 reviewPgn(text);
               }}
             />

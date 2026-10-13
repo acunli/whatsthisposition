@@ -52,6 +52,10 @@ The `vercel.app` address keeps working afterwards. Its pages name the `.com` as 
 - **The photo route** (`/api/recognize`) allows 120 seconds, within Hobby's 300-second maximum, and accepts images up to 4 MB, under Vercel's 4.5 MB request limit. The browser crops and shrinks photos well below that. This only matters if you turn on the cloud reader, where **every photo is a paid API call**.
 - **Region:** the two API routes run in one region (Washington, D.C., `iad1`, by default). Pages and files come from Vercel's worldwide CDN either way.
 - **Headers:** the Content Security Policy, HSTS and cache headers come from `next.config.ts` and apply on Vercel as they do anywhere else.
+- **Usage numbers:**
+  - **The dashboard:** `/stats`, signed in with `STATS_PASSWORD`. It shows people per day, reviews, analyses, photos, opens from the extension, where reviews come from, and countries. The counter needs a Redis database: `vercel integration add upstash/upstash-kv --plan free -m autoUpgrade=false` connects a free one, which stops counting at its monthly limit instead of upgrading.
+  - **Vercel Web Analytics** adds referrers, pages and devices. Turn it on under the project's **Analytics** tab (Hobby: 50,000 page views a month, one month of history).
+  - **The extension's installs and weekly users** are in the Chrome Web Store developer dashboard.
 
 ## Option B: a small VPS with Docker
 
@@ -102,6 +106,9 @@ Everything is optional (see [`.env.example`](../.env.example)):
 | `LICHESS_TOKEN` | Raises Lichess's rate limit for "Lichess username" imports. Not needed: usernames, game links and Chess.com all work without it. A free personal token with no scopes is enough. |
 | `NEXT_PUBLIC_SITE_URL` | The public address for metadata and the sitemap. Not needed on Vercel (it follows the production domain) or on whatsthisposition.com. Read at build time. |
 | `CLIENT_IP_HEADER` | Behind a proxy other than Vercel or Caddy, the header with the visitor's real IP (e.g. `cf-connecting-ip`), for the rate limits. |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | The usage counter's database (Upstash Redis from the Vercel Marketplace sets these when it's connected to the project). Without them nothing is counted. |
+| `STATS_PASSWORD` | Turns on the usage dashboard at `/stats` (HTTP sign-in: any user name, this password). Without it `/stats` doesn't exist. |
+| `USAGE_SECRET` | Optional: the key for the daily visitor hashes (defaults to the database token). |
 | `VISION_PROVIDER`, `ANTHROPIC_API_KEY`, `SOCLAAS_*` | The optional cloud photo reader, for angled photos of real boards. **Every photo is a paid API call**, so leave these empty on a public site unless you mean to pay; the route is limited to 6 photos per minute per visitor. Screenshots are always read on the device for free. |
 
 On Vercel, set these under the project's **Settings → Environment Variables**, then redeploy.

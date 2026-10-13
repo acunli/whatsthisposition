@@ -6,6 +6,7 @@ import { EMPTY_CASTLING, parseFen, setupFromFen, setupToFen, START_FEN, validate
 import type { Color, PositionSetup } from "@/lib/chess/types";
 import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { readReviewHash, unpackReview } from "@/lib/review/share";
+import { countUse, type UsageSource } from "@/lib/usage";
 import type { FinishedReview } from "./review/useReview";
 import { SITE_NAME } from "@/lib/brand";
 import { Logo } from "./Logo";
@@ -38,8 +39,9 @@ export function Studio() {
       window.scrollTo({ top: 0 });
     });
 
-  const analyze = useCallback((s: PositionSetup, o?: Color) => {
+  const analyze = useCallback((s: PositionSetup, o?: Color, from?: UsageSource<"analysis">) => {
     const f = setupToFen(s);
+    countUse("analysis", from);
     showPageChange(() => {
       setSetup(s);
       setFen(f);
@@ -58,7 +60,7 @@ export function Studio() {
     if (!q) return;
     const r = parseFen(q);
     if (r.ok && validateSetup(r.setup).length === 0) {
-      analyze(r.setup);
+      analyze(r.setup, undefined, "link");
     }
   }, [analyze]);
 
@@ -75,6 +77,8 @@ export function Studio() {
   // If the extension already reviewed it (&data=…), that review is shown as is.
   useEffect(() => {
     const shared = readReviewHash(window.location.hash);
+    // One visit per load, anonymously: from the extension's link, a shared review link, or anything else.
+    countUse("visit", shared ? (shared.data ? "extension" : "link") : "direct");
     if (!shared) return;
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
     let g: ParsedGame;
@@ -83,6 +87,7 @@ export function Studio() {
     } catch {
       return; // not a readable game: stay on the home page
     }
+    countUse("review", shared.data ? "extension" : "link");
     void (shared.data ? unpackReview(shared.data) : Promise.resolve(null)).then((done) => review(g, shared.as, done?.depth ?? shared.depth, done ?? undefined));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
   }, []);
@@ -90,7 +95,7 @@ export function Studio() {
   const deepFromReview = (f: string) => {
     setReviewScroll(window.scrollY);
     const r = parseFen(f);
-    if (r.ok) analyze(r.setup, reviewOrientation);
+    if (r.ok) analyze(r.setup, reviewOrientation, "review");
   };
 
   const backToReview = () =>
@@ -157,7 +162,7 @@ export function Studio() {
             go("setup");
           }}
           onFen={(s, complete) => {
-            if (complete) analyze(s);
+            if (complete) analyze(s, undefined, "fen");
             else {
               setSetup(s);
               setPhoto(null);
@@ -169,7 +174,7 @@ export function Studio() {
             setSetup(setupFromFen(START_FEN));
             go("setup");
           }}
-          onSample={(f) => analyze(setupFromFen(f))}
+          onSample={(f) => analyze(setupFromFen(f), undefined, "sample")}
         />
       )}
 
@@ -179,7 +184,7 @@ export function Studio() {
           onChange={setSetup}
           orientation={orientation}
           onOrientation={setOrientation}
-          onAnalyze={(s) => analyze(s, orientation)}
+          onAnalyze={(s, readFromPhoto) => analyze(s, orientation, readFromPhoto ? "photo" : "setup")}
           initialPhoto={photo}
           onPhotoConsumed={() => setPhoto(null)}
         />

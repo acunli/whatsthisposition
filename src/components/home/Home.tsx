@@ -1,5 +1,6 @@
 "use client";
 
+import { countUse } from "@/lib/usage";
 import dynamic from "next/dynamic";
 import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BoardStage } from "../BoardStage";
@@ -151,7 +152,9 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
     if (f.type.startsWith("image/")) return onPhoto(f);
     if (/\.pgn$|\.txt$/i.test(f.name) || f.type.startsWith("text/")) {
       try {
-        onGame(parseFirstGame(await f.text()));
+        const g = parseFirstGame(await f.text());
+        countUse("review", "file");
+        onGame(g);
       } catch (e) {
         setDropError(e instanceof PgnError ? e.message : "That file couldn't be read as a game.");
       }

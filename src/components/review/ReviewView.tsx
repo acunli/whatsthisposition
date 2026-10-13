@@ -22,6 +22,7 @@ import { EvalGraph } from "./EvalGraph";
 import { PeekOrientation } from "../peek/Peek";
 import { MoveInsight } from "./MoveInsight";
 import { OpeningCard } from "./OpeningCard";
+import { countUse } from "@/lib/usage";
 import { useLineAnalysis, type LineRequest } from "./useLineAnalysis";
 import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview, type FinishedReview } from "./useReview";
@@ -121,6 +122,20 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
   );
   // Per line, so a longer line doesn't re-label the moves it already had.
   const lineCaches = useMemo(() => new Map<number, ClassifyCache>(), []);
+  // Counted once each (anonymously): a review the engine finished here, and trying a side line.
+  const counted = useRef({ done: !!finished, line: false });
+  useEffect(() => {
+    if (r.status === "done" && !counted.current.done) {
+      counted.current.done = true;
+      countUse("review_done");
+    }
+  }, [r.status]);
+  useEffect(() => {
+    if (lines.length && !counted.current.line) {
+      counted.current.line = true;
+      countUse("side_line");
+    }
+  }, [lines.length]);
   const lineLabels = useMemo(() => {
     const out = new Map<number, ClassifiedMove[]>();
     for (const l of lines) out.set(l.id, classifyLine(game, l, positionIn(l), r.book, r.review, cacheFor(lineCaches, l.id)));
