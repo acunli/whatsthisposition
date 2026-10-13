@@ -323,20 +323,29 @@ describe("single-queue review", () => {
 
   it("starts the deeper checks while a slow last position is still being searched, slowest first", async () => {
     const log: string[] = [];
+    // The last position to search is held until a deeper check has started (no race with the
+    // runner's speed); of the two positions to double-check, 9 took far longer than 8 (by a
+    // margin no busy runner can blur: times are measured on one thread shared with the labelling).
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
     const fake = async (r: { fen: string; depth: number }) => {
       const i = at(r.fen);
       log.push(`start ${i}@${r.depth}`);
-      // The last searched position is slow; of the two to double-check, 9 was slower than 8.
-      await delay(r.depth === 10 ? (i === 13 ? 80 : i === 9 ? 6 : 1) : 1);
+      if (r.depth === 10 && i === 13) await gate;
+      else if (r.depth === 10 && i === 9) await delay(1000);
       log.push(`end ${i}@${r.depth}`);
       return lineFor(r);
     };
     const progress: number[] = [];
-    await runReview(g, [fake, fake], { depth: 10, verifyDepth: 14, book: Promise.resolve(book), onProgress: (p) => progress.push(p.analysed) });
+    const run = runReview(g, [fake, fake], { depth: 10, verifyDepth: 14, book: Promise.resolve(book), onProgress: (p) => progress.push(p.analysed) });
+    for (let t = 0; t < 200 && !log.some((l) => l.endsWith("@14")); t++) await delay(50);
+    release();
+    await run;
+    expect(log.indexOf("start 9@14")).toBeGreaterThan(-1);
     expect(log.indexOf("start 9@14")).toBeLessThan(log.indexOf("end 13@10"));
     expect(log.indexOf("start 9@14")).toBeLessThan(log.indexOf("start 8@14"));
     expect(Math.max(...progress)).toBe(15);
-  });
+  }, 20_000);
 
   it("waits for the opening book before choosing what to double-check", async () => {
     let release!: (b: typeof book) => void;
