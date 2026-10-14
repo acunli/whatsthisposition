@@ -1,0 +1,38 @@
+Finished a game on Chess.com? Click the what’sthisposition button and get a full game review for free, on your own computer: both players’ accuracy and every move labelled, from Brilliant to Blunder.
+
+HOW IT WORKS
+1. Finish a game on Chess.com, or open one of your past games.
+2. Click the what’sthisposition button in the toolbar, then “Review this game”.
+3. A card opens next to the board. Press “Analyze this game” and Stockfish reviews it on your computer, usually in about a minute.
+4. Want the details? “See every move explained” opens the full review on whatsthisposition.com, ready at once: nothing is searched twice.
+
+Tip: pin the extension (the puzzle-piece icon, then the pin) so its button is always in the toolbar.
+
+IN THE CARD
+• Accuracy for both players
+• How many Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss and Blunder moves each player made
+• The opening, by name and ECO code
+• Three depths: Fast, Standard and Thorough
+
+ON THE WEBSITE (free, no account)
+• Every move explained in plain words: why a sacrifice is brilliant, what a mistake allows and what was better
+• Try your own moves from any position: the new line is analysed and labelled too
+• Deep-analyse any position: strengths, weaknesses, threats and plans for both sides, shown on the board
+• Opening names and theory from over a million games between strong players
+• Also reviews Lichess games and any PGN, and reads positions from screenshots
+
+FAIR PLAY
+The extension does nothing until you click it, and it only reviews games that are over. Chess.com’s own game data decides, so a game in progress is never analysed. It’s the same as reviewing a game on Chess.com afterwards.
+
+PRIVATE BY DESIGN
+• Stockfish 19 runs on your computer. Your games aren’t uploaded anywhere.
+• The extension collects no data. No account, no sign-in, no ads.
+• It works only on Chess.com, and only when you click its button.
+• The link to the full review carries the game in the part of the address that browsers never send to a server. The website only counts visits, anonymously and without cookies.
+
+FREE AND OPEN SOURCE
+No subscription and no limits. The code is on GitHub under the GPL-3.0 licence: https://github.com/acunli/whatsthisposition
+
+Works in Chrome, Edge, Brave, Arc, Opera and other Chromium browsers.
+
+what’sthisposition is an independent project. It isn’t affiliated with or endorsed by Chess.com.
