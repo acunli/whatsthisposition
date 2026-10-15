@@ -9,6 +9,7 @@ import { readReviewHash, unpackReview } from "@/lib/review/share";
 import { countUse, type UsageSource } from "@/lib/usage";
 import type { FinishedReview } from "./review/useReview";
 import { SITE_NAME } from "@/lib/brand";
+import { AddToChrome } from "./AddToChrome";
 import { Logo } from "./Logo";
 import { showPageChange } from "./PageVeil";
 import { SiteCredit, SiteFooter, SupportButton } from "./SiteLinks";
@@ -144,6 +145,11 @@ export function Studio() {
             <button className="navlink" onClick={backToReview}>
               Last review
             </button>
+          )}
+          {(stage === "home" || stage === "review") && (
+            <AddToChrome from="header" className="btn btn-sm navlink-wide topbar-ext">
+              Add to Chrome
+            </AddToChrome>
           )}
           <Link className="navlink navlink-wide navlink-how" href="/credits">
             How it works

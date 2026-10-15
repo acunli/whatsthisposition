@@ -12,7 +12,9 @@ import { GameImport } from "../review/GameImport";
 import { computeFacts } from "@/lib/facts";
 import { buildLedger } from "@/lib/facts/ledger";
 import { buildTour } from "@/lib/facts/tour";
+import { AddToChrome } from "../AddToChrome";
 import { Concepts } from "./Concepts";
+import { Extension } from "./Extension";
 import { Labels } from "./Labels";
 import { Story } from "./Story";
 
@@ -281,6 +283,8 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
 
       <Labels />
 
+      <Extension />
+
       <Story onTry={onSample} />
 
       <section className="section">
@@ -301,6 +305,9 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
           <button className="btn btn-xl btn-ghost" onClick={pick}>
             Upload a board photo
           </button>
+          <AddToChrome from="closing" className="btn btn-xl btn-ghost closing-ext">
+            Add to Chrome
+          </AddToChrome>
         </div>
       </section>
     </>

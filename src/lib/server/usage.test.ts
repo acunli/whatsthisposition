@@ -36,6 +36,7 @@ describe("what can be counted", () => {
   it("takes only listed uses and sources", () => {
     expect(parseUse({ e: "review", s: "chesscom" })).toEqual({ e: "review", s: "chesscom" });
     expect(parseUse({ e: "review_done" })).toEqual({ e: "review_done" });
+    expect(parseUse({ e: "get_extension", s: "header" })).toEqual({ e: "get_extension", s: "header" });
     expect(parseUse({ e: "review", s: "facebook" })).toBeNull();
     expect(parseUse({ e: "purchase" })).toBeNull();
     expect(parseUse({ e: "toString" })).toBeNull();

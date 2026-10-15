@@ -62,7 +62,7 @@ export default function Credits() {
         </p>
         <p>
           To know how many people use it, the site counts visits and uses anonymously, without cookies: when you open the site, start a
-          review or an analysis, or read a photo, it sends only what kind of use it was and where it started (for example
+          review or an analysis, read a photo or click Add to Chrome, it sends only what kind of use it was and where it started (for example
           &ldquo;review, from a Chess.com username&rdquo;), never the game, position, photo or username. The server counts it per day; to
           tell visitors apart within that day it uses a code made from your IP address and browser that is never stored and can&apos;t be
           linked to another day. Your browser&apos;s Do Not Track or Global Privacy Control setting turns this counting off. Page views also

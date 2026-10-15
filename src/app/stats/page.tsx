@@ -148,6 +148,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
             <Tile label="Photos read" value={t.photo ?? 0} />
             <Tile label="From the extension" value={t["visit:extension"] ?? 0} />
             <Tile label="Side lines tried" value={t.side_line ?? 0} />
+            <Tile label="Add to Chrome clicks" value={t.get_extension ?? 0} note={people(report.people.get_extension)} />
           </section>
 
           <section className="stats-card">

@@ -4,7 +4,9 @@ Finish a game on Chess.com (or open one of yours) and click the extension's butt
 
 Tip: pin the extension (the puzzle-piece icon → the pin) so its button is always in the toolbar.
 
-## Install it now (unpacked)
+**[Add it to Chrome from the Chrome Web Store](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka)** (free; also works in Edge, Brave, Opera and other Chromium browsers).
+
+## Build it from source (unpacked)
 
 ```bash
 npm install

@@ -48,7 +48,7 @@ That is the idea of the whole site: labels you already know, plus reasons a club
 <td width="50%" valign="top">
 
 ### Game review
-Bring a game by **Chess.com or Lichess username**, **Lichess link** or **PGN**, or straight from Chess.com with the [browser extension](extension/README.md). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
+Bring a game by **Chess.com or Lichess username**, **Lichess link** or **PGN**, or straight from Chess.com with the [browser extension](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
 
 </td>
 <td width="50%" valign="top">
@@ -98,7 +98,7 @@ Any position (FEN, hand setup or a **screenshot read on your device**): threats,
 
 ## On Chess.com: the browser extension
 
-Finish a game on Chess.com and click the extension's toolbar button: a card opens in the corner, and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It does nothing until you click, reviews only finished games and collects nothing. Install it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
+Finish a game on Chess.com and click the extension's toolbar button: a card opens in the corner, and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It does nothing until you click, reviews only finished games and collects nothing. **[Add it to Chrome from the Chrome Web Store](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka)**, or build it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
 
 ## How it compares
 

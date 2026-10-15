@@ -16,6 +16,8 @@ export const SITE_DESCRIPTION =
 export const SITE_ASCII = "whatsthisposition";
 /** The public source code (GPL-3.0): linked from the footer and the credits page. */
 export const SOURCE_URL = "https://github.com/acunli/whatsthisposition";
+/** The Chess.com extension on the Chrome Web Store (by its id, which survives a renamed listing). */
+export const EXTENSION_URL = "https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka";
 
 function siteUrl(): string {
   const set = process.env.NEXT_PUBLIC_SITE_URL;

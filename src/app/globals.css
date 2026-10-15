@@ -4711,6 +4711,140 @@ em {
   margin-top: 10px;
 }
 
+/* The Chess.com extension: a button under the import panel, a section, links */
+.ext-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.btn-sm .ext-icon {
+  width: 16px;
+  height: 16px;
+}
+
+a.btn {
+  text-decoration: none;
+}
+
+.ext-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 48px clamp(40px, 7vw, 120px);
+}
+
+.ext-copy .section-lede {
+  margin-top: 18px;
+}
+
+.ext-steps {
+  list-style: none;
+  counter-reset: step;
+  padding: 0;
+  margin: 30px 0 34px;
+  display: grid;
+  gap: 14px;
+  max-width: 34em;
+}
+
+.ext-steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 14px;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--bone-2);
+}
+
+.ext-steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgb(var(--brand) / 0.14);
+  color: rgb(var(--brand));
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.ext-steps b {
+  color: var(--bone);
+  font-weight: 600;
+}
+
+.ext-actions {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.ext-note {
+  margin: 0;
+  max-width: 30em;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.ext-shot {
+  position: relative;
+  isolation: isolate;
+  margin: 0;
+}
+
+.ext-shot::before {
+  content: "";
+  position: absolute;
+  inset: 8% -30%;
+  z-index: -1;
+  background: radial-gradient(closest-side, rgb(var(--brand) / 0.16), transparent);
+}
+
+.ext-shot img {
+  display: block;
+  width: 360px;
+  height: auto;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px rgb(0 0 0 / 0.55), 0 0 0 1px var(--line-2);
+}
+
+@media (max-width: 860px) {
+  .ext-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ext-shot {
+    justify-self: center;
+  }
+
+  .ext-shot img {
+    width: min(300px, 78vw);
+  }
+}
+
+/* The review's top bar has less room: the button steps aside before the bar gets crowded. */
+@media (max-width: 1100px) {
+  .topbar-app .topbar-ext {
+    display: none;
+  }
+}
+
+/* Extensions can't be added on a phone: the section says so, the other buttons step aside
+   (the top bar's goes with .navlink-wide). */
+@media (max-width: 760px) {
+  .closing-ext {
+    display: none;
+  }
+}
+
 @media (max-width: 1100px) {
   .concepts {
     grid-template-columns: repeat(2, minmax(0, 1fr));

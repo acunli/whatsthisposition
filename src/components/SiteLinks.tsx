@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SOURCE_URL } from "@/lib/brand";
+import { AddToChrome } from "./AddToChrome";
 import { Logo } from "./Logo";
 
 /** The author's site. */
@@ -43,6 +44,9 @@ export function SiteFooter() {
       </div>
       <nav className="footer-links" aria-label="Footer">
         <Link href="/credits">How it works, licences and privacy</Link>
+        <AddToChrome from="footer" icon={false}>
+          Chrome extension for Chess.com
+        </AddToChrome>
         <a href={SOURCE_URL} target="_blank" rel="noopener">
           Source code
         </a>

@@ -19,6 +19,8 @@ export const USAGE_EVENTS = {
   photo: ["device", "cloud"],
   /** The first side line played in a review. */
   side_line: [],
+  /** A click on "Add to Chrome" (the extension's store page), by where on the site. */
+  get_extension: ["header", "section", "closing", "footer"],
 } as const satisfies Record<string, readonly string[]>;
 
 export type UsageEvent = keyof typeof USAGE_EVENTS;
