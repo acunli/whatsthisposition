@@ -24,7 +24,10 @@ It works in any Chromium browser (Chrome, Edge, Brave, Arc, Opera).
 3. Fill in the listing:
    - **Single purpose:** "Reviews a finished Chess.com game: accuracy and move labels, with a link to a full explanation."
    - **Permissions:** `offscreen` ("Runs the Stockfish chess engine in a hidden extension page to review the finished game on the user's computer"), `activeTab` and `scripting` ("When the user clicks the toolbar button on a Chess.com tab, finds the game on that page and opens the review card there, adding the extension's script if the tab was opened before the extension was installed"). It runs on `https://www.chess.com/*`, where it reads the page's own game data (the JSON Chess.com's game page loads) to get the moves, and on request reads the signed-in player's public game list from `api.chess.com`.
-   - **Data usage:** it collects nothing. The analysis runs on the user's computer; the review link carries the game in the URL's fragment (`#review=…`), which is never sent to a server.
+   - **Host permission** (the content script on `https://www.chess.com/*`): finds the game on the page and, when asked, reads its moves from Chess.com's own game data and shows the card; if the page names no game, reads the signed-in player's public game list from `api.chess.com`.
+   - **Remote code:** no. All the JavaScript and the Stockfish WebAssembly are in the package; only game data (JSON) comes from Chess.com.
+   - **Privacy policy:** `https://www.whatsthisposition.com/credits#privacy` (it has a paragraph on the extension).
+   - **Data usage:** it collects nothing: tick none of the data types, and tick the three certifications. The analysis runs on the user's computer; the review link carries the game in the URL's fragment (`#review=…`), which is never sent to a server.
    - **Store listing:** everything is in [`store/`](store): the description (`description.txt`), the store icon (`icon-128.png`, 96×96 artwork with 16 px of transparent padding), four 1280×800 screenshots and the small (440×280) and marquee (1400×560) promo tiles, all JPEG without alpha as the store asks. Category Games, language English, homepage `https://www.whatsthisposition.com`, support `https://github.com/acunli/whatsthisposition/issues`.
 4. Submit for review. Updates: bump `version` in `package.json`, `npm run ext:zip`, upload.
 

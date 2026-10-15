@@ -53,7 +53,7 @@ export default function Credits() {
           <a href="https://github.com/WintrCat/wintrchess">WintrChess</a> (GPL-3.0); our version is written independently.
         </p>
 
-        <h2>Privacy</h2>
+        <h2 id="privacy">Privacy</h2>
         <p>
           Analysis and game review run entirely in your browser. Screenshots and photos are read on your device by a small neural network
           trained on open-source piece sets; they never leave your browser. Only if you choose the optional AI reader (for angled photos of a
@@ -67,6 +67,13 @@ export default function Credits() {
           tell visitors apart within that day it uses a code made from your IP address and browser that is never stored and can&apos;t be
           linked to another day. Your browser&apos;s Do Not Track or Global Privacy Control setting turns this counting off. Page views also
           go to Vercel Web Analytics (the site&apos;s host), which is cookieless too and keeps no personal identifiers.
+        </p>
+        <p>
+          The browser extension for Chess.com collects nothing. It works only on chess.com and does nothing until you click its button. It
+          then reads the finished game from Chess.com&apos;s own game data (or, if the page names no game, your public game list from
+          Chess.com&apos;s API), and Stockfish reviews it on your computer; nothing is sent to this site or anyone else. &ldquo;See every
+          move explained&rdquo; opens this site with the game after the # in the address, a part browsers never send to a server, and the
+          site counts that visit as described above.
         </p>
 
         <h2>Stockfish</h2>
