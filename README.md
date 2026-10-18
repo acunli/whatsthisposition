@@ -162,6 +162,7 @@ what’sthisposition is free software under the **GNU GPL v3 or later** ([LICENS
 
 - **Engine:** [Stockfish](https://stockfishchess.org) via [Stockfish.js](https://github.com/nmrugg/stockfish.js) (GPL-3.0).
 - **Pieces:** the "mpchess" set by Maxime Chupin (GPL-3.0+).
+- **3D knight (home page):** from ["Chess Set"](https://polyhaven.com/a/chess_set) by Riley Queen on Poly Haven (CC0), baked by `scripts/bake-knight.py`.
 - **Font:** Archivo (SIL OFL).
 - **Opening names:** [lichess-org/chess-openings](https://github.com/lichess-org/chess-openings) (CC0).
 - **Opening statistics:** built from the [Lichess broadcast database](https://database.lichess.org/#broadcasts) (CC BY-SA 4.0; the book file `public/data/masters-book.bin.gz` is shared under the same licence) and the [Lichess Elite Database](https://database.nikonoel.fr/) (from the CC0 Lichess database).

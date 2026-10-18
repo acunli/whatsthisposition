@@ -96,6 +96,7 @@ export default function Credits() {
         <p>
           Piece set: “mpchess” by Maxime Chupin (GPL-3.0+), as distributed with <a href="https://github.com/lichess-org/lila">Lichess</a>.
           Type: Archivo by Omnibus-Type (SIL Open Font License).
+          The 3D knight on the home page: from <a href="https://polyhaven.com/a/chess_set">“Chess Set”</a> by Riley Queen on Poly Haven (CC0).
           3D: three.js and React Three Fiber (MIT). Move generation:{" "}
           <a href="https://github.com/jhlywa/chess.js">chess.js</a> (BSD-2-Clause).
         </p>

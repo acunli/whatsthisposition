@@ -1,66 +1,93 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
-import { toCreasedNormals } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { KNIGHT_HEAD } from "@/lib/logoPaths";
 import type { Theme } from "@/lib/theme";
 import { REVEALED_EVENT } from "../PageVeil";
 
 /**
- * The home page's knight: the logo come to life. A knight rises through an orange lens
- * ring on a faint board, the ring's crosshair ticks snap in and a scan line sweeps up the
- * piece, as in the logo animation. Then it turns towards the pointer, and can be spun
- * by dragging. Knight silhouette from the mpchess set (GPL-3.0+), as in the logo.
+ * The home page's knight: the logo come to life. A sculpted marble knight rises through
+ * an orange lens ring on a faint board, the ring's crosshair ticks snap in and a scan line
+ * sweeps up the piece, as in the logo animation. Then it turns towards the mouse, and can
+ * be spun by dragging. White marble on the dark page, black on the light one.
+ *
+ * The knight is from the "Chess Set" model by Riley Queen on Poly Haven (CC0), baked into
+ * public/models/knight/ by scripts/bake-knight.py: about 43 KB of geometry and 60 KB of
+ * textures per colour.
  */
 
 const BRAND = "#ff7629";
 const RED = "#ff4b3e";
 const SKY = "#36c5f0";
-/** The knight's resting angle: three-quarters, facing the text's left. */
-const REST = 0.5;
+/** The knight's resting angle: three-quarters, looking left like the logo's knight. */
+const REST = -1;
+/** Its height in board units (one square = 1), as baked. */
+const HEIGHT = 1.45;
 const RING_R = 0.62;
+const MODEL = "/models/knight";
 
-// ── Geometry ──
-/** A turned Staunton base: foot, bead, collar. (radius, height), one square = 1 unit. */
-const BASE_PROFILE: [number, number][] = [
-  [0, 0],
-  [0.4, 0],
-  [0.415, 0.035],
-  [0.4, 0.075],
-  [0.355, 0.1],
-  [0.355, 0.13],
-  [0.32, 0.15],
-  [0.335, 0.175],
-  [0.32, 0.2],
-  [0.26, 0.22],
-  [0.25, 0.255],
-  [0.28, 0.27],
-  [0.27, 0.29],
-  [0, 0.29],
-];
+// ── The model ──
+/** Reads knight.bin: a small header, then quantized positions, normals, uvs and indices. */
+async function loadGeometry(): Promise<THREE.BufferGeometry> {
+  const buf = await (await fetch(`${MODEL}/knight.bin`)).arrayBuffer();
+  const dv = new DataView(buf);
+  if (dv.getUint32(0, true) !== 0x4b505457) throw new Error("knight.bin: not a knight"); // "WTPK"
+  const n = dv.getUint32(8, true);
+  const m = dv.getUint32(12, true);
+  const lo = [0, 1, 2].map((k) => dv.getFloat32(16 + k * 4, true));
+  const size = [0, 1, 2].map((k) => dv.getFloat32(28 + k * 4, true));
+  let off = 40;
+  const qp = new Uint16Array(buf, off, n * 3);
+  off += n * 6;
+  const qn = new Int16Array(buf, off, n * 3);
+  off += n * 6;
+  const qu = new Uint16Array(buf, off, n * 2);
+  off += n * 4;
+  const index = new Uint16Array(buf, off, m);
+  const pos = new Float32Array(n * 3);
+  const nor = new Float32Array(n * 3);
+  const uv = new Float32Array(n * 2);
+  for (let i = 0; i < n * 3; i++) {
+    pos[i] = lo[i % 3] + (qp[i] / 65535) * size[i % 3];
+    nor[i] = qn[i] / 32767;
+  }
+  for (let i = 0; i < n * 2; i++) uv[i] = qu[i] / 65535;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("normal", new THREE.BufferAttribute(nor, 3));
+  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  g.setIndex(new THREE.BufferAttribute(index, 1));
+  return g;
+}
 
-function knightGeometry() {
-  const base = new THREE.LatheGeometry(
-    BASE_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)),
-    64,
-  );
-  const data = new SVGLoader().parse(`<svg xmlns="http://www.w3.org/2000/svg"><path d="${KNIGHT_HEAD}"/></svg>`);
-  const shapes = data.paths.flatMap((p) => p.toShapes());
-  // Extruded in the path's units (≈ 5 wide), then scaled to the board's.
-  const head = new THREE.ExtrudeGeometry(shapes, { depth: 1.6, bevelEnabled: true, bevelThickness: 0.42, bevelSize: 0.3, bevelSegments: 6, curveSegments: 24 });
-  head.computeBoundingBox();
-  const bb = head.boundingBox!;
-  head.translate(-(bb.min.x + bb.max.x) / 2, -bb.max.y, -(bb.min.z + bb.max.z) / 2);
-  const s = 0.205;
-  head.scale(s, -s, s);
-  head.translate(0, 0.27, 0);
-  // Smooth across the extrusion's side walls (otherwise each curve segment is a flat facet),
-  // but keep the corners sharp.
-  return { base, head: toCreasedNormals(head, Math.PI / 5) };
+interface Marble {
+  map: THREE.Texture;
+  normalMap: THREE.Texture;
+  /** Ambient occlusion, roughness and metalness in one texture (R, G, B). */
+  arm: THREE.Texture;
+}
+
+/** The marble textures for a theme, fetched once each (switching back and forth is free). */
+const marbles = new Map<Theme, Promise<Marble>>();
+function loadMarble(theme: Theme): Promise<Marble> {
+  let p = marbles.get(theme);
+  if (!p) {
+    const colour = theme === "dark" ? "white" : "black";
+    const loader = new THREE.TextureLoader();
+    const tex = (kind: string, srgb = false) =>
+      loader.loadAsync(`${MODEL}/knight-${colour}-${kind}.webp`).then((t) => {
+        // Laid out for glTF, whose textures aren't flipped.
+        t.flipY = false;
+        if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = 4;
+        return t;
+      });
+    p = Promise.all([tex("color", true), tex("normal"), tex("arm")]).then(([map, normalMap, arm]) => ({ map, normalMap, arm }));
+    marbles.set(theme, p);
+  }
+  return p;
 }
 
 /** A circle on the floor as a tube, so it can be drawn progressively (drawRange). */
@@ -200,20 +227,48 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
       el.removeEventListener("pointercancel", cancel);
     };
   }, [gl]);
-  const geos = useMemo(() => ({ ...knightGeometry(), ring: ringGeometry() }), []);
+  const ringGeo = useMemo(() => ringGeometry(), []);
+  // The model loads after the scene: the ring and board draw at once, the knight when it's in.
+  const [geo, setGeo] = useState<THREE.BufferGeometry | null>(null);
+  const [marble, setMarble] = useState<{ theme: Theme; m: Marble } | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadGeometry().then((g) => live && setGeo(g), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    let live = true;
+    loadMarble(theme).then((m) => live && setMarble({ theme, m }), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [theme]);
   // The knight is clipped at the floor while it rises through it.
   const floorClip = useMemo(() => [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)], []);
-  // Ivory on the dark page, black lacquer on the light one.
+  // Polished marble: the textures carry the colour, the veins, the carving and how glossy
+  // each part is; a clear coat adds the polish.
   const knightMat = useMemo(
     () =>
-      new THREE.MeshPhysicalMaterial(
-        theme === "dark"
-          ? { color: "#e9e2cf", roughness: 0.36, clearcoat: 0.55, clearcoatRoughness: 0.25, clippingPlanes: floorClip }
-          : { color: "#15181a", roughness: 0.24, clearcoat: 1, clearcoatRoughness: 0.08, clippingPlanes: floorClip },
-      ),
-    [theme, floorClip],
+      marble &&
+      new THREE.MeshPhysicalMaterial({
+        map: marble.m.map,
+        normalMap: marble.m.normalMap,
+        // glTF normal maps without tangents: three's derivative tangents need y flipped.
+        normalScale: new THREE.Vector2(1, -1),
+        roughnessMap: marble.m.arm,
+        aoMap: marble.m.arm,
+        roughness: 1,
+        metalness: 0,
+        clearcoat: marble.theme === "dark" ? 0.45 : 0.6,
+        clearcoatRoughness: 0.12,
+        clippingPlanes: floorClip,
+      }),
+    [marble, floorClip],
   );
-  useEffect(() => () => knightMat.dispose(), [knightMat]);
+  useEffect(() => () => knightMat?.dispose(), [knightMat]);
+  const loaded = !!(geo && knightMat);
 
   const board = useMemo(() => boardTexture(theme), [theme]);
   const glow = useMemo(() => radialTexture([[0, "rgba(255,118,41,0.55)"], [0.45, "rgba(255,118,41,0.16)"], [1, "rgba(255,118,41,0)"]]), []);
@@ -227,8 +282,9 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
   const scan = useRef<THREE.Mesh>(null);
   const glowRef = useRef<THREE.Mesh>(null);
 
-  // The intro starts when the loading veil lifts, so it plays in view.
+  // The intro starts when the loading veil lifts and the model is in, so it plays in view.
   const revealedAt = useRef<number | null>(null);
+  const loadedAt = useRef<number | null>(null);
   useEffect(() => {
     const on = () => {
       if (revealedAt.current === null) revealedAt.current = clock.getElapsedTime();
@@ -238,18 +294,23 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
     return () => window.removeEventListener(REVEALED_EVENT, on);
   }, [clock]);
 
+  // Frames drawn with the knight in: the third means its shaders are compiled.
   const frames = useRef(0);
   const look = useRef({ yaw: 0, pitch: 0 });
-  const ringIndex = geos.ring.index!.count;
+  const ringIndex = ringGeo.index!.count;
   useFrame(({ clock }, dt) => {
-    frames.current++;
-    if (frames.current === 3) onReady?.();
     const t = clock.getElapsedTime();
-    const since = reduced ? 99 : revealedAt.current === null ? 0 : t - revealedAt.current;
+    if (loaded) {
+      if (loadedAt.current === null) loadedAt.current = t;
+      frames.current++;
+      if (frames.current === 3) onReady?.();
+    }
+    const start = revealedAt.current === null || loadedAt.current === null ? null : Math.max(revealedAt.current, loadedAt.current);
+    const since = reduced ? 99 : start === null ? 0 : t - start;
 
     // Intro, timed like the logo: ring draws, knight rises, ticks snap, scan sweeps, dot pops.
     const ringT = ease(since / 0.9);
-    geos.ring.setDrawRange(0, Math.floor(ringIndex * ringT / 3) * 3);
+    ringGeo.setDrawRange(0, Math.floor((ringIndex * ringT) / 3) * 3);
     const rise = ease((since - 0.3) / 1.15);
     const tickT = snap((since - 0.55) / 0.5);
     const dotT = snap((since - 1.4) / 0.45);
@@ -273,7 +334,7 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
 
     const sway = reduced ? 0 : Math.sin(t * 0.33) * 0.16;
     if (knight.current) {
-      knight.current.position.y = -1.45 * (1 - rise);
+      knight.current.position.y = -HEIGHT * (1 - rise);
       knight.current.rotation.y = REST - 2.6 * (1 - rise) + sway + look.current.yaw + s.offset;
       knight.current.rotation.x = look.current.pitch;
     }
@@ -296,8 +357,8 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
   // Narrow canvases (phones) step the camera back so the ring fits.
   const narrow = size.width < 520;
   useEffect(() => {
-    camera.position.set(0, narrow ? 1.75 : 1.5, narrow ? 5.9 : 5.3);
-    camera.lookAt(0, narrow ? 0.58 : 0.62, 0);
+    camera.position.set(0, narrow ? 1.55 : 1.4, narrow ? 5.1 : 4.45);
+    camera.lookAt(0, narrow ? 0.62 : 0.68, 0);
   }, [camera, narrow]);
 
   return (
@@ -321,7 +382,7 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
         <meshBasicMaterial map={shadow} transparent depthWrite={false} opacity={theme === "dark" ? 0.9 : 0.5} />
       </mesh>
 
-      <mesh ref={ring} geometry={geos.ring}>
+      <mesh ref={ring} geometry={ringGeo}>
         <meshBasicMaterial color={BRAND} toneMapped={false} />
       </mesh>
       <group ref={ticks}>
@@ -336,7 +397,8 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
           );
         })}
       </group>
-      <mesh ref={dot} position={[Math.cos(-Math.PI / 4) * RING_R * 1.18, 0.07, -Math.sin(Math.PI / 4) * RING_R * 1.18]}>
+      {/* The logo's red dot, up and to the right of the lens: out past the ring, clear of the knight. */}
+      <mesh ref={dot} position={[Math.cos(Math.PI / 5) * RING_R * 1.42, 0.06, -Math.sin(Math.PI / 5) * RING_R * 1.42]}>
         <sphereGeometry args={[0.055, 24, 16]} />
         <meshBasicMaterial color={RED} toneMapped={false} />
       </mesh>
@@ -345,10 +407,7 @@ function Scene({ theme, reduced, onReady }: SceneProps) {
         <meshBasicMaterial color={SKY} transparent toneMapped={false} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
-      <group ref={knight}>
-        <mesh geometry={geos.base} material={knightMat} />
-        <mesh geometry={geos.head} material={knightMat} />
-      </group>
+      <group ref={knight}>{geo && knightMat && <mesh geometry={geo} material={knightMat} />}</group>
     </>
   );
 }
@@ -368,7 +427,7 @@ export default function HeroKnight({ theme, reduced, active, onReady }: Props) {
       className="knight-canvas"
       frameloop={active ? "always" : "never"}
       dpr={[1, 2]}
-      camera={{ fov: 26, position: [0, 1.5, 5.3], near: 0.1, far: 40 }}
+      camera={{ fov: 26, position: [0, 1.4, 4.45], near: 0.1, far: 40 }}
       gl={{ antialias: true, alpha: true, powerPreference: "high-performance" }}
       onCreated={setupEnvironment}
     >
