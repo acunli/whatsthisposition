@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { SiteCredit, SiteFooter, SupportButton } from "@/components/SiteLinks";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { SITE_NAME, SOURCE_URL } from "@/lib/brand";
 
-export const metadata = { title: `How it works and credits · ${SITE_NAME}` };
+export const metadata = {
+  title: { absolute: `How it works, privacy and credits · ${SITE_NAME}` },
+  description: "How the free chess game review labels and explains every move with Stockfish 19 in your browser, what data it keeps (none of your games), and the open-source projects it builds on.",
+  alternates: { canonical: "/credits" },
+};
 
 export default function Credits() {
   return (
@@ -17,6 +22,7 @@ export default function Credits() {
             Back to the board
           </Link>
           <SiteCredit className="navlink navlink-wide" />
+          <ThemeToggle />
           <SupportButton />
         </nav>
       </header>

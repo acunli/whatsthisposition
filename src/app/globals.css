@@ -45,10 +45,88 @@
   --font-serif: var(--font-archivo), system-ui, sans-serif;
   --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
+  /* Colours that don't change with the theme: White's colour (eval bar, graph, swatches),
+     and text on bright fills (labels, badges, the brand orange). */
+  --ivory: #f1ede2;
+  --on-bright: #0c110f;
+  /* How much of a label's own colour its text keeps: on the light page, label colours like
+     Inaccuracy's yellow are mixed with the text colour so they stay readable. */
+  --tint: 100%;
+  /* The board's own tones: boards keep them in both themes. */
+  --v-brand: 255 118 41;
+  --v-red: 255 75 62;
+  --v-gold: 255 197 61;
+  --v-sky: 54 197 240;
+  --v-violet: 160 110 255;
+  --v-lime: 163 230 53;
+
   --gutter: 16px;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
   color-scheme: dark;
+}
+
+/* The light theme: the system's choice unless the visitor picked one (data-theme on <html>,
+   set before the first paint by the script in layout.tsx). Tones are deeper so they read as
+   text on a light page; boards keep the vivid ones (below). */
+:root[data-theme="light"] {
+  --night: #f2f4f1;
+  --night-2: #f8faf8;
+  --slab: #ffffff;
+  --slab-2: #edf1ee;
+  --slab-3: #e2e8e3;
+  --line: #dce3de;
+  --line-2: #c6d0c9;
+  --bone: #101613;
+  --bone-2: #39443d;
+  --dim: #5c6760;
+  --dim-2: #89938c;
+  --sage: #4b7a5c;
+  --brand: 234 90 16;
+  --red: 212 38 30;
+  --gold: 163 106 0;
+  --sky: 0 126 190;
+  --violet: 118 72 226;
+  --lime: 72 134 8;
+  --tint: 68%;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --night: #f2f4f1;
+    --night-2: #f8faf8;
+    --slab: #ffffff;
+    --slab-2: #edf1ee;
+    --slab-3: #e2e8e3;
+    --line: #dce3de;
+    --line-2: #c6d0c9;
+    --bone: #101613;
+    --bone-2: #39443d;
+    --dim: #5c6760;
+    --dim-2: #89938c;
+    --sage: #4b7a5c;
+    --brand: 234 90 16;
+    --red: 212 38 30;
+    --gold: 163 106 0;
+    --sky: 0 126 190;
+    --violet: 118 72 226;
+    --lime: 72 134 8;
+    --tint: 68%;
+    color-scheme: light;
+  }
+}
+
+/* Boards (and anything drawn on them) keep the vivid tones in both themes. */
+.bs,
+.pb,
+.egraph {
+  --brand: var(--v-brand);
+  --red: var(--v-red);
+  --gold: var(--v-gold);
+  --sky: var(--v-sky);
+  --violet: var(--v-violet);
+  --lime: var(--v-lime);
 }
 
 *,
@@ -101,7 +179,7 @@ a {
 
 ::selection {
   background: rgb(var(--brand));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .sr-only {
@@ -236,15 +314,15 @@ a {
 }
 
 .btn-primary {
-  background: rgb(var(--brand));
-  border-color: rgb(var(--brand));
+  background: var(--bone);
+  border-color: var(--bone);
   color: var(--night);
   font-weight: 700;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #ff8c4d;
-  border-color: #ff8c4d;
+  background: color-mix(in srgb, var(--bone) 84%, var(--night));
+  border-color: color-mix(in srgb, var(--bone) 84%, var(--night));
 }
 
 .btn-primary:disabled {
@@ -376,7 +454,7 @@ textarea.input {
 }
 
 .side-w {
-  background: var(--bone);
+  background: var(--ivory);
 }
 
 .side-b {
@@ -893,7 +971,7 @@ textarea.input {
 }
 
 .t-info.bs-icon circle {
-  fill: var(--bone);
+  fill: var(--ivory);
 }
 
 .bs-icon path {
@@ -942,13 +1020,13 @@ textarea.input {
   padding: 2px 6px;
   border-radius: 6px;
   background: rgb(var(--tc));
-  color: var(--night);
+  color: var(--on-bright);
   animation: icon-pop 0.4s var(--ease-snap) both;
   z-index: 4;
 }
 
 .t-info.bs-badge {
-  background: var(--night);
+  background: var(--on-bright);
   color: var(--bone);
 }
 
@@ -970,7 +1048,7 @@ textarea.input {
   place-items: center;
   border-radius: 50%;
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -983,6 +1061,9 @@ textarea.input {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  /* Glows and shadows that reach past the edges never make the page scroll sideways
+     (clip, unlike hidden, keeps the sticky top bar working). */
+  overflow-x: clip;
 }
 
 .topbar {
@@ -994,7 +1075,7 @@ textarea.input {
   justify-content: space-between;
   gap: 16px;
   padding: 12px clamp(16px, 3vw, 36px);
-  background: rgb(12 17 15 / 0.95);
+  background: color-mix(in srgb, var(--night) 92%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -1336,7 +1417,7 @@ textarea.input {
   display: grid;
   place-items: center;
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .drop-icon svg {
@@ -1377,6 +1458,32 @@ textarea.input {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+
+.dock-fen {
+  display: flex;
+  gap: 8px;
+}
+
+.dock-fen .input {
+  flex: 1;
+}
+
+.btn-xl {
+  padding: 16px 24px;
+  font-size: 16.5px;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.btn-xl svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .chip {
@@ -1549,7 +1656,7 @@ textarea.input {
   height: 24px;
   border-radius: 6px;
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
   font-size: 15px;
 }
 
@@ -1583,7 +1690,7 @@ textarea.input {
   font-family: var(--font-mono);
   font-size: 12px;
   letter-spacing: 0;
-  color: var(--night);
+  color: var(--on-bright);
   background: rgb(var(--gold));
   padding: 2px 5px;
   border-radius: 4px;
@@ -1657,7 +1764,7 @@ textarea.input {
   font-weight: 900;
   font-size: 11px;
   background: rgb(var(--red));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .issue-warn {
@@ -2257,7 +2364,7 @@ textarea.input {
   padding: 3px 7px;
   border-radius: 5px;
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
   font-weight: 700;
 }
 
@@ -2378,7 +2485,7 @@ textarea.input {
   position: absolute;
   inset: 0 auto 0 0;
   width: var(--share);
-  background: var(--bone);
+  background: var(--ivory);
   transition: width 0.9s var(--ease-out);
 }
 
@@ -2545,9 +2652,9 @@ textarea.input {
 
 .step-main {
   width: 46px;
-  background: rgb(var(--gold));
+  background: var(--bone);
   color: var(--night);
-  border-color: rgb(var(--gold));
+  border-color: var(--bone);
 }
 
 .step-btn:disabled {
@@ -3138,7 +3245,7 @@ textarea.input {
 }
 
 .material-fill-w {
-  background: var(--bone);
+  background: var(--ivory);
 }
 
 .material-fill-b {
@@ -3249,8 +3356,8 @@ textarea.input {
 }
 
 .evalchip-w {
-  background: var(--bone);
-  color: var(--night);
+  background: var(--ivory);
+  color: var(--on-bright);
 }
 
 .evalchip-b {
@@ -3261,7 +3368,7 @@ textarea.input {
 
 .evalchip-mate {
   background: rgb(var(--red));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .why {
@@ -3363,7 +3470,7 @@ textarea.input {
   font-weight: 900;
   font-size: 16px;
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .compare-pick-b .compare-tag,
@@ -3830,13 +3937,13 @@ textarea.input {
 
 .cls-brilliant {
   background: rgb(var(--sky));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .cls-only,
 .cls-great {
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .cls-best {
@@ -3852,7 +3959,7 @@ textarea.input {
 .cls-mistake,
 .cls-blunder {
   background: rgb(var(--red));
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .deep {
@@ -4027,7 +4134,7 @@ textarea.input {
   left: 0;
   right: 0;
   height: var(--share);
-  background: linear-gradient(180deg, #ffffff, var(--bone));
+  background: linear-gradient(180deg, #ffffff, var(--ivory));
   transition: height 0.9s var(--ease-out);
 }
 
@@ -4077,7 +4184,7 @@ textarea.input {
 }
 
 .vbar-label-w {
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 .vbar-label-b {
@@ -4127,7 +4234,7 @@ em {
 }
 
 .mark-knight path {
-  fill: var(--bone);
+  fill: var(--ivory);
 }
 
 .mark-ring {
@@ -4246,8 +4353,8 @@ em {
 }
 
 .h-section {
-  font-size: clamp(38px, 4.8vw, 72px);
-  line-height: 0.92;
+  font-size: clamp(34px, 3.9vw, 56px);
+  line-height: 0.95;
   margin: 0;
   max-width: 14em;
 }
@@ -4333,163 +4440,300 @@ em {
   font-weight: 500;
 }
 
-/* Hero */
-.hero3d {
+/* Hero: centred. The knight (the logo in 3D), the wordmark, what to bring, the import box. */
+.hero {
   position: relative;
-  min-height: calc(100svh - 64px);
-  display: grid;
-  align-items: center;
-  overflow: hidden;
   isolation: isolate;
-  border-bottom: 1px solid var(--line);
-}
-
-.hero3d-stage {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  left: 30%;
-  animation: fade-in 1.2s ease 0.1s both;
-}
-
-.hero3d-stage canvas {
-  cursor: grab;
-}
-
-.hero3d-fallback {
-  position: absolute;
-  right: 6%;
-  top: 50%;
-  width: min(42vw, 540px);
-  transform: translateY(-50%) perspective(1200px) rotateX(28deg) rotateZ(-8deg);
-}
-
-.hero3d-veil {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, var(--night) 0%, rgb(12 17 15 / 0.94) 32%, rgb(12 17 15 / 0.3) 60%, transparent 76%),
-    linear-gradient(0deg, var(--night) 0%, transparent 18%);
-}
-
-.hero3d-content {
-  position: relative;
-  max-width: 1400px;
-  width: 100%;
-  margin: 0 auto;
-  padding: clamp(48px, 9vh, 104px) clamp(16px, 4vw, 56px) clamp(110px, 15vh, 160px);
-}
-
-.hero3d-content > * {
-  max-width: 620px;
-}
-
-.hero-lede {
-  font-size: clamp(17px, 1.3vw, 19px);
-  line-height: 1.55;
-  color: var(--bone-2);
-  margin: 28px 0 32px;
-  max-width: 33em;
-}
-
-.hl-red {
-  color: rgb(var(--red));
-  font-weight: 700;
-}
-
-.hl-gold {
-  color: rgb(var(--gold));
-  font-weight: 700;
-}
-
-/* The import panel */
-.dock {
   display: grid;
-  gap: 14px;
-  padding: 18px;
-  border-radius: 16px;
-  background: rgb(20 27 24 / 0.88);
-  border: 1px solid var(--line-2);
-  backdrop-filter: blur(12px);
-  max-width: 580px;
-  transition: border-color 0.2s;
+  justify-items: center;
+  min-height: calc(100svh - 61px);
+  padding: 0 clamp(16px, 4vw, 56px) clamp(56px, 8vh, 96px);
+  border-bottom: 1px solid var(--line);
+  overflow: hidden;
 }
 
-.dock-on {
+/* A faint glow behind the knight, in the brand's orange. */
+.hero::before {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  left: 50%;
+  top: 0;
+  width: min(1100px, 140vw);
+  height: 620px;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgb(var(--brand) / 0.13), transparent 72%);
+  pointer-events: none;
+}
+
+.hero-drop .hero-box {
   border-color: rgb(var(--brand));
 }
 
-.dock-label {
-  font-size: 13.5px;
-  font-weight: 600;
+.knight-stage {
+  position: relative;
+  z-index: -1;
+  width: min(1200px, 100vw);
+  height: clamp(200px, 30vh, 330px);
+  margin-bottom: -10px;
+  animation: fade-in 1s ease both;
+  /* The board fades out before the canvas's edges, so they never show. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 84%, transparent 100%), linear-gradient(to right, transparent 2%, #000 24%, #000 76%, transparent 98%);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(to bottom, #000 84%, transparent 100%), linear-gradient(to right, transparent 2%, #000 24%, #000 76%, transparent 98%);
+  mask-composite: intersect;
+}
+
+.knight-canvas {
+  position: absolute !important;
+  inset: 0;
+  touch-action: pan-y;
+  cursor: grab;
+}
+
+.knight-canvas:active {
+  cursor: grabbing;
+}
+
+.knight-flat {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.hero-content {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 760px;
+}
+
+.hero-brand {
+  margin: 0;
+}
+
+.hero .hero-word {
+  display: inline-block;
+  font-size: clamp(34px, 6.2vw, 76px);
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.hero-title {
+  margin: 14px 0 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 74%;
+  font-variation-settings: "wdth" 74;
+  font-size: clamp(26px, 2.6vw, 34px);
+  line-height: 1.05;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+
+.hero-lede {
+  margin: 12px 0 26px;
+  max-width: 40em;
+  font-size: clamp(15.5px, 1.2vw, 17px);
+  line-height: 1.55;
   color: var(--bone-2);
+  text-wrap: pretty;
 }
 
-.dock-fen {
+/* The import box: the one panel on the page that asks for something. */
+.hero-box {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  text-align: left;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--slab) 88%, transparent);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 1px 0 rgb(var(--white-rgb) / 0.04) inset, 0 24px 60px -32px rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(12px);
+  transition: border-color 0.2s;
+}
+
+.hero-actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 22px;
 }
 
-.dock-fen .input {
-  flex: 1;
+/* Add to Chrome: an outlined button with the extension's puzzle piece in orange. */
+.btn-chrome {
+  border-color: var(--line-2);
+  background: transparent;
 }
 
-.btn-xl {
-  padding: 16px 24px;
-  font-size: 16.5px;
-  border-radius: 12px;
-  font-weight: 700;
+.btn-chrome .ext-icon {
+  stroke: rgb(var(--brand));
 }
 
-.btn-xl svg {
-  width: 22px;
-  height: 22px;
+.hero-alt {
+  color: var(--bone-2);
+  border-color: transparent;
+}
+
+.hero-alt:hover:not(:disabled) {
+  background: var(--slab-2);
+  color: var(--bone);
+}
+
+.hero-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+/* The top bar on the home page: its logo and Add to Chrome wait until the hero's have
+   scrolled away, so the first screen shows each once. */
+.topbar-home .topbar-brand,
+.topbar-home .topbar-ext {
+  transition: opacity 0.25s, visibility 0.25s;
+}
+
+.topbar-hero .topbar-brand,
+.topbar-hero .topbar-ext {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.topbar-home {
+  border-bottom-color: transparent;
+  transition: border-color 0.25s;
+}
+
+.topbar-home:not(.topbar-hero) {
+  border-bottom-color: var(--line);
+}
+
+/* Light/dark switch */
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  background: transparent;
+  color: var(--bone-2);
+  transition: background 0.15s, color 0.15s;
+}
+
+.theme-toggle:hover {
+  background: var(--slab-2);
+  color: var(--bone);
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2.2;
+  stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* The live read under the 3D board */
-.hero3d-caption {
-  position: absolute;
-  right: clamp(16px, 3vw, 48px);
-  bottom: clamp(24px, 5vh, 56px);
-  width: min(440px, 90vw);
+.tt-moon {
+  display: none;
 }
 
-.hero3d-caption .caption {
-  background: rgb(16 22 19 / 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--line-2);
-  border-left: 3px solid rgb(var(--tc));
+:root[data-theme="light"] .tt-sun {
+  display: none;
 }
 
-.hero3d-dots {
+:root[data-theme="light"] .tt-moon {
+  display: block;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .tt-sun {
+    display: none;
+  }
+
+  :root:not([data-theme="dark"]) .tt-moon {
+    display: block;
+  }
+}
+
+/* Single positions: a drop zone for a photo, and a FEN or a board set up by hand. */
+.position-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 28px;
+  align-items: start;
+}
+
+.position-side {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 760px) {
+  .position-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Questions */
+.faq-list {
+  display: grid;
+  border-top: 1px solid var(--line);
+  max-width: 920px;
+}
+
+.faq-item {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-item summary {
+  list-style: none;
   display: flex;
-  gap: 5px;
-  margin-top: 10px;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 0;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.hero3d-dots button {
-  width: 18px;
-  height: 4px;
-  border-radius: 2px;
-  border: 0;
-  padding: 0;
-  background: var(--line-2);
-  background-clip: content-box;
-  transition: width 0.3s var(--ease-out), background 0.2s;
+.faq-item summary::-webkit-details-marker {
+  display: none;
 }
 
-.hero3d-dots button[aria-current="true"] {
-  width: 32px;
-  background: var(--bone-2);
-  background-clip: content-box;
+.faq-item summary::after {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid var(--dim);
+  border-bottom: 2px solid var(--dim);
+  transform: translateY(-3px) rotate(45deg);
+  transition: transform 0.2s var(--ease-out);
+}
+
+.faq-item[open] summary::after {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+.faq-item summary:hover {
+  color: rgb(var(--brand));
+}
+
+.faq-item p {
+  margin: 0 0 20px;
+  max-width: 42em;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--bone-2);
 }
 
 /* Sections */
@@ -4536,7 +4780,7 @@ em {
 }
 
 .legend b {
-  color: var(--cls);
+  color: color-mix(in srgb, var(--cls) var(--tint), var(--bone));
   font-size: 16.5px;
   font-weight: 700;
   line-height: 28px;
@@ -4852,40 +5096,6 @@ a.btn {
 }
 
 @media (max-width: 960px) {
-  .hero3d {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .hero3d-stage {
-    position: relative;
-    inset: auto;
-    order: 2;
-    /* A set width: without one the canvas falls back to the browser's default 300px. */
-    width: 100%;
-    height: min(92vw, 560px);
-    left: 0;
-    margin-top: -40px;
-  }
-
-  .hero3d-veil {
-    display: none;
-  }
-
-  .hero3d-content {
-    padding-bottom: 0;
-  }
-
-  .hero3d-caption {
-    position: relative;
-    order: 3;
-    right: auto;
-    bottom: auto;
-    width: auto;
-    margin: -30px 16px 40px;
-  }
-
   .section-head {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -4931,8 +5141,8 @@ a.btn {
     font-size: 17px;
   }
 
-  .dock {
-    padding: 14px;
+  .hero-box {
+    padding: 12px;
   }
 
   .dock-fen {
@@ -4979,7 +5189,7 @@ a.btn {
 
 .cls {
   background: color-mix(in srgb, var(--cls, var(--slab-3)) 18%, transparent);
-  color: var(--cls, var(--bone));
+  color: color-mix(in srgb, var(--cls, var(--bone)) var(--tint), var(--bone));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cls, var(--line-2)) 45%, transparent);
   padding: 3px 9px 3px 4px;
   border-radius: 999px;
@@ -5094,7 +5304,8 @@ a.btn {
   background: #16191e;
   box-shadow: inset 0 0 0 1px var(--line-2);
   cursor: crosshair;
-  touch-action: none;
+  /* Vertical swipes scroll the page; EvalGraph only takes taps and sideways drags. */
+  touch-action: pan-y;
 }
 
 .egraph svg {
@@ -5105,7 +5316,7 @@ a.btn {
 }
 
 .egraph-area {
-  fill: var(--bone);
+  fill: var(--ivory);
   opacity: 0.92;
 }
 
@@ -5290,7 +5501,7 @@ a.btn {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0;
-  color: var(--cls);
+  color: color-mix(in srgb, var(--cls) var(--tint), var(--bone));
 }
 
 .rv-move {
@@ -5416,7 +5627,7 @@ a.btn {
   gap: 8px;
   font-size: 13.5px;
   font-weight: 600;
-  color: var(--cls);
+  color: color-mix(in srgb, var(--cls) var(--tint), var(--bone));
 }
 
 .rv-count {
@@ -5425,7 +5636,7 @@ a.btn {
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 15px;
-  color: var(--cls);
+  color: color-mix(in srgb, var(--cls) var(--tint), var(--bone));
   padding: 4px 0;
   border-radius: 8px;
 }
@@ -5501,7 +5712,7 @@ a.btn {
 }
 
 .rv-side-move.rv-cell-mark .rv-san {
-  color: var(--cls-c);
+  color: color-mix(in srgb, var(--cls-c) var(--tint), var(--bone));
 }
 
 .rv-side-num {
@@ -5594,7 +5805,7 @@ a.btn {
 }
 
 .rv-cell-mark .rv-san {
-  color: var(--cls-c);
+  color: color-mix(in srgb, var(--cls-c) var(--tint), var(--bone));
 }
 
 .rv-start {
@@ -5683,32 +5894,6 @@ a.btn {
   color: var(--bone);
 }
 
-.dock-alt {
-  display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-}
-
-.dock-alt-row {
-  display: flex;
-  gap: 8px;
-}
-
-.dock-alt-row .dock-fen {
-  flex: 1;
-  min-width: 0;
-}
-
-.dock-alt .btn svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
 
 
 
@@ -5741,10 +5926,6 @@ a.btn {
 
   .rv-acc-card {
     flex: 1;
-  }
-
-  .dock-alt-row {
-    flex-direction: column;
   }
 
   .rv-nav .step-btn {
@@ -6163,7 +6344,7 @@ a.btn {
 
 .peek-mv-on {
   background: rgb(var(--gold));
-  color: var(--night);
+  color: var(--on-bright);
   font-weight: 700;
 }
 
@@ -6238,7 +6419,7 @@ a.btn {
   place-items: center;
   font-size: 12px;
   font-weight: 700;
-  color: var(--night);
+  color: var(--on-bright);
   background: var(--cls, rgb(var(--gold)));
 }
 
@@ -6252,10 +6433,16 @@ a.btn {
   position: relative;
 }
 
+/* A finger on an empty square or a piece that can't move scrolls the page; on a piece that
+   can move, it drags it. */
 .pb-play {
-  touch-action: none;
+  touch-action: pan-y pinch-zoom;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.pb-play .bs-grab {
+  touch-action: none;
 }
 
 .pb-play .bs-sq {
@@ -6315,7 +6502,7 @@ a.btn {
   width: 12.5%;
   display: grid;
   grid-template-rows: repeat(4, 1fr) auto;
-  background: var(--bone);
+  background: var(--ivory);
   border-radius: 8px;
   box-shadow: 0 18px 40px -10px rgb(0 0 0 / 0.6);
   overflow: hidden;
@@ -6344,7 +6531,7 @@ a.btn {
   aspect-ratio: auto;
   padding: 4px 0;
   font-size: 18px;
-  color: var(--night);
+  color: var(--on-bright);
 }
 
 /* Engine lines next to the board */
@@ -6547,17 +6734,6 @@ a.btn {
     inset: 16px 0;
     border-radius: 3px;
   }
-
-  .hero3d-dots {
-    gap: 0;
-  }
-
-  .hero3d-dots button,
-  .hero3d-dots button[aria-current="true"] {
-    box-sizing: content-box;
-    height: 4px;
-    padding: 18px 7px;
-  }
 }
 
 /* Tablets: the app screens' top bar also holds actions, so the extras get compact. */
@@ -6575,6 +6751,20 @@ a.btn {
 
 @media (max-width: 960px) {
   .topbar-app .navlink-how {
+    display: none;
+  }
+}
+
+/* Phones: the home bar also holds the theme switch, so the cookie button keeps only its
+   cookie (as on the app screens). */
+@media (max-width: 480px) {
+  .topbar-home .bmc {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .topbar-home .bmc-text {
     display: none;
   }
 }
@@ -6608,6 +6798,187 @@ a.btn {
   .trace,
   .rv-board > * {
     width: min(100%, max(240px, calc(100svh - 24px)));
+  }
+}
+
+/* Game review on phones. The board, then what the move did, with the controls in a dock at the
+   bottom of the screen, in reach of the thumb. Both columns' panels share one column
+   (display: contents) and are ordered by what matters while stepping through a game; a strip
+   of moves above the board shows where you are. */
+.rv-strip,
+.rv-dock-progress {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .topbar-app {
+    position: static;
+  }
+
+  .review {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 4px 10px calc(92px + env(safe-area-inset-bottom));
+  }
+
+  .rv-board,
+  .rv-desk {
+    display: contents;
+  }
+
+  .rv-board > *,
+  .rv-desk > * {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .rv-strip {
+    order: 0;
+    display: flex;
+    gap: 2px;
+    margin: 0 -10px;
+    padding: 2px 10px 4px;
+    width: auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    mask-image: linear-gradient(90deg, transparent, #000 18px, #000 calc(100% - 18px), transparent);
+  }
+
+  .rv-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rv-strip-mv {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 34px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--bone-2);
+    white-space: nowrap;
+  }
+
+  .rv-strip-num {
+    color: var(--dim);
+    font-weight: 500;
+  }
+
+  .rv-strip-on {
+    background: var(--bone);
+    color: var(--night);
+  }
+
+  .rv-strip-on .rv-strip-num {
+    color: inherit;
+  }
+
+  .rv-board > .rv-player:nth-child(2) {
+    order: 1;
+  }
+
+  .rv-board > .board-wrap {
+    order: 2;
+  }
+
+  .rv-board > .rv-player:nth-child(4) {
+    order: 3;
+  }
+
+  .rv-card {
+    order: 4;
+  }
+
+  .elines {
+    order: 5;
+  }
+
+  .egraph {
+    order: 6;
+  }
+
+  .rv-moments {
+    order: 7;
+  }
+
+  .rv-opening {
+    order: 8;
+  }
+
+  .rv-head {
+    order: 9;
+  }
+
+  .rv-table {
+    order: 10;
+  }
+
+  .rv-moves {
+    order: 11;
+    max-height: none;
+  }
+
+  .rv-board > .rv-dock {
+    position: fixed;
+    z-index: 30;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+    background: var(--night);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -12px 24px -12px rgb(0 0 0 / 0.35);
+  }
+
+  .rv-dock .rv-nav {
+    gap: 6px;
+  }
+
+  .rv-dock .rv-nav .step-btn {
+    flex: 1;
+    max-width: 76px;
+    height: 46px;
+    font-size: 15px;
+  }
+
+  .rv-dock .rv-nav .btn {
+    height: 46px;
+    margin-left: 2px;
+  }
+
+  .rv-dock .varbar {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  .rv-dock-progress {
+    display: block;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -1px;
+    height: 2px;
+    background: var(--line);
+  }
+
+  .rv-dock-progress span {
+    display: block;
+    height: 100%;
+    background: rgb(var(--brand));
+    transition: width 0.4s var(--ease-out);
   }
 }
 

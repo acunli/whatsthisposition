@@ -13,6 +13,7 @@ import { AddToChrome } from "./AddToChrome";
 import { Logo } from "./Logo";
 import { showPageChange } from "./PageVeil";
 import { SiteCredit, SiteFooter, SupportButton } from "./SiteLinks";
+import { ThemeToggle } from "./ThemeToggle";
 import { Home } from "./home/Home";
 import { SetupView } from "./setup/SetupView";
 import { AnalysisView } from "./analysis/AnalysisView";
@@ -31,6 +32,8 @@ export function Studio() {
   const [game, setGame] = useState<{ g: ParsedGame; id: number; depth?: number; finished?: FinishedReview } | null>(null);
   const [reviewOrientation, setReviewOrientation] = useState<Color>("w");
   const [reviewScroll, setReviewScroll] = useState(0);
+  // On the home page the hero carries the logo: the top bar's appears once it scrolls away.
+  const [atHero, setAtHero] = useState(true);
 
   // Every change of stage is a page change: it runs under the loading veil.
   const go = (s: Stage, also?: () => void) =>
@@ -119,7 +122,7 @@ export function Studio() {
 
   return (
     <div className="shell">
-      <header className={stage === "home" ? "topbar" : `topbar topbar-app${stage === "analysis" ? " topbar-crowded" : ""}`}>
+      <header className={stage === "home" ? `topbar topbar-home${atHero ? " topbar-hero" : ""}` : `topbar topbar-app${stage === "analysis" ? " topbar-crowded" : ""}`}>
         <button className="topbar-brand" onClick={home} aria-label={`${SITE_NAME} home`}>
           <Logo size={34} animate={false} />
         </button>
@@ -155,12 +158,14 @@ export function Studio() {
             How it works
           </Link>
           <SiteCredit className="navlink navlink-wide" />
+          <ThemeToggle />
           <SupportButton />
         </nav>
       </header>
 
       {stage === "home" && (
         <Home
+          onHero={setAtHero}
           onGame={review}
           onPhoto={(f) => {
             setPhoto(f);

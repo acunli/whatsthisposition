@@ -58,6 +58,8 @@ export function PlayBoard({ fen, onMove, onSelect, annotate = true, ...stage }: 
   const start = useRef<{ from: Square; x: number; y: number; rect: DOMRect; wasSelected: boolean } | null>(null);
   const rightFrom = useRef<Square | null>(null);
 
+  // Squares with a piece that can move: only a touch there drags; elsewhere the page scrolls.
+  const grab = useMemo(() => [...new Set(legal.map((m) => m.from as Square))], [legal]);
   const targetsOf = (from: Square | null) => (from ? [...new Set(legal.filter((m) => m.from === from).map((m) => m.to as Square))] : []);
   const targets = targetsOf(selected);
 
@@ -176,7 +178,7 @@ export function PlayBoard({ fen, onMove, onSelect, annotate = true, ...stage }: 
       onPointerCancel={cancelDrag}
       onContextMenu={(e) => annotate && e.preventDefault()}
     >
-      <BoardStage {...stage} selected={selected} targets={targets} hide={drag ? drag.from : null} />
+      <BoardStage {...stage} selected={selected} targets={targets} hide={drag ? drag.from : null} grab={grab} />
       {(drawn.arrows.length > 0 || drawn.squares.length > 0) && (
         <svg className="pb-shapes" viewBox="0 0 800 800" aria-hidden>
           {drawn.squares.map((x) => (

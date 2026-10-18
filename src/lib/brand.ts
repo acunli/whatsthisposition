@@ -9,9 +9,10 @@ export const WORDMARK = ["what’sthis", "position"] as const;
  * It is read at build time, so redeploy after adding a domain.
  */
 export const SITE_URL = siteUrl();
-export const SITE_TAGLINE = "See what the engine sees";
+export const SITE_TAGLINE = "Free chess game review, every move explained";
+/** The search-result snippet: under about 160 characters, so it isn't cut off. */
 export const SITE_DESCRIPTION =
-  "Free, open-source chess game review and position analysis. Every move is labelled from brilliant to blunder and explained from Stockfish's own lines, right in your browser.";
+  "Free chess game review for Chess.com and Lichess games. Stockfish labels every move from Brilliant to Blunder and explains why, right in your browser.";
 /** For HTTP headers, which must be plain ASCII. */
 export const SITE_ASCII = "whatsthisposition";
 /** The public source code (GPL-3.0): linked from the footer and the credits page. */

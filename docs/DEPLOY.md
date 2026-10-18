@@ -3,7 +3,7 @@
 The site is cheap to host: **all the heavy work (Stockfish, the photo reader) runs in visitors' browsers**. The server serves static files and two small API routes (a Chess.com/Lichess proxy and an optional photo reader), so a free tier is enough to start.
 
 What a visitor downloads, roughly:
-- **About 1 MB:** the app itself (JavaScript, CSS, the 3D hero).
+- **About 1 MB:** the app itself (JavaScript, CSS, the 3D knight on the home page).
 - **1.8 MB:** the Stockfish engine, on the first analysis or review.
 - **2.8 MB:** the opening book, on the first review.
 - **0.9 MB:** the photo reader's weights, only when a photo is used.

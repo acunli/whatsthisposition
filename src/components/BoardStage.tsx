@@ -28,6 +28,8 @@ export interface BoardStageProps {
   stamp?: { sq: Square; node: ReactNode; key: string } | null;
   /** Don't draw the piece on this square (it's being dragged). */
   hide?: Square | null;
+  /** Squares whose piece can be dragged: a touch there drags it instead of scrolling the page. */
+  grab?: Square[];
 }
 
 /** Board geometry, in the 800×800 SVG space the overlays use (one square = 100). */
@@ -119,7 +121,7 @@ function BoardStageImpl(props: BoardStageProps) {
           return (
             <div
               key={sq}
-              className={`bs-sq ${light ? "bs-light" : "bs-dark"}${onSquareClick ? " bs-click" : ""}`}
+              className={`bs-sq ${light ? "bs-light" : "bs-dark"}${onSquareClick ? " bs-click" : ""}${props.grab?.includes(sq) ? " bs-grab" : ""}`}
               style={{ gridRow: r + 1, gridColumn: c + 1 }}
               onClick={onSquareClick ? () => onSquareClick(sq) : undefined}
               data-sq={sq}

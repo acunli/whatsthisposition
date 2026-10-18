@@ -2,23 +2,22 @@
 
 import { countUse } from "@/lib/usage";
 import dynamic from "next/dynamic";
-import { Component, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { BoardStage } from "../BoardStage";
-import { parseFen, placementFromFen, validateSetup } from "@/lib/chess/fen";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
+import { parseFen, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
 import { PgnError, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { holdPageVeil, useBootLogoPlayed } from "../PageVeil";
 import { GameImport } from "../review/GameImport";
-import { computeFacts } from "@/lib/facts";
-import { buildLedger } from "@/lib/facts/ledger";
-import { buildTour } from "@/lib/facts/tour";
 import { AddToChrome } from "../AddToChrome";
+import { LogoMark, Wordmark } from "../Logo";
+import { useTheme } from "../ThemeToggle";
 import { Concepts } from "./Concepts";
 import { Extension } from "./Extension";
+import { Faq } from "./Faq";
 import { Labels } from "./Labels";
 import { Story } from "./Story";
 
-const Hero3D = dynamic(() => import("./Hero3D"), { ssr: false });
+const HeroKnight = dynamic(() => import("./HeroKnight"), { ssr: false });
 
 /** Teaching positions for single-position analysis (games are reviewed from GameImport). */
 export const SAMPLES = [
@@ -27,10 +26,9 @@ export const SAMPLES = [
   { name: "Outside passer", fen: "8/5pk1/6p1/1P6/8/6P1/5PK1/8 w - - 0 1" },
 ];
 
-const HERO_FEN = "r2q1rk1/1b2bppp/p2p1n2/1p2p3/4P3/1BN2N2/PPP2PPP/R2Q1RK1 w - - 0 11";
-const HERO_STEP_MS = 4200;
-
 interface Props {
+  /** Whether the hero's wordmark is in view (the top bar shows its own logo when it isn't). */
+  onHero: (inView: boolean) => void;
   onGame: (game: ParsedGame, orientation?: Color) => void;
   onPhoto: (file: File) => void;
   onFen: (setup: PositionSetup, complete: boolean) => void;
@@ -40,8 +38,8 @@ interface Props {
 
 /**
  * Can the browser do WebGL? Checked without creating a throwaway context: that alone
- * can stall the main thread for a long time (GPU start-up). If the 3D hero fails
- * anyway, HeroBoundary falls back to the flat board.
+ * can stall the main thread for a long time (GPU start-up). If the knight fails anyway,
+ * KnightBoundary falls back to the flat logo mark.
  */
 function useWebGL() {
   const [ok, setOk] = useState<boolean | null>(null);
@@ -52,8 +50,8 @@ function useWebGL() {
   return ok;
 }
 
-/** Falls back to the flat board if the 3D hero throws (no WebGL context, lost GPU). */
-class HeroBoundary extends Component<{ fallback: ReactNode; children: ReactNode; onError: () => void }, { failed: boolean }> {
+/** Falls back to the flat mark if the 3D knight throws (no WebGL context, lost GPU). */
+class KnightBoundary extends Component<{ fallback: ReactNode; children: ReactNode; onError: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() {
     return { failed: true };
@@ -80,23 +78,18 @@ function useMedia(query: string) {
   return r;
 }
 
-const useReducedMotion = () => useMedia("(prefers-reduced-motion: reduce)");
-
-export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
+export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample }: Props) {
   const [drag, setDrag] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
   const [fen, setFen] = useState("");
   const [fenError, setFenError] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const webgl = useWebGL();
-  const reduced = useReducedMotion();
+  const reduced = useMedia("(prefers-reduced-motion: reduce)");
+  const theme = useTheme();
   const heroRef = useRef<HTMLElement>(null);
   const [heroOn, setHeroOn] = useState(true);
-  const [lite, setLite] = useState(false);
-  const stacked = useMedia("(max-width: 960px)");
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time viewport check
-    setLite(window.innerWidth < 760);
     const el = heroRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(([e]) => setHeroOn(e.isIntersecting), { threshold: 0.02 });
@@ -104,7 +97,19 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
     return () => io.disconnect();
   }, []);
 
-  // The loading veil waits for the 3D hero's first frames (shaders compile then), so the
+  const brandRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    const el = brandRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver(([e]) => onHero(e.isIntersecting), { rootMargin: "-64px 0px 0px 0px" });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      onHero(true);
+    };
+  }, [onHero]);
+
+  // The loading veil waits for the knight's first frames (shaders compile then), so the
   // page doesn't stutter as it appears. Asked for at once, before the veil counts holds.
   const releaseVeil = useRef<(() => void) | null>(null);
   useEffect(() => {
@@ -112,24 +117,10 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
     releaseVeil.current = holdPageVeil(6000);
     return () => releaseVeil.current?.();
   }, []);
-  const heroReady = () => releaseVeil.current?.();
+  const knightReady = () => releaseVeil.current?.();
   // The 3D scene starts once the loading logo has played: compiling its shaders on a
   // phone takes long enough to make the logo stutter if both run at once.
   const logoPlayed = useBootLogoPlayed();
-
-  const heroPlacement = useMemo(() => placementFromFen(HERO_FEN), []);
-  const scenes = useMemo(() => {
-    const facts = computeFacts(HERO_FEN);
-    return buildTour(buildLedger(facts), facts.ctx.turn, 6);
-  }, []);
-  const [i, setI] = useState(0);
-  const [paused, setPaused] = useState(false);
-  useEffect(() => {
-    if (paused || reduced || scenes.length < 2) return;
-    const t = setTimeout(() => setI((x) => (x + 1) % scenes.length), HERO_STEP_MS);
-    return () => clearTimeout(t);
-  }, [i, paused, reduced, scenes.length]);
-  const scene = scenes[i];
 
   const submitFen = () => {
     const r = parseFen(fen);
@@ -142,10 +133,11 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
   };
 
   const pick = () => input.current?.click();
-  const dockRef = useRef<HTMLDivElement>(null);
-  const toImport = () => {
-    dockRef.current?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
-    dockRef.current?.querySelector<HTMLInputElement>("input, textarea")?.focus({ preventScroll: true });
+  const boxRef = useRef<HTMLDivElement>(null);
+  const positionRef = useRef<HTMLElement>(null);
+  const scrollTo = (el: HTMLElement | null, block: ScrollLogicalPosition) => {
+    el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block });
+    el?.querySelector<HTMLInputElement>("input, textarea")?.focus({ preventScroll: true });
   };
 
   /** A dropped .pgn is reviewed; a dropped image is read as a board photo. */
@@ -164,121 +156,125 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
     }
     setDropError("Drop a board photo (JPEG, PNG, WebP) or a .pgn file.");
   };
+  const dropHandlers = {
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDrag(true);
+    },
+    onDragLeave: () => setDrag(false),
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setDrag(false);
+      const f = e.dataTransfer.files[0];
+      if (f) void dropFile(f);
+    },
+  };
+
+  const fallbackMark = (
+    <div className="knight-flat">
+      <LogoMark size={168} animate={!reduced} />
+    </div>
+  );
 
   return (
     <>
-      <section className="hero3d" ref={heroRef} onMouseEnter={() => setPaused(false)}>
-        <div className="hero3d-stage" aria-hidden>
+      <section className={drag ? "hero hero-drop" : "hero"} ref={heroRef} aria-labelledby="hero-title" {...dropHandlers}>
+        <div className="knight-stage" aria-hidden>
           {webgl ? (
-            <HeroBoundary
-              onError={heroReady}
-              fallback={
-                <div className="hero3d-fallback">
-                  <BoardStage placement={heroPlacement} orientation="w" marks={scene?.fact.marks} revealKey={scene?.id} coordinates={false} label="" />
-                </div>
-              }
-            >
-              {logoPlayed && (
-                <Hero3D placement={heroPlacement} marks={scene?.fact.marks ?? null} sceneKey={scene?.id ?? "none"} reduced={reduced} active={heroOn} lite={lite} fit={stacked} onReady={heroReady} />
-              )}
-            </HeroBoundary>
+            <KnightBoundary onError={knightReady} fallback={fallbackMark}>
+              {logoPlayed && <HeroKnight theme={theme} reduced={reduced} active={heroOn} onReady={knightReady} />}
+            </KnightBoundary>
           ) : webgl === false ? (
-            <div className="hero3d-fallback">
-              <BoardStage placement={heroPlacement} orientation="w" marks={scene?.fact.marks} revealKey={scene?.id} coordinates={false} label="" />
-            </div>
+            fallbackMark
           ) : null}
         </div>
-        <div className="hero3d-veil" aria-hidden />
 
-        <div className="hero3d-content">
-          <h1 className="h-hero">See what the engine sees.</h1>
+        <div className="hero-content">
+          <p className="hero-brand" ref={brandRef}>
+            <Wordmark className="logo-word hero-word" />
+          </p>
+          <h1 className="hero-title" id="hero-title">
+            Review any chess game, move by move.
+          </h1>
           <p className="hero-lede">
-            Review a game from Chess.com, Lichess or a PGN. Every move gets a label, from brilliant to blunder, and an explanation taken from Stockfish&apos;s own lines. It all
-            runs in your browser, free.
+            Enter a Chess.com or Lichess username, a game link or a PGN. Stockfish labels every move from Brilliant to Blunder and explains why. Free, in your browser.
           </p>
 
-          <div
-            ref={dockRef}
-            className={drag ? "dock dock-on" : "dock"}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDrag(true);
-            }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDrag(false);
-              const f = e.dataTransfer.files[0];
-              if (f) void dropFile(f);
-            }}
-          >
+          <div ref={boxRef} className="hero-box">
             <GameImport onGame={onGame} />
             {dropError && <p className="hero-issue">{dropError}</p>}
-
-            <div className="dock-alt">
-              <span className="dock-label">Or open a single position</span>
-              <div className="dock-alt-row">
-                <button className="btn" onClick={pick}>
-                  <svg viewBox="0 0 24 24" aria-hidden>
-                    <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-                    <circle cx="12" cy="13" r="3.5" />
-                  </svg>
-                  Board photo
-                </button>
-                <form
-                  className="dock-fen"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    submitFen();
-                  }}
-                >
-                  <input className="input input-code" placeholder="Paste a FEN" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
-                  <button className="btn" disabled={!fen.trim()}>
-                    Analyse
-                  </button>
-                </form>
-              </div>
-              <input
-                ref={input}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                hidden
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onPhoto(f);
-                }}
-              />
-              {fenError && <p className="hero-issue">{fenError}</p>}
-              <div className="dock-row">
-                <button className="chip" onClick={onHand}>
-                  Set up a board
-                </button>
-                {SAMPLES.map((s) => (
-                  <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
-        </div>
 
-        {scene && (
-          <div className="hero3d-caption" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}>
-            <div key={scene.id} className={`caption ${scene.polarity === "strength" ? "t-opportunity" : "t-danger"}`}>
-              <span className="caption-tag">{scene.polarity === "strength" ? "+" : "−"}</span>
-              <span className="caption-kind">
-                {scene.side === "w" ? "White" : "Black"}&apos;s {scene.polarity}, read live from the board
-              </span>
-              <span className="caption-text">{scene.fact.title}</span>
-            </div>
-            <div className="hero3d-dots">
-              {scenes.map((s, k) => (
-                <button key={s.id} aria-label={s.label} aria-current={k === i} onClick={() => setI(k)} />
+          <div className="hero-actions">
+            <AddToChrome from="hero" className="btn btn-chrome">
+              Add to Chrome
+            </AddToChrome>
+            <button className="btn btn-ghost hero-alt" onClick={() => scrollTo(positionRef.current, "start")}>
+              Analyse a single position
+            </button>
+          </div>
+          <p className="hero-note">The Chrome extension reviews your Chess.com games right where you play them.</p>
+        </div>
+      </section>
+
+      <section className="section position" ref={positionRef} id="position" aria-labelledby="position-title">
+        <div className="section-head">
+          <h2 className="h-section" id="position-title">
+            Or analyse a single position
+          </h2>
+          <p className="section-lede">
+            A screenshot from a game, a FEN or a board you set up. It shows the threats, weaknesses and plans for both sides on the board, checked by Stockfish.
+          </p>
+        </div>
+        <div className="position-grid">
+          <button className={drag ? "drop drop-on" : "drop"} onClick={pick} {...dropHandlers}>
+            <span className="drop-icon" aria-hidden>
+              <svg viewBox="0 0 24 24">
+                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+            </span>
+            <span>
+              <span className="drop-title">Board screenshot or photo</span>
+              <span className="drop-sub">Drop it here or choose a file. It&apos;s read on your device.</span>
+            </span>
+          </button>
+          <div className="position-side">
+            <form
+              className="dock-fen"
+              onSubmit={(e) => {
+                e.preventDefault();
+                submitFen();
+              }}
+            >
+              <input className="input input-code" placeholder="Paste a FEN" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
+              <button className="btn" disabled={!fen.trim()}>
+                Analyse
+              </button>
+            </form>
+            {fenError && <p className="hero-issue">{fenError}</p>}
+            <div className="dock-row">
+              <button className="chip" onClick={onHand}>
+                Set up a board
+              </button>
+              {SAMPLES.map((s) => (
+                <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
+                  {s.name}
+                </button>
               ))}
             </div>
           </div>
-        )}
+        </div>
+        <input
+          ref={input}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPhoto(f);
+          }}
+        />
       </section>
 
       <Labels />
@@ -295,15 +291,14 @@ export function Home({ onGame, onPhoto, onFen, onHand, onSample }: Props) {
         <Concepts />
       </section>
 
+      <Faq />
+
       <section className="closing">
         <h2 className="h-section">Bring the game you lost last night.</h2>
         <p className="section-lede">Type your Chess.com username or paste the PGN, then step through it move by move.</p>
         <div className="closing-actions">
-          <button className="btn btn-primary btn-xl" onClick={toImport}>
+          <button className="btn btn-primary btn-xl" onClick={() => scrollTo(boxRef.current, "center")}>
             Review a game
-          </button>
-          <button className="btn btn-xl btn-ghost" onClick={pick}>
-            Upload a board photo
           </button>
           <AddToChrome from="closing" className="btn btn-xl btn-ghost closing-ext">
             Add to Chrome

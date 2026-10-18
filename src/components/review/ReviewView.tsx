@@ -98,6 +98,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
   const [hover, setHover] = useState<Marks | null>(null);
   const [animKey, setAnimKey] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
 
   const moves = r.review.moves;
   const cm: ClassifiedMove | undefined = ply > 0 ? moves[ply - 1] : undefined;
@@ -256,6 +257,14 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
     if (top < box.scrollTop + 8) box.scrollTop = top - 8;
     else if (top + el.offsetHeight > box.scrollTop + box.clientHeight - 8) box.scrollTop = top + el.offsetHeight - box.clientHeight + 8;
   }, [ply, side]);
+
+  // The phone's move strip keeps the current game move in the middle.
+  useEffect(() => {
+    const strip = stripRef.current;
+    const el = strip?.querySelector<HTMLElement>(`[data-ply="${ply}"]`);
+    if (!strip || !el || !strip.clientWidth) return;
+    strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: "smooth" });
+  }, [ply]);
 
   // What the board shows: a line being previewed, a side line, or the game position.
   const boardFen = line ? fenAtPly(line.variation, line.ply) : sideMove ? sideMove.fenAfter : gm ? gm.fenAfter : game.startFen;
@@ -429,6 +438,28 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
   const view = (
     <main className="review">
       <section className="board-col rv-board" aria-label="Board">
+        {/* Phones only: the game's moves on one line above the board, swipe sideways to browse. */}
+        <div className="rv-strip" ref={stripRef} role="group" aria-label="Moves">
+          <button data-ply={0} className={`rv-strip-mv ${ply === 0 && !side ? "rv-strip-on" : ""}`} onClick={() => go(0)}>
+            Start
+          </button>
+          {game.moves.map((m, i) => {
+            const c = moves[i];
+            return (
+              <button
+                key={i}
+                data-ply={i + 1}
+                className={`rv-strip-mv ${ply === i + 1 && !side ? "rv-strip-on" : ""}`}
+                onClick={() => go(i + 1)}
+                aria-label={c ? `${moveName(m)}, ${CLASS_INFO[c.cls].label}` : moveName(m)}
+              >
+                {m.color === "w" && <span className="rv-strip-num">{m.moveNumber}.</span>}
+                {c && COLOURED.includes(c.cls) && <ClassIcon cls={c.cls} size={13} />}
+                {m.san}
+              </button>
+            );
+          })}
+        </div>
         <PlayerRow game={game} color={top} accuracy={r.accuracy?.[top]} active={turnAt === top} />
         <div className="board-wrap">
           <EvalBar e={shownEval} orientation={orientation} />
@@ -448,45 +479,54 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
         </div>
         <PlayerRow game={game} color={orientation} accuracy={r.accuracy?.[orientation]} active={turnAt === orientation} />
 
-        {line ? (
-          <VariationBar variation={line.variation} ply={line.ply} onNav={navLine} evals={[]} title={line.title} onClose={() => setLine(null)} />
-        ) : sideLine && side ? (
-          <div className="rv-nav rv-nav-side" role="group" aria-label="Move through your line">
-            <button className="step-btn" onClick={() => go(sideLine.from)} aria-label="Back to the game">
-              ⏮
-            </button>
-            <button className="step-btn" onClick={() => step(-1)} aria-label="Previous move">
-              ◀
-            </button>
-            <button className="step-btn step-main" onClick={() => step(1)} disabled={side.ply >= sideLine.moves.length} aria-label="Next move">
-              ▶
-            </button>
-            <button className="step-btn" onClick={() => pick(sideLine.id, sideLine.moves.length)} disabled={side.ply >= sideLine.moves.length} aria-label="End of your line">
-              ⏭
-            </button>
-            <button className="btn btn-sm btn-ghost" onClick={() => go(sideLine.from)}>
-              Back to the game
-            </button>
-          </div>
-        ) : (
-          <div className="rv-nav" role="group" aria-label="Move through the game">
-            <button className="step-btn" onClick={() => go(0)} disabled={ply === 0} aria-label="Start of game">
-              ⏮
-            </button>
-            <button className="step-btn" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Previous move">
-              ◀
-            </button>
-            <button className="step-btn step-main" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Next move">
-              ▶
-            </button>
-            <button className="step-btn" onClick={() => go(n)} disabled={ply === n} aria-label="End of game">
-              ⏭
-            </button>
-            <button className="btn btn-sm btn-ghost" onClick={() => onOrientation(other(orientation))}>
-              Flip ⇅
-            </button>
-          </div>
-        )}
+        {/* The way through the game. On phones it's a dock fixed at the bottom of the screen, in
+            reach of the thumb, with the review's progress along its top edge. */}
+        <div className="rv-dock">
+          {running && (
+            <div className="rv-dock-progress" aria-hidden>
+              <span style={{ width: `${Math.round(r.progress * 100)}%` }} />
+            </div>
+          )}
+          {line ? (
+            <VariationBar variation={line.variation} ply={line.ply} onNav={navLine} evals={[]} title={line.title} onClose={() => setLine(null)} />
+          ) : sideLine && side ? (
+            <div className="rv-nav rv-nav-side" role="group" aria-label="Move through your line">
+              <button className="step-btn" onClick={() => go(sideLine.from)} aria-label="Back to the game">
+                ⏮
+              </button>
+              <button className="step-btn" onClick={() => step(-1)} aria-label="Previous move">
+                ◀
+              </button>
+              <button className="step-btn step-main" onClick={() => step(1)} disabled={side.ply >= sideLine.moves.length} aria-label="Next move">
+                ▶
+              </button>
+              <button className="step-btn" onClick={() => pick(sideLine.id, sideLine.moves.length)} disabled={side.ply >= sideLine.moves.length} aria-label="End of your line">
+                ⏭
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => go(sideLine.from)}>
+                Back to the game
+              </button>
+            </div>
+          ) : (
+            <div className="rv-nav" role="group" aria-label="Move through the game">
+              <button className="step-btn" onClick={() => go(0)} disabled={ply === 0} aria-label="Start of game">
+                ⏮
+              </button>
+              <button className="step-btn" onClick={() => go(ply - 1)} disabled={ply === 0} aria-label="Previous move">
+                ◀
+              </button>
+              <button className="step-btn step-main" onClick={() => go(ply + 1)} disabled={ply === n} aria-label="Next move">
+                ▶
+              </button>
+              <button className="step-btn" onClick={() => go(n)} disabled={ply === n} aria-label="End of game">
+                ⏭
+              </button>
+              <button className="btn btn-sm btn-ghost" onClick={() => onOrientation(other(orientation))}>
+                Flip ⇅
+              </button>
+            </div>
+          )}
+        </div>
         <EvalGraph positions={r.positions} moves={moves} ply={ply} onPly={go} />
       </section>
 
