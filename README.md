@@ -8,7 +8,7 @@
 
 Free and open source. Stockfish 19 runs in your browser; nothing is uploaded.
 
-[**whatsthisposition.com**](https://whatsthisposition.com) · [How it works](docs/HOW-IT-WORKS.md) · [How it compares](docs/COMPARISON.md) · [Self-host it](docs/DEPLOY.md)
+[**whatsthisposition.com**](https://www.whatsthisposition.com) · [Chrome extension](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka) · [How it works](docs/HOW-IT-WORKS.md) · [How it compares](docs/COMPARISON.md) · [Self-host it](docs/DEPLOY.md)
 
 [![CI](https://github.com/acunli/whatsthisposition/actions/workflows/ci.yml/badge.svg)](https://github.com/acunli/whatsthisposition/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0--or--later-ff7629)](LICENSE)
@@ -169,7 +169,7 @@ what’sthisposition is free software under the **GNU GPL v3 or later** ([LICENS
 - **Libraries:** three.js and React Three Fiber (MIT), chess.js (BSD-2-Clause).
 - **Ideas:** the Brilliant and Great checks were informed by [WintrChess](https://github.com/WintrCat/wintrchess) (GPL-3.0), and reimplemented independently.
 
-Full list: [/credits](https://whatsthisposition.com/credits).
+Full list: [/credits](https://www.whatsthisposition.com/credits).
 
 <div align="center">
 

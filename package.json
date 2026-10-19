@@ -5,7 +5,7 @@
   "description": "what’sthisposition: free, open-source chess game review and position analysis that explains every move.",
   "license": "GPL-3.0-or-later",
   "author": "Ayushman Chaudhuri (https://ayushman.rocks)",
-  "homepage": "https://whatsthisposition.com",
+  "homepage": "https://www.whatsthisposition.com",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/acunli/whatsthisposition.git"
