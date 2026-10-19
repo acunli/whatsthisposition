@@ -1,0 +1,67 @@
+name: Reviewed games
+
+# Every day: pick the strongest new games (top Lichess broadcasts, Chess.com's leaderboards),
+# review them with the site's own engine, rules and explanations, and commit their pages to
+# content/games (src/lib/content/publish.test.ts). The push deploys the site; the IndexNow
+# workflow then tells search engines about the new pages.
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      broadcasts:
+        description: Over-the-board games to add
+        default: "4"
+      online:
+        description: Chess.com games to add
+        default: "3"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reviewed-games
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pick the day's games
+        run: npx vitest run src/lib/content/publish.test.ts
+        env:
+          CONTENT_STEP: pick
+          CONTENT_BROADCASTS: ${{ inputs.broadcasts || '4' }}
+          CONTENT_ONLINE: ${{ inputs.online || '3' }}
+      # One engine per process, one process per core. A game that fails is left out; the rest are kept.
+      - name: Review them
+        run: |
+          shards=$(nproc)
+          for i in $(seq 0 $((shards - 1))); do
+            CONTENT_STEP=review CONTENT_SHARD=$i/$shards npx vitest run src/lib/content/publish.test.ts > review-$i.log 2>&1 &
+          done
+          wait
+          cat review-*.log
+      - name: Check the site still builds
+        run: |
+          npx vitest run src/lib/content
+          npm run build
+      - name: Commit the new pages
+        run: |
+          git add content/games
+          if git diff --cached --quiet; then
+            echo "No new games today."
+            exit 0
+          fi
+          n=$(git diff --cached --name-only | wc -l)
+          git -c user.name="ayushman-2008" -c user.email="ayushman.chaudhuri@gmail.com" commit -q -m "Reviewed games: $n new"
+          # Someone may have pushed while the games were being reviewed.
+          git pull -q --rebase origin main
+          git push origin HEAD:main

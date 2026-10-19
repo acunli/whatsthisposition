@@ -40,7 +40,7 @@ export function SiteFooter() {
       <div className="footer-brand">
         <Logo size={26} animate={false} />
         <p>
-          Stockfish 19 runs in your browser. Games and photos stay on your device; visits are only counted, anonymously and without cookies.
+          Stockfish 19 runs in your browser. Games and photos stay on your device unless you share a review; visits are only counted, anonymously and without cookies.
         </p>
       </div>
       <div className="footer-navs">
@@ -52,6 +52,7 @@ export function SiteFooter() {
               {p.name}
             </Link>
           ))}
+          <Link href="/games">Top players&apos; games, reviewed</Link>
         </nav>
         <nav className="footer-links" aria-label="Footer">
           <Link href="/credits">How it works, licences and privacy</Link>

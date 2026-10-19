@@ -14,7 +14,7 @@ import { placementFromFen } from "../chess/fen";
 import type { Color } from "../chess/types";
 import { SITE_TAGLINE } from "../brand";
 import { CLASS_INFO, type MoveClass } from "../review/classify";
-import { CLASS_TEXT } from "../review/classGlyphs";
+import { CLASS_PATHS, CLASS_TEXT, STROKED } from "../review/classGlyphs";
 import { CARD_CLASSES, sides, type ShareSummary } from "../review/shareCard";
 
 export const CARD_SIZE = { width: 1200, height: 630 };
@@ -41,12 +41,18 @@ const BOARD = 534;
 const SQ = BOARD / 8;
 const FILES = "abcdefgh";
 
-/** A label's round badge, as on the site. */
+/** A label's round badge, as on the site: its text ("!!", "?") or its drawn glyph (src/lib/review/classGlyphs.ts). */
 function Badge({ cls, size }: { cls: MoveClass; size: number }) {
-  const text = CLASS_TEXT[cls] ?? (cls === "best" ? "★" : cls === "miss" ? "×" : "");
+  const text = CLASS_TEXT[cls];
+  const d = CLASS_PATHS[cls];
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size, height: size, borderRadius: size, background: CLASS_INFO[cls].color, color: "#fff", fontFamily: "Display", fontSize: size * (text.length > 1 ? 0.5 : 0.6), letterSpacing: text.length > 1 ? -1 : 0 }}>
-      {text}
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", width: size, height: size, borderRadius: size, background: CLASS_INFO[cls].color, color: "#fff", fontFamily: "Display", fontSize: size * ((text?.length ?? 0) > 1 ? 0.5 : 0.6), letterSpacing: (text?.length ?? 0) > 1 ? -1 : 0 }}>
+      {text ??
+        (d && (
+          <svg width={size} height={size} viewBox="0 0 24 24">
+            {STROKED.has(cls) ? <path d={d} fill="none" stroke="#fff" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" /> : <path d={d} fill="#fff" />}
+          </svg>
+        ))}
     </div>
   );
 }
@@ -71,8 +77,8 @@ function Board({ s, pieces }: { s: ShareSummary; pieces: Record<string, string> 
           {/* eslint-disable-next-line @next/next/no-img-element -- next/og draws plain img elements */}
           {p && <img src={pieces[`${p.color}${p.type.toUpperCase()}`]} width={SQ} height={SQ} style={{ position: "absolute", left: 0, top: 0 }} alt="" />}
           {s.moment && sq === s.moment.to && (
-            <div style={{ display: "flex", position: "absolute", right: -12, top: -12 }}>
-              <Badge cls={s.moment.cls} size={34} />
+            <div style={{ display: "flex", position: "absolute", right: 2, top: 2 }}>
+              <Badge cls={s.moment.cls} size={28} />
             </div>
           )}
         </div>,
@@ -140,7 +146,7 @@ export async function reviewCard(s: ShareSummary): Promise<ImageResponse> {
             <Player s={s} color="w" />
             <Player s={s} color="b" />
             {mine.length > 0 && (
-              <div style={{ display: "flex", gap: 18, marginTop: 6, fontSize: 24, color: DIM }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 18px", marginTop: 6, fontSize: 24, color: DIM }}>
                 {mine.map((c) => (
                   <div key={c} style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Badge cls={c} size={28} />

@@ -1,7 +1,9 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
-import sitemap from "@/app/sitemap";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("server-only", () => ({}));
+const { default: sitemap } = await import("@/app/sitemap");
 import { SITE_NAME, SITE_URL } from "./brand";
 import { FAQ } from "./faq";
 import { LANDINGS } from "./landing";

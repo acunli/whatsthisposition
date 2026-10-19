@@ -21,3 +21,6 @@ public/engine/
 /extension/*.zip
 # Vercel CLI link (vercel link)
 .vercel
+
+# The daily content job's picks (src/lib/content/publish.test.ts)
+content/candidates.json

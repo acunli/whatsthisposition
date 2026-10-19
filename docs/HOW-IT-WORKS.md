@@ -17,6 +17,7 @@ This is the long version: what the site does, how each part works, the exact rul
 11. [Privacy and security](#11-privacy-and-security)
 12. [How we know it works](#12-how-we-know-it-works)
 13. [Limitations](#13-limitations)
+14. [Reviewed games](#14-reviewed-games)
 
 ---
 
@@ -254,3 +255,13 @@ On a held-out set of real game screenshots: **98.5% of squares** right, and 53 o
 - **Explanations are template-based English.** They read well on the 213-move Brilliant corpus but can be clumsy on unusual positions. Great ("only move") moves don't yet get the step-by-step treatment.
 - **The opening book is a subset:** 1.84M strong-player games, not every game ever played.
 - **The board can't be played with the keyboard yet,** and there is no move history across sessions (by design: nothing is stored).
+
+## 14. Reviewed games
+
+`/games` publishes strong players' recent games, reviewed exactly as a visitor's game would be. A daily GitHub Actions job (`.github/workflows/content.yml`) runs two opt-in steps of `src/lib/content/publish.test.ts`:
+
+- **Pick** (`src/lib/content/sources.ts`): finished games of the last four days from Lichess broadcasts of tier 4 and 5 events (both players 2400+, at least 20 moves, two per event), and the last three days' rated blitz and rapid games of the top five on Chess.com's blitz and rapid leaderboards (opponent 2600+, at least 25 moves, one per player). Stronger pairings rank first; a decisive game counts 50 points more. Games already published are left out. No game or player is named in the rules.
+- **Review**, one Stockfish process per core: `runReview` at Thorough (18, a preset, so the page's "Step through every move" shows the same review without the engine), the opening book with master statistics, accuracy, then the key moments (every Brilliant and Great move, then the costliest mistakes, up to eight) explained by the review card's story and the reasoning engine. Errors keep only the verdict, the punishing reply and the better move, since the reasoning engine describes what a move intends. Each game becomes `content/games/<slug>.json` (`GameRecord`, `src/lib/content/games.ts`), about 10–25 KB.
+
+The pages are static: `/games` (newest first), `/games/[slug]` (the article: card, accuracies, label counts, key moments, opening, every move, links to the source and to other games; Article and BreadcrumbList JSON-LD), `/games/[slug]/review` (the app on the finished review; `noindex`, canonical to the article) and the card (`opengraph-image`, the same drawing as shared reviews). The job builds the site before committing, and the push deploys it.
+
