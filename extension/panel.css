@@ -152,6 +152,10 @@ body {
   font-size: 12px;
 }
 
+.rate a {
+  color: var(--brand);
+}
+
 .status {
   margin: 0;
   color: var(--bone-2);

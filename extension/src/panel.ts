@@ -15,7 +15,7 @@ import { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/
 import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { classifyGame, runReview, tally } from "@/lib/review/review";
 import { packReview, reviewLink } from "@/lib/review/share";
-import { SITE_URL } from "@/lib/brand";
+import { EXTENSION_URL, SITE_URL } from "@/lib/brand";
 import { markSvg } from "@/lib/logoPaths";
 import { remoteEnginePool } from "./remoteEngine";
 
@@ -79,6 +79,23 @@ function renderProgress(text: string, share: number) {
   app.querySelector<HTMLElement>("[data-bar]")!.style.width = `${Math.round(share * 100)}%`;
 }
 
+/**
+ * A line asking for a rating on the Chrome Web Store, after the 3rd, 8th and 20th finished review,
+ * until it's clicked once (ratings are how the store ranks extensions). Kept in this card's own
+ * storage, so the extension needs no "storage" permission; private windows simply never ask.
+ */
+const ASK_AT = [3, 8, 20];
+function ratingAsk(): string {
+  try {
+    const n = Number(localStorage.getItem("wtp-reviews") ?? 0) + 1;
+    localStorage.setItem("wtp-reviews", String(n));
+    if (!ASK_AT.includes(n) || localStorage.getItem("wtp-rated")) return "";
+  } catch {
+    return "";
+  }
+  return `<p class="note rate">Finding it useful? <a href="${esc(`${EXTENSION_URL}/reviews`)}" target="_blank" rel="noopener" data-rate>Rate it on the Chrome Web Store</a>: it helps other players find it.</p>`;
+}
+
 /** The result; `data` is the finished review, so the website can show it without searching again. */
 function renderDone(acc: Record<"w" | "b", number | null>, counts: Record<string, { w: number; b: number }>, opening: string | null, data?: string) {
   const a = (v: number | null) => (v == null ? "–" : v.toFixed(1));
@@ -96,8 +113,16 @@ function renderDone(acc: Record<"w" | "b", number | null>, counts: Record<string
     ${opening ? `<p class="opening">${esc(opening)}</p>` : ""}
     <table class="table"><thead><tr><th>${esc(game!.white)}</th><th></th><th>${esc(game!.black)}</th></tr></thead><tbody>${rows}</tbody></table>
     <a class="primary" href="${esc(link)}" target="_blank" rel="noopener">See every move explained →</a>
-    <p class="note">Opens what’sthisposition with this game and this review, step by step: nothing is searched twice.</p>`;
+    <p class="note">Opens what’sthisposition with this game and this review, step by step: nothing is searched twice.</p>
+    ${ratingAsk()}`;
   bind();
+  app.querySelector("[data-rate]")?.addEventListener("click", () => {
+    try {
+      localStorage.setItem("wtp-rated", "1");
+    } catch {
+      // nothing to remember it in: it may ask again at the next milestone
+    }
+  });
 }
 
 /** What went wrong, plus a way out: the website runs the same review with its own engine. */
