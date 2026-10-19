@@ -1,4 +1,4 @@
-Free, unlimited chess game review for Chess.com. Finish a game, click the what’sthisposition button, and Stockfish 19 analyses it on your own computer: both players’ accuracy and every move labelled, from Brilliant and Great to Mistake, Miss and Blunder. No account, no daily limit, no ads.
+Free, unlimited chess game review for Chess.com. Finish a game, click the what’sthisposition button, and Stockfish 19 analyses it on your own computer: both players’ accuracy and every move labelled, from Brilliant to Blunder. No account, no daily limit, no ads.
 
 HOW IT WORKS
 1. Finish a game on Chess.com, or open one of your past games.
@@ -10,7 +10,7 @@ Tip: pin the extension (the puzzle-piece icon, then the pin) so its button is al
 
 IN THE CARD
 • Accuracy for both players
-• How many Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss and Blunder moves each player made
+• How many moves of each kind each player made, from Brilliant to Blunder
 • The opening, by name and ECO code
 • Three depths: Fast, Standard and Thorough
 
@@ -33,6 +33,6 @@ PRIVATE BY DESIGN
 FREE AND OPEN SOURCE
 No subscription and no limits. The code is on GitHub under the GPL-3.0 licence: https://github.com/acunli/whatsthisposition
 
-Works in Chrome, Edge, Brave, Arc, Opera and other Chromium browsers.
+Works in Chrome and other Chromium-based browsers on a computer.
 
 what’sthisposition is an independent project. It isn’t affiliated with or endorsed by Chess.com.
