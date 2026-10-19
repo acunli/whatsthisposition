@@ -1,12 +1,12 @@
 /** Review search depths, shared by the site and the browser extension. */
 export const REVIEW_DEPTHS = [
   { label: "Fast", depth: 12, note: "a few seconds" },
-  { label: "Standard", depth: 14, note: "quicker" },
-  { label: "Thorough", depth: 18, note: "the default: slower, sharper" },
+  { label: "Standard", depth: 14, note: "the default" },
+  { label: "Thorough", depth: 18, note: "slower, sharper" },
 ];
 
-/** Reviews start at Thorough (the owner's choice); the browser extension uses the same depth. */
-export const DEFAULT_REVIEW_DEPTH = 2;
+/** Reviews start at Standard (the owner's choice); the browser extension uses the same depth. */
+export const DEFAULT_REVIEW_DEPTH = 1;
 
 /** Critical positions are searched this much deeper in the second pass. */
 export const VERIFY_EXTRA = 4;
