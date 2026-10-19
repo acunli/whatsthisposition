@@ -45,9 +45,11 @@
   --font-serif: var(--font-archivo), system-ui, sans-serif;
   --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  /* Colours that don't change with the theme: White's colour (eval bar, graph, swatches),
-     and text on bright fills (labels, badges, the brand orange). */
+  /* Colours that don't change with the theme: White's and Black's colours (eval bar, graph,
+     swatches; text on Black's is White's), and text on bright fills (labels, badges, the
+     brand orange). */
   --ivory: #f1ede2;
+  --ebony: #050607;
   --on-bright: #0c110f;
   /* How much of a label's own colour its text keeps: on the light page, label colours like
      Inaccuracy's yellow are mixed with the text colour so they stay readable. */
@@ -3366,8 +3368,8 @@ textarea.input {
 }
 
 .evalchip-b {
-  background: #000;
-  color: var(--bone);
+  background: var(--ebony);
+  color: var(--ivory);
   box-shadow: inset 0 0 0 1px var(--line-2);
 }
 
@@ -4127,10 +4129,10 @@ textarea.input {
 .vbar {
   position: relative;
   flex: none;
-  width: 28px;
+  width: 32px;
   border-radius: 8px;
   overflow: hidden;
-  background: #050607;
+  background: var(--ebony);
   box-shadow: inset 0 0 0 1px var(--line-2);
 }
 
@@ -4165,15 +4167,19 @@ textarea.input {
   background: rgb(var(--gold));
 }
 
+/* Written sideways, so `text-align` can't centre it across the bar: as a flex box in
+   vertical writing, `align-items` does. */
 .vbar-label {
   position: absolute;
   left: 0;
   right: 0;
-  text-align: center;
+  display: flex;
+  align-items: center;
   font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 8px 0;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
 }
@@ -4193,7 +4199,7 @@ textarea.input {
 }
 
 .vbar-label-b {
-  color: var(--bone);
+  color: var(--ivory);
 }
 
 .vbar-mate {
@@ -4202,12 +4208,12 @@ textarea.input {
 
 @media (max-width: 560px) {
   .vbar {
-    width: 24px;
+    width: 26px;
   }
 
   .vbar-label {
-    font-size: 9.5px;
-    letter-spacing: -0.04em;
+    font-size: 11.5px;
+    padding: 6px 0;
   }
 }
 
