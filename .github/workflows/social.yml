@@ -1,0 +1,47 @@
+name: Social posts
+
+# After the day's reviewed games are published, post the most striking ones to the site's own
+# Bluesky and Mastodon accounts (scripts/social/post.mjs). Each platform runs only once its
+# secrets are set in the repository (Settings > Secrets and variables > Actions):
+#   BLUESKY_HANDLE, BLUESKY_APP_PASSWORD; MASTODON_INSTANCE, MASTODON_TOKEN.
+on:
+  workflow_run:
+    workflows: [Reviewed games]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: social-posts
+  cancel-in-progress: false
+
+jobs:
+  post:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 30
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # The new pages must be live before their links are posted (the push deploys them).
+      - name: Wait for the newest game's page
+        run: |
+          file=$(git log -1 --diff-filter=A --name-only --format= -- content/games | head -1)
+          [ -z "$file" ] && echo "No game added recently." && exit 0
+          slug=$(basename "$file" .json)
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "https://www.whatsthisposition.com/games/$slug")
+            [ "$code" = 200 ] && echo "Live: $slug" && exit 0
+            sleep 15
+          done
+          echo "::warning::$slug isn't live after 10 minutes; posting anyway."
+      - run: node scripts/social/post.mjs
+        env:
+          BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
+          BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
+          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
+          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
