@@ -1,6 +1,6 @@
 {
   "name": "whatsthisposition",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "what’sthisposition: free, open-source chess game review and position analysis that explains every move.",
   "license": "GPL-3.0-or-later",
@@ -40,7 +40,8 @@
     "test:watch": "vitest",
     "vision:check": "node scripts/vision-check.mjs",
     "ext:build": "node extension/build.mjs",
-    "ext:zip": "node extension/build.mjs --zip"
+    "ext:zip": "node extension/build.mjs --zip",
+    "seo:indexnow": "node scripts/indexnow.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.129.0",

@@ -1,19 +1,22 @@
 import Image from "next/image";
+import Link from "next/link";
+import { LANDING } from "@/lib/landing";
 import { AddToChrome } from "../AddToChrome";
 
-/** The Chess.com extension: what it does, and the button to add it. */
-export function Extension() {
+/**
+ * The Chess.com extension: what it does, and the button to add it. On the extension's own page
+ * it is the page's heading (`page`), and doesn't link to itself.
+ */
+export function Extension({ page = false }: { page?: boolean }) {
+  const Heading = page ? "h1" : "h2";
   return (
     <section className="section ext" aria-labelledby="ext-title">
       <div className="ext-grid">
         <div className="ext-copy">
-          <h2 className="h-section" id="ext-title">
-            Review it without leaving Chess.com
-          </h2>
-          <p className="section-lede">
-            The free extension reviews a finished Chess.com game right where you played it: both players&apos; accuracy and every move counted, from Brilliant to
-            Blunder. One more click opens the whole review here, already done.
-          </p>
+          <Heading className="h-section" id="ext-title">
+            {page ? LANDING.extension.h1 : "Review it without leaving Chess.com"}
+          </Heading>
+          <p className="section-lede">{LANDING.extension.lede}</p>
           <ol className="ext-steps">
             <li>
               <span>
@@ -37,6 +40,12 @@ export function Extension() {
             </AddToChrome>
             <p className="ext-note">
               For Chrome, Edge, Brave and other Chromium browsers on a computer. It only reviews finished games, and collects nothing.
+              {!page && (
+                <>
+                  {" "}
+                  <Link href={LANDING.extension.path}>More about the extension</Link>
+                </>
+              )}
             </p>
           </div>
         </div>

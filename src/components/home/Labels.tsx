@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { LANDING } from "@/lib/landing";
 import { CLASS_INFO, CLASS_ORDER, type MoveClass } from "@/lib/review/classify";
 import { ClassIcon } from "../review/ClassIcon";
 
@@ -16,15 +18,28 @@ const RULES: Record<MoveClass, string> = {
   forced: "The only legal move.",
 };
 
-export function Labels() {
+/**
+ * The label legend. On the page that explains the labels (`page`) it carries that page's heading;
+ * elsewhere it links there.
+ */
+export function Labels({ page = false }: { page?: boolean }) {
   return (
     <section className="section">
       <div className="section-head">
-        <h2 className="h-section">Every move gets a label</h2>
-        <p className="section-lede">
-          Each move is compared with Stockfish&apos;s best in winning chances, on Lichess&apos;s win-probability curve. The same rules apply to every game, from your blitz games to
-          world championships.
-        </p>
+        {page ? (
+          <>
+            <h1 className="h-section">{LANDING.labels.h1}</h1>
+            <p className="section-lede">{LANDING.labels.lede}</p>
+          </>
+        ) : (
+          <>
+            <h2 className="h-section">Every move gets a label</h2>
+            <p className="section-lede">
+              Each move is compared with Stockfish&apos;s best in winning chances, on Lichess&apos;s win-probability curve. The same rules apply to every game, from your
+              blitz games to world championships. <Link href={LANDING.labels.path}>How each label is decided</Link>
+            </p>
+          </>
+        )}
       </div>
       <ul className="legend">
         {CLASS_ORDER.map((c) => (

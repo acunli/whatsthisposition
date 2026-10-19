@@ -1,0 +1,17 @@
+name: IndexNow
+
+# After each production deploy (Vercel reports it to GitHub as a deployment), ask Bing and the
+# other IndexNow search engines to recrawl the pages in the sitemap.
+on: deployment_status
+
+jobs:
+  submit:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node scripts/indexnow.mjs

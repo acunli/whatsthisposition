@@ -1,9 +1,14 @@
 /**
  * Questions people ask before trying the site. Shown on the home page and given to search
- * engines as FAQPage structured data (layout.tsx), so both always say the same thing.
+ * engines as FAQPage structured data (app/page.tsx), so both always say the same thing.
  * Keep the answers true to the code: they quote its rules and numbers.
  */
-export const FAQ: { q: string; a: string }[] = [
+export interface FaqItem {
+  q: string;
+  a: string;
+}
+
+export const FAQ: FaqItem[] = [
   {
     q: "Is it really free?",
     a: "Yes. There is no account, no daily limit and nothing to unlock. Stockfish runs on your own device, so a review costs nothing to serve. The code is open source (GPL-3.0).",

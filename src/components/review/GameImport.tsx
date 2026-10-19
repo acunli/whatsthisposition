@@ -7,13 +7,15 @@ import type { GameSummary } from "@/lib/review/importers";
 import { PgnError, parseGame, splitGames, type ParsedGame } from "@/lib/review/pgn";
 import { CLASSIC_GAMES } from "@/lib/review/samples";
 
-type Source = "chesscom" | "lichess" | "pgn";
+export type ImportSource = "chesscom" | "lichess" | "pgn";
 
 interface Props {
   onGame: (game: ParsedGame, orientation?: Color) => void;
+  /** The tab it opens on (Chess.com unless a page says otherwise). */
+  initialSource?: ImportSource;
 }
 
-const SOURCES: [Source, string][] = [
+const SOURCES: [ImportSource, string][] = [
   ["chesscom", "Chess.com"],
   ["lichess", "Lichess"],
   ["pgn", "PGN"],
@@ -27,8 +29,8 @@ function when(ms?: number) {
 }
 
 /** Bring a game in: Chess.com / Lichess username, a Lichess game link, or a pasted / uploaded PGN. */
-export function GameImport({ onGame: openGame }: Props) {
-  const [source, setSource] = useState<Source>("chesscom");
+export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Props) {
+  const [source, setSource] = useState<ImportSource>(initialSource);
   const fromFile = useRef(false);
   /** A review starts: counted (anonymously) by where the game came from. */
   const onGame = (g: ParsedGame, orientation?: Color) => {

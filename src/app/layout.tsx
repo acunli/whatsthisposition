@@ -3,6 +3,7 @@ import { Archivo } from "next/font/google";
 import { PageVeil } from "@/components/PageVeil";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
+import { OG_IMAGE } from "@/lib/seo";
 import { THEME_BG, THEME_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -51,9 +52,9 @@ export const metadata: Metadata = {
     title: TITLE,
     description: SITE_DESCRIPTION,
     locale: "en_US",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: `${SITE_NAME}: free chess game review, every move explained` }],
+    images: [OG_IMAGE],
   },
-  twitter: { card: "summary_large_image", title: TITLE, description: SITE_DESCRIPTION, images: ["/og.png"] },
+  twitter: { card: "summary_large_image", title: TITLE, description: SITE_DESCRIPTION, images: [OG_IMAGE.url] },
 };
 
 export const viewport: Viewport = {

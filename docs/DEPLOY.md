@@ -44,7 +44,7 @@ Until a domain is added, the site uses its `vercel.app` address in page metadata
 3. At the registrar, create the DNS records Vercel shows (usually an `A` record for the bare domain and a `CNAME` for `www`). Use the exact values from the dashboard. HTTPS certificates are issued automatically.
 4. **Redeploy once** (Deployments → the latest one → Redeploy, or push any commit). The site's address is read at build time, so this switches the metadata and the sitemap to the new domain.
 
-The `vercel.app` address keeps working afterwards. Its pages name the `.com` as the canonical address, so search engines index the domain.
+Afterwards, production builds redirect the `vercel.app` addresses to the domain (`next.config.ts`), so search engines see each page at one address. Preview deployments keep their own addresses.
 
 ### Notes on Vercel
 
@@ -56,6 +56,15 @@ The `vercel.app` address keeps working afterwards. Its pages name the `.com` as 
   - **The dashboard:** `/stats`, signed in with `STATS_PASSWORD`. It shows people per day, reviews, analyses, photos, opens from the extension, where reviews come from, and countries. The counter needs a Redis database: `vercel integration add upstash/upstash-kv --plan free -m autoUpgrade=false` connects a free one, which stops counting at its monthly limit instead of upgrading.
   - **Vercel Web Analytics** adds referrers, pages and devices. Turn it on under the project's **Analytics** tab (Hobby: 50,000 page views a month, one month of history).
   - **The extension's installs and weekly users** are in the Chrome Web Store developer dashboard.
+
+### Search engines
+
+The pages, the sitemap (`/sitemap.xml`) and `robots.txt` are ready; search engines still have to be told the site exists.
+
+- **Google:** add the site in [Search Console](https://search.google.com/search-console). A **Domain** property is verified with a DNS `TXT` record at the registrar; a **URL prefix** property (`https://www.whatsthisposition.com/`) can use the HTML tag instead: put the tag's `content` value in the `GOOGLE_SITE_VERIFICATION` environment variable and redeploy. Then, under **Sitemaps**, submit `sitemap.xml`, and use **URL inspection → Request indexing** for the home page. Verifying also lets the Chrome Web Store show the site as the extension's official URL.
+- **Bing** (and DuckDuckGo, Yahoo and others that use Bing's index): [Bing Webmaster Tools](https://www.bing.com/webmasters) can import the site from Search Console. Every production deploy also pings Bing and the other [IndexNow](https://www.indexnow.org) engines with the sitemap's pages (`.github/workflows/indexnow.yml`, `npm run seo:indexnow`); the key is the file `public/<key>.txt`.
+
+New pages go in `src/lib/landing.ts` (title, description, questions) with a folder under `src/app/`; the sitemap and the footer pick them up from there.
 
 ## Option B: a small VPS with Docker
 
@@ -105,6 +114,7 @@ Everything is optional (see [`.env.example`](../.env.example)):
 | --- | --- |
 | `LICHESS_TOKEN` | Raises Lichess's rate limit for "Lichess username" imports. Not needed: usernames, game links and Chess.com all work without it. A free personal token with no scopes is enough. |
 | `NEXT_PUBLIC_SITE_URL` | The public address for metadata and the sitemap. Not needed on Vercel (it follows the production domain) or on whatsthisposition.com. Read at build time. |
+| `GOOGLE_SITE_VERIFICATION` | The token from Google Search Console's HTML-tag check (only the `content` value). Read at build time. |
 | `CLIENT_IP_HEADER` | Behind a proxy other than Vercel or Caddy, the header with the visitor's real IP (e.g. `cf-connecting-ip`), for the rate limits. |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | The usage counter's database (Upstash Redis from the Vercel Marketplace sets these when it's connected to the project). Without them nothing is counted. |
 | `STATS_PASSWORD` | Turns on the usage dashboard at `/stats` (HTTP sign-in: any user name, this password). Without it `/stats` doesn't exist. |
@@ -127,6 +137,7 @@ On Vercel, set these under the project's **Settings → Environment Variables**,
 - [ ] `/api/health` returns `{"ok":true}`.
 - [ ] Import a Chess.com username, review a game, open a position, read a screenshot.
 - [ ] Share the link somewhere that shows previews to check the card (`/og.png`).
+- [ ] Add the site to Google Search Console and Bing Webmaster Tools and submit the sitemap (see "Search engines").
 - [ ] After a few days, check the usage (Vercel's Usage tab, or the server's CPU and memory): it should stay low, since the work happens in browsers.
 
 ## Licence obligations when you host it

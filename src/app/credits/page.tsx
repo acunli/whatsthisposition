@@ -1,7 +1,5 @@
-import Link from "next/link";
-import { Logo } from "@/components/Logo";
-import { SiteCredit, SiteFooter, SupportButton } from "@/components/SiteLinks";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { PageTopbar } from "@/components/PageTopbar";
+import { SiteFooter } from "@/components/SiteLinks";
 import { SITE_NAME, SOURCE_URL } from "@/lib/brand";
 
 export const metadata = {
@@ -13,19 +11,7 @@ export const metadata = {
 export default function Credits() {
   return (
     <div className="shell">
-      <header className="topbar">
-        <Link href="/" className="topbar-brand" aria-label={`${SITE_NAME} home`}>
-          <Logo size={34} animate={false} />
-        </Link>
-        <nav className="topbar-nav" aria-label="Site">
-          <Link className="navlink navlink-wide" href="/">
-            Back to the board
-          </Link>
-          <SiteCredit className="navlink navlink-wide" />
-          <ThemeToggle />
-          <SupportButton />
-        </nav>
-      </header>
+      <PageTopbar />
       <main className="prose">
         <h1>How it works</h1>
         <p>

@@ -140,7 +140,7 @@ Everything heavy runs in the visitor's browser. Stockfish 19 (single-threaded We
 ## Project layout
 
 ```
-src/app/            pages, API routes (games proxy, optional photo reader, health), metadata
+src/app/            pages (the app, landing pages from lib/landing.ts, credits), API routes, metadata
 src/components/     the board (BoardStage, PlayBoard), review, analysis, setup, home, loading veil
 src/lib/engine/     UCI client, browser workers, review pool
 src/lib/review/     PGN, labels, accuracy, opening book, game explanations

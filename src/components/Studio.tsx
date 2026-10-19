@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { EMPTY_CASTLING, parseFen, setupFromFen, setupToFen, START_FEN, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
@@ -14,14 +14,18 @@ import { Logo } from "./Logo";
 import { showPageChange } from "./PageVeil";
 import { SiteCredit, SiteFooter, SupportButton } from "./SiteLinks";
 import { ThemeToggle } from "./ThemeToggle";
-import { Home } from "./home/Home";
+import { Home, type HomeVariant } from "./home/Home";
 import { SetupView } from "./setup/SetupView";
 import { AnalysisView } from "./analysis/AnalysisView";
 import { ReviewView } from "./review/ReviewView";
 
 type Stage = "home" | "setup" | "analysis" | "review";
 
-export function Studio() {
+/**
+ * The app: the home page and every screen it leads to. A landing page passes its own hero
+ * (`variant`) and sections (`children`), shown in place of the home page's.
+ */
+export function Studio({ variant, children }: { variant?: HomeVariant; children?: ReactNode }) {
   const [stage, setStage] = useState<Stage>("home");
   const [setup, setSetup] = useState<PositionSetup>(() => setupFromFen(START_FEN));
   const [orientation, setOrientation] = useState<Color>("w");
@@ -123,9 +127,15 @@ export function Studio() {
   return (
     <div className="shell">
       <header className={stage === "home" ? `topbar topbar-home${atHero ? " topbar-hero" : ""}` : `topbar topbar-app${stage === "analysis" ? " topbar-crowded" : ""}`}>
-        <button className="topbar-brand" onClick={home} aria-label={`${SITE_NAME} home`}>
-          <Logo size={34} animate={false} />
-        </button>
+        {variant && stage === "home" ? (
+          <Link className="topbar-brand" href="/" aria-label={`${SITE_NAME} home`}>
+            <Logo size={34} animate={false} />
+          </Link>
+        ) : (
+          <button className="topbar-brand" onClick={home} aria-label={`${SITE_NAME} home`}>
+            <Logo size={34} animate={false} />
+          </button>
+        )}
         <nav className="topbar-nav" aria-label="Site">
           {game && stage !== "review" && stage !== "home" && (
             <button className="btn btn-sm btn-primary" onClick={backToReview}>
@@ -186,7 +196,10 @@ export function Studio() {
             go("setup");
           }}
           onSample={(f) => analyze(setupFromFen(f), undefined, "sample")}
-        />
+          variant={variant}
+        >
+          {children}
+        </Home>
       )}
 
       {stage === "setup" && (

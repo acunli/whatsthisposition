@@ -35,6 +35,16 @@ const security = [
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
 ];
 
+/**
+ * The production site's address (as in src/lib/brand.ts), when it's a domain of its own. Its
+ * *.vercel.app addresses then redirect there, so search engines see each page at one address.
+ */
+const productionSite = (() => {
+  if (process.env.VERCEL_ENV !== "production") return null;
+  const host = process.env.NEXT_PUBLIC_SITE_URL?.replace(/^https?:\/\//, "") || process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  return host && !host.endsWith(".vercel.app") ? `https://${host.replace(/\/+$/, "")}` : null;
+})();
+
 const cache = (seconds: number) => [{ key: "Cache-Control", value: `public, max-age=${seconds}, stale-while-revalidate=${seconds * 7}` }];
 
 const nextConfig: NextConfig = {
@@ -44,6 +54,9 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   outputFileTracingRoot: root,
   turbopack: { root },
+  async redirects() {
+    return productionSite ? [{ source: "/:path*", has: [{ type: "host", value: ".*\\.vercel\\.app" }], destination: `${productionSite}/:path*`, permanent: true }] : [];
+  },
   async headers() {
     const prod = process.env.NODE_ENV === "production";
     return [

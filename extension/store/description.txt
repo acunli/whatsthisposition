@@ -1,4 +1,4 @@
-Finished a game on Chess.com? Click the what’sthisposition button and get a full game review for free, on your own computer: both players’ accuracy and every move labelled, from Brilliant to Blunder.
+Free, unlimited chess game review for Chess.com. Finish a game, click the what’sthisposition button, and Stockfish 19 analyses it on your own computer: both players’ accuracy and every move labelled, from Brilliant and Great to Mistake, Miss and Blunder. No account, no daily limit, no ads.
 
 HOW IT WORKS
 1. Finish a game on Chess.com, or open one of your past games.
@@ -14,12 +14,12 @@ IN THE CARD
 • The opening, by name and ECO code
 • Three depths: Fast, Standard and Thorough
 
-ON THE WEBSITE (free, no account)
+ON THE WEBSITE (free, no account): https://www.whatsthisposition.com
 • Every move explained in plain words: why a sacrifice is brilliant, what a mistake allows and what was better
 • Try your own moves from any position: the new line is analysed and labelled too
 • Deep-analyse any position: strengths, weaknesses, threats and plans for both sides, shown on the board
 • Opening names and theory from over a million games between strong players
-• Also reviews Lichess games and any PGN, and reads positions from screenshots
+• Also reviews Lichess games and any PGN, and analyses a single position from a screenshot or a FEN
 
 FAIR PLAY
 The extension does nothing until you click it, and it only reviews games that are over. Chess.com’s own game data decides, so a game in progress is never analysed. It’s the same as reviewing a game on Chess.com afterwards.

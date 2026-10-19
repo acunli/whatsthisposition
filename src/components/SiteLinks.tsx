@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SOURCE_URL } from "@/lib/brand";
+import { LANDINGS } from "@/lib/landing";
 import { AddToChrome } from "./AddToChrome";
 import { Logo } from "./Logo";
 
@@ -42,21 +43,32 @@ export function SiteFooter() {
           Stockfish 19 runs in your browser. Games and photos stay on your device; visits are only counted, anonymously and without cookies.
         </p>
       </div>
-      <nav className="footer-links" aria-label="Footer">
-        <Link href="/credits">How it works, licences and privacy</Link>
-        <AddToChrome from="footer" icon={false}>
-          Chrome extension for Chess.com
-        </AddToChrome>
-        <a href={SOURCE_URL} target="_blank" rel="noopener">
-          Source code
-        </a>
-        <a href={AUTHOR_URL} target="_blank" rel="noopener">
-          Built by Ayushman
-        </a>
-        <a href={SUPPORT_URL} target="_blank" rel="noopener">
-          Buy me a cookie
-        </a>
-      </nav>
+      <div className="footer-navs">
+        {/* Every page of the site, so people (and search engines) find each from any other. */}
+        <nav className="footer-links" aria-label="Tools">
+          <Link href="/">Game review</Link>
+          {LANDINGS.map((p) => (
+            <Link key={p.path} href={p.path}>
+              {p.name}
+            </Link>
+          ))}
+        </nav>
+        <nav className="footer-links" aria-label="Footer">
+          <Link href="/credits">How it works, licences and privacy</Link>
+          <AddToChrome from="footer" icon={false}>
+            Chrome Web Store
+          </AddToChrome>
+          <a href={SOURCE_URL} target="_blank" rel="noopener">
+            Source code
+          </a>
+          <a href={AUTHOR_URL} target="_blank" rel="noopener">
+            Built by Ayushman
+          </a>
+          <a href={SUPPORT_URL} target="_blank" rel="noopener">
+            Buy me a cookie
+          </a>
+        </nav>
+      </div>
     </footer>
   );
 }

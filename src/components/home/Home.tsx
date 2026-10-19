@@ -7,7 +7,7 @@ import { parseFen, validateSetup } from "@/lib/chess/fen";
 import type { Color, PositionSetup } from "@/lib/chess/types";
 import { PgnError, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { holdPageVeil, useBootLogoPlayed } from "../PageVeil";
-import { GameImport } from "../review/GameImport";
+import { GameImport, type ImportSource } from "../review/GameImport";
 import { AddToChrome } from "../AddToChrome";
 import { LogoMark, Wordmark } from "../Logo";
 import { useTheme } from "../ThemeToggle";
@@ -26,6 +26,14 @@ export const SAMPLES = [
   { name: "Outside passer", fen: "8/5pk1/6p1/1P6/8/6P1/5PK1/8 w - - 0 1" },
 ];
 
+/** A landing page's hero (lib/landing.ts): its own heading, and the tool its box opens with. */
+export interface HomeVariant {
+  title: string;
+  lede: string;
+  /** A game import open on this tab, or the single-position inputs. */
+  tool: ImportSource | "position";
+}
+
 interface Props {
   /** Whether the hero's wordmark is in view (the top bar shows its own logo when it isn't). */
   onHero: (inView: boolean) => void;
@@ -34,6 +42,85 @@ interface Props {
   onFen: (setup: PositionSetup, complete: boolean) => void;
   onHand: () => void;
   onSample: (fen: string) => void;
+  /** On a landing page: its hero, and its own sections (`children`) in place of the home page's. */
+  variant?: HomeVariant;
+  children?: ReactNode;
+}
+
+type DropHandlers = Pick<React.DOMAttributes<HTMLElement>, "onDragOver" | "onDragLeave" | "onDrop">;
+
+/**
+ * A single position, three ways: a board picture, a FEN, or a board set up by hand (plus the
+ * teaching samples). `dropHandlers` is left out when a parent already takes the drop.
+ */
+function PositionInputs({ drag, dropHandlers, onPhoto, onFen, onHand, onSample }: Pick<Props, "onPhoto" | "onFen" | "onHand" | "onSample"> & { drag: boolean; dropHandlers?: DropHandlers }) {
+  const [fen, setFen] = useState("");
+  const [fenError, setFenError] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+
+  const submitFen = () => {
+    const r = parseFen(fen);
+    if (!r.ok) {
+      setFenError(r.issues[0].message);
+      return;
+    }
+    setFenError(null);
+    onFen(r.setup, validateSetup(r.setup).length === 0);
+  };
+
+  return (
+    <>
+      <div className="position-grid">
+        <button className={drag ? "drop drop-on" : "drop"} onClick={() => input.current?.click()} {...dropHandlers}>
+          <span className="drop-icon" aria-hidden>
+            <svg viewBox="0 0 24 24">
+              <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+              <circle cx="12" cy="13" r="3.5" />
+            </svg>
+          </span>
+          <span>
+            <span className="drop-title">Board screenshot or photo</span>
+            <span className="drop-sub">Drop it here or choose a file. It&apos;s read on your device.</span>
+          </span>
+        </button>
+        <div className="position-side">
+          <form
+            className="dock-fen"
+            onSubmit={(e) => {
+              e.preventDefault();
+              submitFen();
+            }}
+          >
+            <input className="input input-code" placeholder="Paste a FEN" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
+            <button className="btn" disabled={!fen.trim()}>
+              Analyse
+            </button>
+          </form>
+          {fenError && <p className="hero-issue">{fenError}</p>}
+          <div className="dock-row">
+            <button className="chip" onClick={onHand}>
+              Set up a board
+            </button>
+            {SAMPLES.map((s) => (
+              <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPhoto(f);
+        }}
+      />
+    </>
+  );
 }
 
 /**
@@ -78,12 +165,10 @@ function useMedia(query: string) {
   return r;
 }
 
-export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample }: Props) {
+export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample, variant, children }: Props) {
   const [drag, setDrag] = useState(false);
   const [dropError, setDropError] = useState<string | null>(null);
-  const [fen, setFen] = useState("");
-  const [fenError, setFenError] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
+  const positionFirst = variant?.tool === "position";
   const webgl = useWebGL();
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const theme = useTheme();
@@ -122,19 +207,9 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample }: Props
   // phone takes long enough to make the logo stutter if both run at once.
   const logoPlayed = useBootLogoPlayed();
 
-  const submitFen = () => {
-    const r = parseFen(fen);
-    if (!r.ok) {
-      setFenError(r.issues[0].message);
-      return;
-    }
-    setFenError(null);
-    onFen(r.setup, validateSetup(r.setup).length === 0);
-  };
-
-  const pick = () => input.current?.click();
   const boxRef = useRef<HTMLDivElement>(null);
   const positionRef = useRef<HTMLElement>(null);
+  const gameRef = useRef<HTMLElement>(null);
   const scrollTo = (el: HTMLElement | null, block: ScrollLogicalPosition) => {
     el?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block });
     el?.querySelector<HTMLInputElement>("input, textarea")?.focus({ preventScroll: true });
@@ -156,7 +231,7 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample }: Props
     }
     setDropError("Drop a board photo (JPEG, PNG, WebP) or a .pgn file.");
   };
-  const dropHandlers = {
+  const dropHandlers: DropHandlers = {
     onDragOver: (e: React.DragEvent) => {
       e.preventDefault();
       setDrag(true);
@@ -194,117 +269,105 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample }: Props
             <Wordmark className="logo-word hero-word" />
           </p>
           <h1 className="hero-title" id="hero-title">
-            Review any chess game, move by move.
+            {variant?.title ?? "Review any chess game, move by move."}
           </h1>
           <p className="hero-lede">
-            Enter a Chess.com or Lichess username, a game link or a PGN. Stockfish labels every move from Brilliant to Blunder and explains why. Free, in your browser.
+            {variant?.lede ??
+              "Enter a Chess.com or Lichess username, a game link or a PGN. Stockfish labels every move from Brilliant to Blunder and explains why. Free, in your browser."}
           </p>
 
           <div ref={boxRef} className="hero-box">
-            <GameImport onGame={onGame} />
+            {positionFirst ? (
+              // The hero takes the drop itself, so the drop zone inside it doesn't.
+              <PositionInputs drag={drag} onPhoto={onPhoto} onFen={onFen} onHand={onHand} onSample={onSample} />
+            ) : (
+              <GameImport onGame={onGame} initialSource={variant?.tool === "position" ? undefined : variant?.tool} />
+            )}
             {dropError && <p className="hero-issue">{dropError}</p>}
           </div>
 
           <div className="hero-actions">
-            <AddToChrome from="hero" className="btn btn-chrome">
-              Add to Chrome
-            </AddToChrome>
-            <button className="btn btn-ghost hero-alt" onClick={() => scrollTo(positionRef.current, "start")}>
-              Analyse a single position
-            </button>
-          </div>
-          <p className="hero-note">The Chrome extension reviews your Chess.com games right where you play them.</p>
-        </div>
-      </section>
-
-      <section className="section position" ref={positionRef} id="position" aria-labelledby="position-title">
-        <div className="section-head">
-          <h2 className="h-section" id="position-title">
-            Or analyse a single position
-          </h2>
-          <p className="section-lede">
-            A screenshot from a game, a FEN or a board you set up. It shows the threats, weaknesses and plans for both sides on the board, checked by Stockfish.
-          </p>
-        </div>
-        <div className="position-grid">
-          <button className={drag ? "drop drop-on" : "drop"} onClick={pick} {...dropHandlers}>
-            <span className="drop-icon" aria-hidden>
-              <svg viewBox="0 0 24 24">
-                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
-                <circle cx="12" cy="13" r="3.5" />
-              </svg>
-            </span>
-            <span>
-              <span className="drop-title">Board screenshot or photo</span>
-              <span className="drop-sub">Drop it here or choose a file. It&apos;s read on your device.</span>
-            </span>
-          </button>
-          <div className="position-side">
-            <form
-              className="dock-fen"
-              onSubmit={(e) => {
-                e.preventDefault();
-                submitFen();
-              }}
-            >
-              <input className="input input-code" placeholder="Paste a FEN" value={fen} onChange={(e) => setFen(e.target.value)} aria-label="FEN" spellCheck={false} />
-              <button className="btn" disabled={!fen.trim()}>
-                Analyse
+            {positionFirst ? (
+              <button className="btn btn-ghost hero-alt" onClick={() => scrollTo(gameRef.current, "start")}>
+                Review a whole game
               </button>
-            </form>
-            {fenError && <p className="hero-issue">{fenError}</p>}
-            <div className="dock-row">
-              <button className="chip" onClick={onHand}>
-                Set up a board
-              </button>
-              {SAMPLES.map((s) => (
-                <button key={s.name} className="chip" onClick={() => onSample(s.fen)}>
-                  {s.name}
+            ) : (
+              <>
+                <AddToChrome from="hero" className="btn btn-chrome">
+                  Add to Chrome
+                </AddToChrome>
+                <button className="btn btn-ghost hero-alt" onClick={() => scrollTo(positionRef.current, "start")}>
+                  Analyse a single position
                 </button>
-              ))}
-            </div>
+              </>
+            )}
           </div>
-        </div>
-        <input
-          ref={input}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          hidden
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onPhoto(f);
-          }}
-        />
-      </section>
-
-      <Labels />
-
-      <Extension />
-
-      <Story onTry={onSample} />
-
-      <section className="section">
-        <div className="section-head">
-          <h2 className="h-section">What each idea looks like on the board</h2>
-          <p className="section-lede">Once you&apos;ve seen these a few times, you start spotting them in your own games before the engine points them out.</p>
-        </div>
-        <Concepts />
-      </section>
-
-      <Faq />
-
-      <section className="closing">
-        <h2 className="h-section">Bring the game you lost last night.</h2>
-        <p className="section-lede">Type your Chess.com username or paste the PGN, then step through it move by move.</p>
-        <div className="closing-actions">
-          <button className="btn btn-primary btn-xl" onClick={() => scrollTo(boxRef.current, "center")}>
-            Review a game
-          </button>
-          <AddToChrome from="closing" className="btn btn-xl btn-ghost closing-ext">
-            Add to Chrome
-          </AddToChrome>
+          {!positionFirst && <p className="hero-note">The Chrome extension reviews your Chess.com games right where you play them.</p>}
         </div>
       </section>
+
+      {positionFirst ? (
+        <section className="section" ref={gameRef} id="game" aria-labelledby="game-title">
+          <div className="section-head">
+            <h2 className="h-section" id="game-title">
+              Or review a whole game
+            </h2>
+            <p className="section-lede">
+              Enter a Chess.com or Lichess username, a game link or a PGN. Every move gets a label from Brilliant to Blunder and an explanation.
+            </p>
+          </div>
+          <div className="hero-box game-box">
+            <GameImport onGame={onGame} />
+          </div>
+        </section>
+      ) : (
+        <section className="section position" ref={positionRef} id="position" aria-labelledby="position-title">
+          <div className="section-head">
+            <h2 className="h-section" id="position-title">
+              Or analyse a single position
+            </h2>
+            <p className="section-lede">
+              A screenshot from a game, a FEN or a board you set up. It shows the threats, weaknesses and plans for both sides on the board, checked by Stockfish.
+            </p>
+          </div>
+          <PositionInputs drag={drag} dropHandlers={dropHandlers} onPhoto={onPhoto} onFen={onFen} onHand={onHand} onSample={onSample} />
+        </section>
+      )}
+
+      {variant ? (
+        children
+      ) : (
+        <>
+          <Labels />
+
+          <Extension />
+
+          <Story onTry={onSample} />
+
+          <section className="section">
+            <div className="section-head">
+              <h2 className="h-section">What each idea looks like on the board</h2>
+              <p className="section-lede">Once you&apos;ve seen these a few times, you start spotting them in your own games before the engine points them out.</p>
+            </div>
+            <Concepts />
+          </section>
+
+          <Faq />
+
+          <section className="closing">
+            <h2 className="h-section">Bring the game you lost last night.</h2>
+            <p className="section-lede">Type your Chess.com username or paste the PGN, then step through it move by move.</p>
+            <div className="closing-actions">
+              <button className="btn btn-primary btn-xl" onClick={() => scrollTo(boxRef.current, "center")}>
+                Review a game
+              </button>
+              <AddToChrome from="closing" className="btn btn-xl btn-ghost closing-ext">
+                Add to Chrome
+              </AddToChrome>
+            </div>
+          </section>
+        </>
+      )}
     </>
   );
 }

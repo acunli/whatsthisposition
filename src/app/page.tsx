@@ -1,8 +1,10 @@
+import { JsonLd } from "@/components/JsonLd";
 import { Studio } from "@/components/Studio";
 import { EXTENSION_URL, SITE_ASCII, SITE_DESCRIPTION, SITE_NAME, SITE_URL, SOURCE_URL } from "@/lib/brand";
 import { FAQ } from "@/lib/faq";
+import { EXTENSION_APP, faqPage } from "@/lib/seo";
 
-/** What the site is, for search engines: the site, the app, and the questions answered on this page. */
+/** What the site is, for search engines: the site, the app, its extension, and the questions answered on this page. */
 const STRUCTURED = {
   "@context": "https://schema.org",
   "@graph": [
@@ -39,18 +41,15 @@ const STRUCTURED = {
       author: { "@type": "Person", name: "Ayushman Chaudhuri", url: "https://ayushman.rocks" },
       sameAs: [SOURCE_URL, EXTENSION_URL],
     },
-    {
-      "@type": "FAQPage",
-      "@id": `${SITE_URL}/#faq`,
-      mainEntity: FAQ.map(({ q, a }) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
-    },
+    EXTENSION_APP,
+    faqPage(FAQ, `${SITE_URL}/`),
   ],
 };
 
 export default function Home() {
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED).replace(/</g, "\\u003c") }} />
+      <JsonLd data={STRUCTURED} />
       <Studio />
     </>
   );
