@@ -587,84 +587,6 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
           {r.status === "done" && <ShareReview game={game} moves={moves} positions={r.positions} accuracy={r.accuracy} as={orientation} depth={depthNow} opening={opening} />}
         </header>
 
-        <EngineLines
-          fen={boardFen}
-          lines={shownLines}
-          depth={linesDepth}
-          searching={!!live && !live.done}
-          onPlay={(pv, upto) => {
-            const v = buildVariation(boardFen, pv, 16);
-            if (!v.moves.length) return;
-            setLine({ title: "Engine line", variation: v, ply: Math.min(upto, v.moves.length), eval: shownLines.find((l) => l.pv === pv)?.eval ?? { kind: "cp", cp: 0 }, anchor: anchorFor(boardFen) });
-            setHover(null);
-            setAnimKey((k) => k + 1);
-          }}
-          onHover={setHover}
-        />
-
-        <section className={`rv-card ${cm ? `rv-card-${cm.cls}` : ""}`} aria-live="polite" style={cm ? { ["--cls" as string]: CLASS_INFO[cm.cls].color } : undefined}>
-          <SmoothHeight className="rv-card-body" keepHeight={reasoning?.status === "pending"}>
-            {ply === 0 && !side ? (
-              <>
-                <p className="eyebrow">Start</p>
-                <p className="rv-headline">
-                  {running
-                    ? "Moves get their labels as the engine finishes them; sharp moments are then double-checked deeper. Step through with ← → or pick a move."
-                    : "Step through with ← →, click the graph, or jump to a key moment below."}
-                </p>
-              </>
-            ) : !shown || !story ? (
-              <>
-                <p className="eyebrow">
-                  {sideMove ? `${moveName(sideMove)} · your line` : gm ? moveName(gm) : ""}
-                </p>
-                <p className="rv-headline muted">{sideMove ? "Stockfish is analysing your move…" : "The engine hasn\u2019t reached this move yet…"}</p>
-              </>
-            ) : (
-              <>
-                <div className="rv-card-head">
-                  <ClassIcon cls={shown.cls} size={30} />
-                  <div>
-                    <span className="rv-cls">
-                      {CLASS_INFO[shown.cls].label}
-                      {sideMove && <span className="rv-side-tag">your line</span>}
-                    </span>
-                    <h3 className="rv-move">{moveName(shown.move)}</h3>
-                  </div>
-                  <EvalChip e={shown.evalAfter} />
-                </div>
-                <MoveInsight cm={shown} story={story} entry={reasoning} onHover={setHover} onPlay={playLine} />
-              </>
-            )}
-            <div className="rv-deep">
-              <button className="btn btn-primary btn-sm" onClick={() => onDeep(boardFen)}>
-                Deep-analyse this position
-              </button>
-              {(sideMove ?? gm) && !line && (
-                <button className="linkish" onClick={() => onDeep((sideMove ?? gm)!.fenBefore)}>
-                  or the moment before {moveName((sideMove ?? gm)!)}
-                </button>
-              )}
-            </div>
-          </SmoothHeight>
-        </section>
-
-        {openingStory && <OpeningCard story={openingStory} masters={r.review.masters} onGo={go} onHover={setHover} />}
-
-        {keyMoments.length > 0 && (
-          <section className="rv-moments" aria-label="Key moments">
-            <span className="eyebrow">Key moments</span>
-            <div className="rv-moment-row">
-              {keyMoments.map((m) => (
-                <button key={m.move.ply} className={`rv-moment ${ply === m.move.ply ? "rv-moment-on" : ""}`} onClick={() => go(m.move.ply)} title={CLASS_INFO[m.cls].label}>
-                  <ClassIcon cls={m.cls} size={14} />
-                  {moveName(m.move)}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
-
         <section className="rv-table" aria-label="Move labels per player">
           <div className="rv-table-head">
             <span className="mono">{game.white}</span>
@@ -690,6 +612,68 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
           })}
         </section>
 
+        <EngineLines
+          fen={boardFen}
+          lines={shownLines}
+          depth={linesDepth}
+          searching={!!live && !live.done}
+          onPlay={(pv, upto) => {
+            const v = buildVariation(boardFen, pv, 16);
+            if (!v.moves.length) return;
+            setLine({ title: "Engine line", variation: v, ply: Math.min(upto, v.moves.length), eval: shownLines.find((l) => l.pv === pv)?.eval ?? { kind: "cp", cp: 0 }, anchor: anchorFor(boardFen) });
+            setHover(null);
+            setAnimKey((k) => k + 1);
+          }}
+          onHover={setHover}
+        />
+
+        {/* No card at the start position: there's no move to explain yet. */}
+        {(ply > 0 || side) && (
+          <section className={`rv-card ${cm ? `rv-card-${cm.cls}` : ""}`} aria-live="polite" style={cm ? { ["--cls" as string]: CLASS_INFO[cm.cls].color } : undefined}>
+            <SmoothHeight className="rv-card-body" keepHeight={reasoning?.status === "pending"}>
+              {!shown || !story ? (
+                <>
+                  <p className="eyebrow">
+                    {sideMove ? `${moveName(sideMove)} · your line` : gm ? moveName(gm) : ""}
+                  </p>
+                  <p className="rv-headline muted">{sideMove ? "Stockfish is analysing your move…" : "The engine hasn\u2019t reached this move yet…"}</p>
+                </>
+              ) : (
+                <>
+                  <div className="rv-card-head">
+                    <ClassIcon cls={shown.cls} size={30} />
+                    <div>
+                      <span className="rv-cls">
+                        {CLASS_INFO[shown.cls].label}
+                        {sideMove && <span className="rv-side-tag">your line</span>}
+                      </span>
+                      <h3 className="rv-move">{moveName(shown.move)}</h3>
+                    </div>
+                    <EvalChip e={shown.evalAfter} />
+                  </div>
+                  <MoveInsight cm={shown} story={story} entry={reasoning} onHover={setHover} onPlay={playLine} />
+                </>
+              )}
+            </SmoothHeight>
+          </section>
+        )}
+
+        {openingStory && <OpeningCard story={openingStory} masters={r.review.masters} onGo={go} onHover={setHover} />}
+
+        {keyMoments.length > 0 && (
+          <section className="rv-moments" aria-label="Key moments">
+            <span className="eyebrow">Key moments</span>
+            <div className="rv-moment-row">
+              {keyMoments.map((m) => (
+                <button key={m.move.ply} className={`rv-moment ${ply === m.move.ply ? "rv-moment-on" : ""}`} onClick={() => go(m.move.ply)} title={CLASS_INFO[m.cls].label}>
+                  <ClassIcon cls={m.cls} size={14} />
+                  {moveName(m.move)}
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         <section className="rv-moves" aria-label="Moves" ref={listRef}>
           <button data-ply={0} className={`rv-start ${ply === 0 && !side ? "rv-cell-on" : ""}`} onClick={() => go(0)}>
             Start position
@@ -706,6 +690,23 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
           ))}
           {!rows.length && lines.map(sideRow)}
           <p className="rv-result mono">{game.result}</p>
+        </section>
+
+        <section className="rv-deep" aria-label="Deep analysis">
+          <p className="wip-note">
+            <span className="wip-tag">Under construction</span>
+            <span className="small muted">Deep analysis of a position is still being built, so parts of it may be rough.</span>
+          </p>
+          <div className="rv-actions">
+            <button className="btn btn-primary btn-sm" onClick={() => onDeep(boardFen)}>
+              Deep-analyse this position
+            </button>
+            {(sideMove ?? gm) && !line && (
+              <button className="linkish" onClick={() => onDeep((sideMove ?? gm)!.fenBefore)}>
+                or the moment before {moveName((sideMove ?? gm)!)}
+              </button>
+            )}
+          </div>
         </section>
       </aside>
     </main>

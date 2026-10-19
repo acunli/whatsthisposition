@@ -73,6 +73,10 @@ export function Scoreboard(p: Props) {
   const running = p.status === "running" || p.status === "starting";
   return (
     <section className="score" aria-label="Scoreboard">
+      <p className="wip-note">
+        <span className="wip-tag">Under construction</span>
+        <span className="small muted">Position analysis is still being built, so parts of it may be rough or missing.</span>
+      </p>
       <div className={`verdict-card ${v?.strength === "mate" ? "verdict-mate" : ""}`}>
         <div className="verdict-top">
           <div>

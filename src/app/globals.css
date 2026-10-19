@@ -2299,9 +2299,14 @@ textarea.input {
   align-items: stretch;
 }
 
-.score .verdict-card {
+.score > .wip-note {
   grid-column: 1 / -1;
   grid-row: 1;
+}
+
+.score .verdict-card {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 .side-card {
@@ -5456,7 +5461,8 @@ a.btn {
 .rv-moments,
 .rv-opening,
 .rv-table,
-.rv-moves {
+.rv-moves,
+.rv-deep {
   padding: 16px;
   border-radius: 18px;
   background: var(--slab);
@@ -5653,8 +5659,7 @@ a.btn {
   background: var(--slab-2);
 }
 
-.rv-actions,
-.rv-deep {
+.rv-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -5662,8 +5667,32 @@ a.btn {
 }
 
 .rv-deep {
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+}
+
+.wip-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+}
+
+/* A feature that's still being built (deep position analysis). */
+.wip-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px dashed rgb(var(--gold) / 0.7);
+  background: rgb(var(--gold) / 0.12);
+  color: rgb(var(--gold));
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .rv-moments {
@@ -6993,37 +7022,41 @@ a.btn {
     order: 3;
   }
 
-  .rv-card {
+  .rv-head {
     order: 4;
   }
 
-  .elines {
+  .rv-table {
     order: 5;
   }
 
-  .egraph {
+  .rv-card {
     order: 6;
   }
 
-  .rv-moments {
+  .elines {
     order: 7;
   }
 
-  .rv-opening {
+  .egraph {
     order: 8;
   }
 
-  .rv-head {
+  .rv-moments {
     order: 9;
   }
 
-  .rv-table {
+  .rv-opening {
     order: 10;
   }
 
   .rv-moves {
     order: 11;
     max-height: none;
+  }
+
+  .rv-deep {
+    order: 12;
   }
 
   .rv-board > .rv-dock {
