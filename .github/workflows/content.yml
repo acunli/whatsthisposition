@@ -61,7 +61,10 @@ jobs:
             exit 0
           fi
           n=$(git diff --cached --name-only | wc -l)
-          git -c user.name="ayushman-2008" -c user.email="ayushman.chaudhuri@gmail.com" commit -q -m "Reviewed games: $n new"
+          # The owner's identity, as for every commit in this repository (the rebase below needs it too).
+          git config user.name "ayushman-2008"
+          git config user.email "ayushman.chaudhuri@gmail.com"
+          git commit -q -m "Reviewed games: $n new"
           # Someone may have pushed while the games were being reviewed.
           git pull -q --rebase origin main
           git push origin HEAD:main
