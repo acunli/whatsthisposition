@@ -21,11 +21,21 @@ import { ReviewView } from "./review/ReviewView";
 
 type Stage = "home" | "setup" | "analysis" | "review";
 
+/** A game to open straight into its review: from a #review link, or a shared review's page (/r/[id]). */
+export interface SharedGame {
+  pgn: string;
+  as?: Color;
+  depth?: number;
+  /** The finished review, packed (`packReview`). */
+  data?: string;
+}
+
 /**
  * The app: the home page and every screen it leads to. A landing page passes its own hero
- * (`variant`) and sections (`children`), shown in place of the home page's.
+ * (`variant`) and sections (`children`), shown in place of the home page's; a shared review's
+ * page passes the game (`shared`), which opens straight into its review.
  */
-export function Studio({ variant, children }: { variant?: HomeVariant; children?: ReactNode }) {
+export function Studio({ variant, children, shared: given }: { variant?: HomeVariant; children?: ReactNode; shared?: SharedGame }) {
   const [stage, setStage] = useState<Stage>("home");
   const [setup, setSetup] = useState<PositionSetup>(() => setupFromFen(START_FEN));
   const [orientation, setOrientation] = useState<Color>("w");
@@ -81,21 +91,20 @@ export function Studio({ variant, children }: { variant?: HomeVariant; children?
       window.history.replaceState(null, "", url);
     });
 
-  // A game handed over in the link (#review=…, from the browser extension): open its review.
-  // If the extension already reviewed it (&data=…), that review is shown as is.
+  // A game handed over in the link (#review=…, from the browser extension) or by a shared
+  // review's page: open its review. If it was already reviewed (data), that review is shown as is.
   useEffect(() => {
-    const shared = readReviewHash(window.location.hash);
-    // One visit per load, anonymously: from the extension's link, a shared review link, or anything else.
-    countUse("visit", shared ? (shared.data ? "extension" : "link") : "direct");
+    const shared = given ?? readReviewHash(window.location.hash);
+    // The visit itself is counted by <VisitCount/> in the layout, on every page.
     if (!shared) return;
-    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    if (!given) window.history.replaceState(null, "", window.location.pathname + window.location.search);
     let g: ParsedGame;
     try {
       g = parseFirstGame(shared.pgn);
     } catch {
       return; // not a readable game: stay on the home page
     }
-    countUse("review", shared.data ? "extension" : "link");
+    countUse("review", shared.data && !given ? "extension" : "link");
     void (shared.data ? unpackReview(shared.data) : Promise.resolve(null)).then((done) => review(g, shared.as, done?.depth ?? shared.depth, done ?? undefined));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on first load
   }, []);

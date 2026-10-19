@@ -5543,6 +5543,21 @@ a.btn {
   gap: 6px;
 }
 
+.rv-share {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.rv-share a {
+  color: inherit;
+}
+
+.rv-share-error {
+  color: rgb(var(--red));
+}
+
 .chip-sm {
   padding: 4px 10px;
   font-size: 12px;

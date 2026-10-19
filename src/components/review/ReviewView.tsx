@@ -26,6 +26,7 @@ import { countUse } from "@/lib/usage";
 import { useLineAnalysis, type LineRequest } from "./useLineAnalysis";
 import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview, type FinishedReview } from "./useReview";
+import { ShareReview } from "./ShareReview";
 import { depthIndex } from "@/lib/review/depths";
 
 interface Props {
@@ -583,6 +584,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
               </button>
             ))}
           </div>
+          {r.status === "done" && <ShareReview game={game} moves={moves} positions={r.positions} accuracy={r.accuracy} as={orientation} depth={depthNow} opening={opening} />}
         </header>
 
         <EngineLines

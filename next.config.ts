@@ -53,6 +53,8 @@ const nextConfig: NextConfig = {
   // `NEXT_OUTPUT=standalone npm run build` makes a self-contained server for Docker (see Dockerfile).
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   outputFileTracingRoot: root,
+  // The review preview cards (src/lib/server/reviewCard.tsx) read the fonts and pieces from disk.
+  outputFileTracingIncludes: { "/r/**": ["./src/assets/fonts/*.ttf", "./public/pieces/*.svg"] },
   turbopack: { root },
   async redirects() {
     return productionSite ? [{ source: "/:path*", has: [{ type: "host", value: ".*\\.vercel\\.app" }], destination: `${productionSite}/:path*`, permanent: true }] : [];

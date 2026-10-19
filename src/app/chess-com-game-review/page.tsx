@@ -67,7 +67,7 @@ export default function ChessComGameReview() {
               body: (
                 <p>
                   Stockfish 19 runs inside your browser, on your own computer or phone, so a review costs nothing to serve. That&apos;s why there&apos;s no account, no
-                  daily limit and nothing to unlock. The code is open source, and <Link href="/credits#privacy">nothing about your games is kept</Link>.
+                  daily limit and nothing to unlock. The code is open source, and <Link href="/credits#privacy">nothing about your games is kept</Link> unless you share one.
                 </p>
               ),
             },

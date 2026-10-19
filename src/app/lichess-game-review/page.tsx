@@ -59,7 +59,7 @@ export default function LichessGameReview() {
               title: "In your browser",
               body: (
                 <p>
-                  Stockfish 19 runs on your device. The game is fetched from Lichess&apos;s public API and isn&apos;t stored, and the review never leaves your browser.
+                  Stockfish 19 runs on your device. The game is fetched from Lichess&apos;s public API and isn&apos;t stored, and the review never leaves your browser unless you share it.
                   Have a single position instead? Use the <Link href={LANDING.position.path}>position analyzer</Link>.
                 </p>
               ),

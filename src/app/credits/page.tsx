@@ -53,9 +53,15 @@ export default function Credits() {
           Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device.
         </p>
         <p>
+          A game is stored only if you press <b>Share review</b> on it. That makes a public link: the game&apos;s moves and names as its PGN
+          has them, the finished review, and a summary for the link&apos;s preview card (both accuracies and the labelled moves), kept for a
+          year. Anyone with the link can open it; shared reviews aren&apos;t listed anywhere or indexed by search engines.
+        </p>
+        <p>
           To know how many people use it, the site counts visits and uses anonymously, without cookies: when you open the site, start a
           review or an analysis, read a photo or click Add to Chrome, it sends only what kind of use it was and where it started (for example
-          &ldquo;review, from a Chess.com username&rdquo;), never the game, position, photo or username. The server counts it per day; to
+          &ldquo;review, from a Chess.com username&rdquo;, or &ldquo;arrived from Google&rdquo;: the name of the referring site or app,
+          never its address), never the game, position, photo or username. The server counts it per day; to
           tell visitors apart within that day it uses a code made from your IP address and browser that is never stored and can&apos;t be
           linked to another day. Your browser&apos;s Do Not Track or Global Privacy Control setting turns this counting off. Page views also
           go to Vercel Web Analytics (the site&apos;s host), which is cookieless too and keeps no personal identifiers.

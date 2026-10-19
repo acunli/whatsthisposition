@@ -35,6 +35,42 @@ const ANALYSIS_FROM: Record<string, string> = {
   link: "Position link",
 };
 
+const ARRIVE_FROM: Record<string, string> = {
+  none: "No referrer (typed, bookmark, app)",
+  google: "Google",
+  bing: "Bing",
+  duckduckgo: "DuckDuckGo",
+  yahoo: "Yahoo",
+  yandex: "Yandex",
+  ecosia: "Ecosia",
+  brave: "Brave Search",
+  chatgpt: "ChatGPT",
+  perplexity: "Perplexity",
+  claude: "Claude",
+  gemini: "Gemini",
+  copilot: "Copilot",
+  reddit: "Reddit",
+  hackernews: "Hacker News",
+  youtube: "YouTube",
+  x: "X",
+  bluesky: "Bluesky",
+  mastodon: "Mastodon",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  discord: "Discord",
+  chesscom: "Chess.com",
+  lichess: "Lichess",
+  github: "GitHub",
+  chromestore: "Chrome Web Store",
+  firefoxstore: "Firefox Add-ons",
+  edgestore: "Edge Add-ons",
+  producthunt: "Product Hunt",
+  email: "Email",
+  extension: "The extension",
+  share: "A shared review",
+  other: "Other sites",
+};
+
 const fmt = (n: number) => n.toLocaleString("en");
 const people = (n: number) => `by ${fmt(n)} ${n === 1 ? "person" : "people"}`;
 const regions = new Intl.DisplayNames(["en"], { type: "region" });
@@ -148,6 +184,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
             <Tile label="Photos read" value={t.photo ?? 0} />
             <Tile label="From the extension" value={t["visit:extension"] ?? 0} />
             <Tile label="Side lines tried" value={t.side_line ?? 0} />
+            <Tile label="Reviews shared" value={t.share ?? 0} note={people(report.people.share)} />
             <Tile label="Add to Chrome clicks" value={t.get_extension ?? 0} note={people(report.people.get_extension)} />
           </section>
 
@@ -161,6 +198,10 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
           </section>
 
           <div className="stats-split">
+            <section className="stats-card">
+              <h2 className="stats-h2">Where visitors come from</h2>
+              <Bars rows={sources(t, "arrive", ARRIVE_FROM)} color={PEOPLE} unit="visits" empty="Nothing counted yet (counted since 2026-10-19)." />
+            </section>
             <section className="stats-card">
               <h2 className="stats-h2">Where reviews come from</h2>
               <Bars rows={sources(t, "review", REVIEW_FROM)} color={REVIEWS} unit="reviews" empty="No reviews yet." />

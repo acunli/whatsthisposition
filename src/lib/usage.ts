@@ -5,10 +5,14 @@
  * (src/lib/server/usage.ts) counts it per UTC day; the owner reads the totals at /stats.
  */
 
+import { CHANNELS } from "./channel";
+
 /** Every use that is counted, with the sources it may come from. Anything else is refused. */
 export const USAGE_EVENTS = {
-  /** The app opened: directly, from the extension's link, or from a shared #review link. */
+  /** A page of the site opened: directly, from the extension's link, or from a shared #review link. */
   visit: ["direct", "extension", "link"],
+  /** The same page load, by where the visitor came from (src/lib/channel.ts); not counted for moves within the site. */
+  arrive: CHANNELS,
   /** A game review started, by where the game came from. */
   review: ["chesscom", "lichess", "pgn", "file", "extension", "link"],
   /** A review the engine finished here (not one handed over already done). */
@@ -19,6 +23,8 @@ export const USAGE_EVENTS = {
   photo: ["device", "cloud"],
   /** The first side line played in a review. */
   side_line: [],
+  /** A review shared as a public link (/r/…). */
+  share: [],
   /** A click on "Add to Chrome" (the extension's store page), by where on the site. */
   get_extension: ["header", "hero", "section", "closing", "footer"],
 } as const satisfies Record<string, readonly string[]>;

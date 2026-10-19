@@ -170,3 +170,30 @@ export function parseFirstGame(text: string): ParsedGame {
   }
   throw last instanceof PgnError ? last : new PgnError("That doesn't look like a PGN.");
 }
+
+/** The PGN's usual header order; any other headers follow in the order they came. */
+const HEADER_ORDER = ["Event", "Site", "Date", "Round", "White", "Black", "Result"];
+
+const clockText = (s: number) => {
+  const t = Math.max(0, Math.round(s * 10) / 10);
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = t % 60;
+  return `${h}:${String(m).padStart(2, "0")}:${sec < 10 ? "0" : ""}${Number.isInteger(sec) ? sec : sec.toFixed(1)}`;
+};
+
+/** A parsed game written back as PGN: its headers, the moves (with clock times, if it had them) and the result. */
+export function gamePgn(game: ParsedGame): string {
+  const headers: Record<string, string> = { ...game.headers, Result: game.result };
+  if (game.startFen !== START_FEN) Object.assign(headers, { SetUp: "1", FEN: game.startFen });
+  const keys = [...HEADER_ORDER.filter((k) => k in headers), ...Object.keys(headers).filter((k) => !HEADER_ORDER.includes(k))];
+  const quote = (v: string) => v.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const tags = keys.map((k) => `[${k} "${quote(headers[k])}"]`).join("\n");
+  const moves = game.moves
+    .map((m, i) => {
+      const num = m.color === "w" ? `${m.moveNumber}. ` : i === 0 ? `${m.moveNumber}... ` : "";
+      return `${num}${m.san}${m.clock !== undefined ? ` {[%clk ${clockText(m.clock)}]}` : ""}`;
+    })
+    .join(" ");
+  return `${tags}\n\n${moves} ${game.result}\n`;
+}
