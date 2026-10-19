@@ -124,11 +124,19 @@ export function headline(s: ShareSummary): string {
   return acc != null ? `${acc.toFixed(1)} accuracy` : "every move explained";
 }
 
+/** "1 Brilliant move", "2 Great moves", "3 Inaccuracies", "1 Miss", "5 Blunders". */
+export function countWords(cls: MoveClass, n: number): string {
+  const label = CLASS_INFO[cls].label;
+  if (["brilliant", "great", "best", "excellent", "good", "book", "forced"].includes(cls)) return `${n} ${label} move${n === 1 ? "" : "s"}`;
+  if (n === 1) return `1 ${label}`;
+  return `${n} ${cls === "inaccuracy" ? "Inaccuracies" : cls === "miss" ? "Misses" : `${label}s`}`;
+}
+
 /** The link's description: both accuracies and the sharer's notable moves. */
 export function describe(s: ShareSummary): string {
   const acc = (c: Color) => (s.accuracy[c] != null ? s.accuracy[c]!.toFixed(1) : "–");
   const mine = CARD_CLASSES.filter((c) => s.counts[s.as][c])
-    .map((c) => `${s.counts[s.as][c]} ${CLASS_INFO[c].label}`)
+    .map((c) => countWords(c, s.counts[s.as][c]!))
     .join(", ");
   return `Accuracy: ${s.white} ${acc("w")}, ${s.black} ${acc("b")}${s.opening ? `, in the ${s.opening}` : ""}. ${sides(s).me}: ${mine || "no labelled moves"}. Every move labelled and explained by Stockfish 19, free.`;
 }

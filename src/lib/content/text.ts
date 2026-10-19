@@ -3,8 +3,7 @@
  * the description, the event line and the lede. Shared by the page, its metadata and the
  * index, so they always say the same thing.
  */
-import { CLASS_INFO } from "../review/classify";
-import { CARD_CLASSES } from "../review/shareCard";
+import { CARD_CLASSES, countWords } from "../review/shareCard";
 import { longDate, resultWords, type GameRecord } from "./games";
 
 /** "European Chess Club Cup 2026, Open, round 2" or "Chess.com blitz". */
@@ -25,7 +24,7 @@ export function gameDescription(g: GameRecord): string {
   const notable = CARD_CLASSES.filter((c) => c !== "best")
     .map((c) => [c, (s.counts.w[c] ?? 0) + (s.counts.b[c] ?? 0)] as const)
     .filter(([, n]) => n > 0)
-    .map(([c, n]) => `${n} ${CLASS_INFO[c].label}`);
+    .map(([c, n]) => countWords(c, n));
   const when = g.played ? ` (${longDate(g.played)})` : "";
   return `${eventLine(g)}${when}. ${resultWords(s.result, g.white, g.black)}. Accuracy ${g.white} ${acc(s.accuracy.w)}, ${g.black} ${acc(s.accuracy.b)}${notable.length ? `; ${notable.join(", ")}` : ""}. Every move labelled and explained.`;
 }

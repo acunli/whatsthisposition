@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ClassifiedMove, MoveClass } from "./classify";
 import { OPERA_GAME } from "./fixtures/games";
 import { gamePgn, parseGame } from "./pgn";
-import { describe as describeShare, headline, readSummary, summarize } from "./shareCard";
+import { countWords, describe as describeShare, headline, readSummary, summarize } from "./shareCard";
 
 const game = parseGame(OPERA_GAME);
 /** Labels by ply (1-based); every other move is Good. */
@@ -39,6 +39,8 @@ describe("a shared review's summary", () => {
     expect(headline(s)).toBe("16.Qb8+, a Brilliant move");
     expect(describeShare(s)).toContain("Paul Morphy 92.1");
     expect(headline({ ...s, moment: undefined })).toBe("92.1 accuracy");
+    expect(describeShare(s)).toContain("Paul Morphy: 1 Brilliant move.");
+    expect([countWords("great", 2), countWords("blunder", 5), countWords("inaccuracy", 3), countWords("miss", 1)]).toEqual(["2 Great moves", "5 Blunders", "3 Inaccuracies", "1 Miss"]);
   });
 
   it("survives the server's checks unchanged", () => {
