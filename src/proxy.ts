@@ -1,6 +1,7 @@
 /**
  * Guards the owner's usage dashboard: /stats asks for the password in STATS_PASSWORD (HTTP Basic)
- * and doesn't exist without it. Runs only on /stats; the page checks again itself.
+ * and doesn't exist without it. Runs only on /stats and its data routes (/stats/live, /stats/export);
+ * each checks again itself.
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { STATS_CHALLENGE, statsAllowed, statsEnabled } from "@/lib/server/statsAuth";
@@ -12,5 +13,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/stats"],
+  matcher: ["/stats", "/stats/:path*"],
 };

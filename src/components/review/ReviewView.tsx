@@ -124,14 +124,22 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
   );
   // Per line, so a longer line doesn't re-label the moves it already had.
   const lineCaches = useMemo(() => new Map<number, ClassifyCache>(), []);
-  // Counted once each (anonymously): a review the engine finished here, and trying a side line.
-  const counted = useRef({ done: !!finished, line: false });
+  // Counted once each (anonymously): a review the engine finished here (its depth and how long it
+  // took), the engine failing, and trying a side line.
+  const counted = useRef({ done: !!finished, line: false, broke: false, since: 0 });
   useEffect(() => {
-    if (r.status === "done" && !counted.current.done) {
-      counted.current.done = true;
-      countUse("review_done");
+    const c = counted.current;
+    if (r.status === "loading" || r.status === "running") c.since ||= performance.now();
+    if (r.status === "done" && !c.done) {
+      c.done = true;
+      const secs = c.since ? Math.round((performance.now() - c.since) / 1000) : undefined;
+      countUse("review_done", REVIEW_DEPTHS[depthIdx].label.toLowerCase(), secs !== undefined ? { n: Math.min(secs, 86_400) } : undefined);
     }
-  }, [r.status]);
+    if (r.status === "error" && !c.broke) {
+      c.broke = true;
+      countUse("error", "engine");
+    }
+  }, [r.status, depthIdx]);
   useEffect(() => {
     if (lines.length && !counted.current.line) {
       counted.current.line = true;
@@ -579,7 +587,16 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
           <div className="rv-depth">
             <span className="small muted">Depth</span>
             {REVIEW_DEPTHS.map((d, i) => (
-              <button key={d.label} className={`chip chip-sm ${i === depthIdx ? "chip-on" : ""}`} onClick={() => setDepthIdx(i)} title={d.note} aria-pressed={i === depthIdx}>
+              <button
+                key={d.label}
+                className={`chip chip-sm ${i === depthIdx ? "chip-on" : ""}`}
+                onClick={() => {
+                  if (i !== depthIdx) countUse("act", "depth");
+                  setDepthIdx(i);
+                }}
+                title={d.note}
+                aria-pressed={i === depthIdx}
+              >
                 {d.label} · {d.depth}
               </button>
             ))}

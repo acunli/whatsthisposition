@@ -1,0 +1,723 @@
+/* The usage dashboard (/stats): the owner's page, loaded only here. Chart colours are tokens,
+   stepped per theme and checked with the data-viz validator on the card surface (--slab):
+   --viz-1 people (orange), --viz-2 uses (blue), --viz-prev the period before (grey). */
+.st {
+  --viz-1: #ea6420;
+  --viz-2: #3d9be0;
+  --viz-prev: #6b7570;
+  --st-good: #0ca30c;
+  --st-fair: #fab219;
+  --st-poor: #d03b3b;
+  --st-cell-0: var(--slab-2);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 32px var(--gutter) 72px;
+  display: grid;
+  gap: 18px;
+}
+
+:root[data-theme="light"] .st {
+  --viz-1: #d4551a;
+  --viz-2: #2a78d6;
+  --viz-prev: #a3aca6;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .st {
+    --viz-1: #d4551a;
+    --viz-2: #2a78d6;
+    --viz-prev: #a3aca6;
+  }
+}
+
+.st-title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 74%;
+  font-variation-settings: "wdth" 74;
+  font-size: clamp(36px, 6vw, 56px);
+  line-height: 1;
+  margin: 4px 0 8px;
+}
+
+/* The one row of controls: the view, then the period, a custom range and the chart's unit. */
+.st-controls {
+  display: grid;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  padding: 10px 0;
+  background: color-mix(in srgb, var(--night) 97%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+
+.st-views {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.st-view {
+  padding: 6px 14px;
+  border-radius: 7px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--bone-2);
+  text-decoration: none;
+}
+
+.st-view:hover {
+  color: var(--bone);
+}
+
+.st-view-on {
+  background: var(--slab-3);
+  color: var(--bone);
+}
+
+.st-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 18px;
+}
+
+.st a.chip {
+  text-decoration: none;
+}
+
+.st-ranges,
+.st-units,
+.st-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.st-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.st-custom label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.st-custom .input {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 12.5px;
+  border-radius: 8px;
+  color-scheme: inherit;
+}
+
+.st-toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 13px;
+}
+
+.st-toc a,
+.st-link {
+  color: var(--bone-2);
+  text-underline-offset: 3px;
+}
+
+.st-toc a:hover,
+.st-link:hover {
+  color: var(--bone);
+}
+
+.st-section {
+  display: grid;
+  gap: 12px;
+  scroll-margin-top: 150px;
+  padding-top: 10px;
+}
+
+.st-section-head {
+  display: grid;
+  gap: 2px;
+}
+
+.st-h2 {
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+  color: var(--bone);
+}
+
+.st-h3 {
+  font-size: 14.5px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: var(--bone);
+}
+
+.st-gap {
+  margin-top: 18px;
+}
+
+.st-card-note {
+  margin: -6px 0 12px;
+}
+
+.st-hero,
+.st-card,
+.st-tile {
+  background: var(--slab);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  min-width: 0;
+}
+
+.st-hero {
+  display: grid;
+  gap: 4px;
+}
+
+.st-hero-value {
+  font-size: clamp(48px, 9vw, 76px);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--bone);
+}
+
+.st-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 10px;
+}
+
+.st-tile {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  padding: 14px 16px;
+}
+
+.st-tile-label {
+  font-size: 13px;
+  color: var(--bone-2);
+}
+
+.st-tile-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--bone);
+  line-height: 1.1;
+}
+
+.st-delta {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.st-delta-flat {
+  color: var(--dim);
+}
+
+.st-delta-up {
+  color: rgb(var(--lime));
+}
+
+.st-delta-down {
+  color: rgb(var(--red));
+}
+
+.st-spark {
+  width: 100%;
+  height: 28px;
+  margin-top: 4px;
+}
+
+.st-spark polyline {
+  stroke: var(--viz-1);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.st-grid-2,
+.st-grid-3 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+}
+
+.st-grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+}
+
+/* Bars: a name, a bar from one baseline, the value (and its share) at the end. */
+.st-bars,
+.st-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 9px;
+}
+
+.st-steps + .st-steps {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.st-bars li,
+.st-steps li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 3px 10px;
+  align-items: center;
+}
+
+.st-bar-label,
+.st-step-label {
+  font-size: 13px;
+  color: var(--bone-2);
+  overflow-wrap: anywhere;
+  grid-column: 1 / -1;
+}
+
+.st-bar-track {
+  height: 10px;
+  display: flex;
+}
+
+.st-bar {
+  display: block;
+  height: 100%;
+  border-radius: 0 4px 4px 0;
+}
+
+.st-bar-people,
+.st-fill-people {
+  background: var(--viz-1);
+  fill: var(--viz-1);
+}
+
+.st-bar-use,
+.st-fill-use {
+  background: var(--viz-2);
+  fill: var(--viz-2);
+}
+
+.st-bar-value {
+  font-size: 13px;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.st-bar-extra {
+  display: block;
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.st-table-wrap {
+  overflow-x: auto;
+}
+
+.st-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.st-table th,
+.st-table td {
+  text-align: right;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.st-table th:first-child,
+.st-table td:first-child {
+  text-align: left;
+  white-space: normal;
+}
+
+.st-table th {
+  color: var(--bone-2);
+  font-weight: 600;
+}
+
+.st-ret {
+  display: inline-block;
+  min-width: 42px;
+  padding: 2px 6px;
+  border-radius: 5px;
+  text-align: center;
+  color: var(--bone);
+}
+
+/* Charts */
+.st-trend {
+  display: grid;
+  gap: 12px;
+}
+
+.st-trend-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.st-trend-table {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.st-chart {
+  position: relative;
+  margin: 0;
+}
+
+.st-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  outline: none;
+  touch-action: pan-y;
+}
+
+.st-chart svg:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+
+.st-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.st-tick {
+  fill: var(--dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.st-line {
+  fill: none;
+  stroke: var(--viz-1);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.st-line-prev {
+  fill: none;
+  stroke: var(--viz-prev);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.st-area {
+  fill: var(--viz-1);
+  fill-opacity: 0.1;
+}
+
+.st-dot,
+.st-dot-prev {
+  fill: var(--viz-1);
+  stroke: var(--slab);
+  stroke-width: 2;
+}
+
+.st-dot-prev {
+  fill: var(--viz-prev);
+}
+
+.st-cross {
+  stroke: var(--line-2);
+  stroke-width: 1;
+}
+
+.st-col {
+  outline: none;
+}
+
+.st-col-on path,
+.st-col:focus-visible path {
+  filter: brightness(1.18);
+}
+
+.st-col:focus-visible rect {
+  stroke: var(--bone-2);
+  stroke-width: 1;
+}
+
+.st-tip {
+  position: absolute;
+  transform: translate(-50%, 0);
+  display: grid;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--slab-3);
+  border: 1px solid var(--line-2);
+  font-size: 12px;
+  color: var(--bone-2);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.st-tip-col {
+  transform: translate(-50%, calc(-100% - 8px));
+}
+
+.st-tip b {
+  font-size: 14px;
+  color: var(--bone);
+}
+
+.st-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.st-key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.st-key-line,
+.st-key-prev {
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  vertical-align: 3px;
+  background: var(--viz-1);
+}
+
+.st-key-prev {
+  background: var(--viz-prev);
+}
+
+/* Weekday × hour */
+.st-heatbox {
+  display: grid;
+  gap: 10px;
+}
+
+.st-heat {
+  display: grid;
+  grid-template-columns: 34px repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+}
+
+.st-heat-wait {
+  min-height: 190px;
+}
+
+.st-heat-h,
+.st-heat-d {
+  font-size: 10.5px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.st-cell {
+  aspect-ratio: 1;
+  border-radius: 3px;
+  background: var(--st-cell-0);
+  outline: none;
+}
+
+.st-cell-on,
+.st-cell:focus-visible {
+  box-shadow: 0 0 0 2px var(--bone-2);
+}
+
+.st-heat-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.st-scale {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.st-scale i {
+  display: inline-block;
+  width: 70px;
+  height: 8px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--viz-1) 12%, var(--st-cell-0)), var(--viz-1));
+}
+
+.st-ink {
+  color: var(--bone);
+}
+
+/* Page speed: a status (icon + word, never colour alone) and the good / so-so / poor split. */
+.st-vital-value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+
+.st-vital-value b {
+  font-size: 28px;
+  color: var(--bone);
+}
+
+.st-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--bone-2);
+}
+
+.st-status-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.st-status-good .st-status-icon {
+  background: var(--st-good);
+}
+
+.st-status-fair .st-status-icon {
+  background: var(--st-fair);
+  color: #1a1a19;
+}
+
+.st-status-poor .st-status-icon {
+  background: var(--st-poor);
+}
+
+.st-split {
+  display: flex;
+  gap: 2px;
+  height: 10px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.st-split span {
+  flex-basis: 0;
+  min-width: 3px;
+}
+
+.st-split-good {
+  background: var(--st-good);
+}
+
+.st-split-fair {
+  background: var(--st-fair);
+}
+
+.st-split-poor {
+  background: var(--st-poor);
+}
+
+.st-split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 8px 0 4px;
+  color: var(--bone-2);
+}
+
+/* Live */
+.st-live {
+  display: grid;
+  gap: 14px;
+}
+
+.st-live-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.st-live-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--bone-2);
+}
+
+.st-live-list b {
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .st-controls {
+    position: static;
+  }
+
+  .st-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .st-tile-value {
+    font-size: 23px;
+  }
+
+  .st-hero,
+  .st-card {
+    padding: 14px;
+  }
+
+  .st-heat {
+    grid-template-columns: 28px repeat(24, minmax(0, 1fr));
+    gap: 1px;
+  }
+
+  .st-heat-h {
+    font-size: 9px;
+  }
+
+  .st-trend-head {
+    flex-direction: column;
+  }
+}

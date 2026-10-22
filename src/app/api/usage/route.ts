@@ -4,7 +4,8 @@
  * without the database, from a bot, over the rate limit or from another site, it just counts nothing.
  */
 import { clientIp, rateLimit } from "@/lib/server/rateLimit";
-import { isAutomated, keyPrefix, recordUse, tokenSecret, usageStore, utcDay, visitorToken } from "@/lib/server/usage";
+import { isAutomated, keyPrefix, recordUse, tokenSecret, usageStore, utcMonth, visitorToken, type Visitor } from "@/lib/server/usage";
+import { cityName, countryCode, languageOf, localClock, regionCode, software } from "@/lib/stats/visitor";
 import { parseUse } from "@/lib/usage";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
   if (isAutomated(ua)) return done();
   const ip = clientIp(req);
   if (rateLimit(`usage:${ip}`, 60, 60_000)) return done();
-  if (Number(req.headers.get("content-length") ?? 0) > 256) return done(413);
+  if (Number(req.headers.get("content-length") ?? 0) > 1024) return done(413);
   let use;
   try {
     use = parseUse(await req.json());
@@ -37,9 +38,21 @@ export async function POST(req: Request) {
     return done(400);
   }
   if (!use) return done(400);
-  const day = utcDay();
+  const t = Date.now();
+  const h = req.headers;
+  const clock = localClock(t, h.get("x-vercel-ip-timezone"));
+  const visitor: Visitor = {
+    token: visitorToken(tokenSecret(), utcMonth(t), ip, ua!),
+    software: software(ua!, h.get("sec-ch-ua-mobile"), use.d?.input),
+    country: countryCode(h.get("x-vercel-ip-country")),
+    region: regionCode(h.get("x-vercel-ip-country-region")),
+    city: cityName(h.get("x-vercel-ip-city")),
+    lang: languageOf(h.get("accept-language")),
+    localHour: clock.hour,
+    localDay: clock.day,
+  };
   try {
-    await recordUse(db, keyPrefix(), day, use.e, use.s, visitorToken(tokenSecret(), day, ip, ua!), req.headers.get("x-vercel-ip-country"));
+    await recordUse(db, keyPrefix(), t, use, visitor);
   } catch {
     // The counter is best effort: a database hiccup must never show up for the visitor.
   }

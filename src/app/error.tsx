@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { countUse } from "@/lib/usage";
 
 /** Shown when a page throws: say what happened and offer a way back. */
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);
+    countUse("error", "page");
   }, [error]);
   return (
     <main className="prose status-page">

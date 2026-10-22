@@ -53,7 +53,8 @@ Afterwards, production builds redirect the `vercel.app` addresses to the domain 
 - **Region:** the two API routes run in one region (Washington, D.C., `iad1`, by default). Pages and files come from Vercel's worldwide CDN either way.
 - **Headers:** the Content Security Policy, HSTS and cache headers come from `next.config.ts` and apply on Vercel as they do anywhere else.
 - **Usage numbers:**
-  - **The dashboard:** `/stats`, signed in with `STATS_PASSWORD`. It shows people per day, reviews, analyses, photos, opens from the extension, where reviews come from, and countries. The counter needs a Redis database: `vercel integration add upstash/upstash-kv --plan free -m autoUpgrade=false` connects a free one, which stops counting at its monthly limit instead of upgrading.
+  - **The dashboard:** `/stats`, signed in with `STATS_PASSWORD`. Three views: **Overview** for any period (the last 24 or 48 hours, 7, 30 or 90 days, 12 months, all time, or two dates) drawn per hour, day, week or month against the period before: people, visits, page views, time on the site, new and returning people, reviews, analyses and every other counted use; a weekday-by-hour heatmap in your own time zone and the visitors' own clock; what people go on to do; channels and how well each converts; pages; countries, regions, cities and languages; devices, systems, browsers, window sizes, theme and processor threads; review times by depth; errors; page speed (Web Vitals, by device type); and the extension's store users and the GitHub stars, read once a day. **Retention** shows who comes back within a month. **Live** shows who's on the site now. Every period downloads as CSV (`/stats/export`). The counter needs a Redis database: `vercel integration add upstash/upstash-kv --plan free -m autoUpgrade=false` connects a free one, which stops counting at its monthly limit instead of upgrading (500,000 commands a month: a page load costs about a dozen, any other use about 8, a dashboard view about 60).
+  - **The daily job** (`vercel.json` → `/api/cron/usage`, 00:10 UTC; Hobby allows one run a day) sums up finished days, reads the store listing and GitHub, and drops hourly sketches older than 35 days. Set `CRON_SECRET` in the project to let only Vercel call it (without it the job is still harmless: it is idempotent and rate-limited).
   - **Vercel Web Analytics** adds referrers, pages and devices. Turn it on under the project's **Analytics** tab (Hobby: 50,000 page views a month, one month of history).
   - **The extension's installs and weekly users** are in the Chrome Web Store developer dashboard.
 
@@ -118,7 +119,8 @@ Everything is optional (see [`.env.example`](../.env.example)):
 | `CLIENT_IP_HEADER` | Behind a proxy other than Vercel or Caddy, the header with the visitor's real IP (e.g. `cf-connecting-ip`), for the rate limits. |
 | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | The usage counter's database (Upstash Redis from the Vercel Marketplace sets these when it's connected to the project). Without them nothing is counted. |
 | `STATS_PASSWORD` | Turns on the usage dashboard at `/stats` (HTTP sign-in: any user name, this password). Without it `/stats` doesn't exist. |
-| `USAGE_SECRET` | Optional: the key for the daily visitor hashes (defaults to the database token). |
+| `USAGE_SECRET` | Optional: the key for the monthly visitor hashes (defaults to the database token). |
+| `CRON_SECRET` | Optional: Vercel sends it with the daily usage job (`/api/cron/usage`), which then refuses other callers. |
 | `VISION_PROVIDER`, `ANTHROPIC_API_KEY`, `SOCLAAS_*` | The optional cloud photo reader, for angled photos of real boards. **Every photo is a paid API call**, so leave these empty on a public site unless you mean to pay; the route is limited to 6 photos per minute per visitor. Screenshots are always read on the device for free. |
 
 On Vercel, set these under the project's **Settings → Environment Variables**, then redeploy.

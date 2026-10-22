@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo } from "next/font/google";
 import { PageVeil } from "@/components/PageVeil";
 import { SiteAnalytics } from "@/components/SiteAnalytics";
-import { VisitCount } from "@/components/VisitCount";
+import { UsageTracker } from "@/components/UsageTracker";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import { OG_IMAGE } from "@/lib/seo";
 import { THEME_BG, THEME_SCRIPT } from "@/lib/theme";
@@ -80,7 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PageVeil />
         {children}
         <SiteAnalytics />
-        <VisitCount />
+        <UsageTracker />
       </body>
     </html>
   );

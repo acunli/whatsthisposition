@@ -95,7 +95,7 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
   // review's page: open its review. If it was already reviewed (data), that review is shown as is.
   useEffect(() => {
     const shared = given ?? readReviewHash(window.location.hash);
-    // The visit itself is counted by <VisitCount/> in the layout, on every page.
+    // The visit itself is counted by <UsageTracker/> in the layout, on every page.
     if (!shared) return;
     if (!given) window.history.replaceState(null, "", window.location.pathname + window.location.search);
     let g: ParsedGame;

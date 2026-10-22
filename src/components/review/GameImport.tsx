@@ -1,6 +1,6 @@
 "use client";
 
-import { countUse } from "@/lib/usage";
+import { IMPORT_ERRORS, IMPORT_SITES, countUse } from "@/lib/usage";
 import { useRef, useState } from "react";
 import type { Color } from "@/lib/chess/types";
 import type { GameSummary } from "@/lib/review/importers";
@@ -45,11 +45,15 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
   const [pgnGames, setPgnGames] = useState<ParsedGame[] | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
-  const open = (text: string, orientation?: Color) => {
+  /** A game that couldn't be brought in: counted (anonymously) by where and why, never what was typed. */
+  const failed = (where: (typeof IMPORT_SITES)[number], why: (typeof IMPORT_ERRORS)[number]) => countUse("import_error", `${where}.${why}`);
+
+  const open = (text: string, orientation?: Color, where: (typeof IMPORT_SITES)[number] = fromFile.current ? "file" : "pgn") => {
     try {
       onGame(parseGame(text), orientation);
     } catch (e) {
       setError(e instanceof PgnError ? e.message : "That game couldn't be read.");
+      failed(where, "unreadable");
     }
   };
 
@@ -61,15 +65,26 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
     setGames(null);
     const isLink = /lichess\.org\/|chess\.com\//i.test(q);
     const url = isLink ? `/api/games?link=${encodeURIComponent(q)}` : `/api/games?site=${source}&user=${encodeURIComponent(q)}`;
+    const where = isLink ? "link" : (source as "chesscom" | "lichess");
     try {
       const res = await fetch(url);
       const data = (await res.json()) as { ok: true; games: GameSummary[] } | { ok: false; message: string };
-      if (!data.ok) setError(data.message);
-      else if (isLink && data.games[0]) open(data.games[0].pgn);
-      else if (!data.games.length) setError("No recent standard games found for that player.");
-      else setGames({ owner: q.toLowerCase(), list: data.games });
+      if (!data.ok) {
+        setError(data.message);
+        failed(where, res.status === 404 ? "notfound" : res.status === 429 ? "limited" : "failed");
+      } else if (isLink && data.games[0]) {
+        countUse("lookup", "link");
+        open(data.games[0].pgn, undefined, "link");
+      } else if (!data.games.length) {
+        setError("No recent standard games found for that player.");
+        failed(where, "empty");
+      } else {
+        countUse("lookup", where);
+        setGames({ owner: q.toLowerCase(), list: data.games });
+      }
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
+      failed(where, "offline");
     } finally {
       setBusy(false);
     }
@@ -91,8 +106,10 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
         /* skip unreadable games in a collection */
       }
     }
-    if (!parsed.length) setError("None of the games in that PGN could be read.");
-    else if (parsed.length === 1) onGame(parsed[0]);
+    if (!parsed.length) {
+      setError("None of the games in that PGN could be read.");
+      failed(fromFile.current ? "file" : "pgn", "unreadable");
+    } else if (parsed.length === 1) onGame(parsed[0]);
     else setPgnGames(parsed);
   };
 
@@ -195,7 +212,7 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
             const mine: Color | undefined = g.white.toLowerCase() === games.owner ? "w" : g.black.toLowerCase() === games.owner ? "b" : undefined;
             return (
               <li key={g.id}>
-                <button className="glist-item" onClick={() => open(g.pgn, mine)}>
+                <button className="glist-item" onClick={() => open(g.pgn, mine, source === "lichess" ? "lichess" : "chesscom")}>
                   <span className="glist-players">
                     <span className="side-dot side-w" aria-hidden /> {g.white} {g.whiteElo ? <span className="muted mono">{g.whiteElo}</span> : null}
                     <span className="muted"> vs </span>

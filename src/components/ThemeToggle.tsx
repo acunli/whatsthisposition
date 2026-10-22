@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { currentTheme, setTheme, subscribeTheme, type Theme } from "@/lib/theme";
+import { countUse } from "@/lib/usage";
 
 /** The theme in use, kept in sync with the toggle and the system setting ("dark" on the server). */
 export function useTheme(): Theme {
@@ -13,7 +14,15 @@ export function ThemeToggle() {
   const theme = useTheme();
   const next: Theme = theme === "dark" ? "light" : "dark";
   return (
-    <button className="theme-toggle" onClick={() => setTheme(next)} aria-label={`Switch to the ${next} theme`} title={`Switch to the ${next} theme`}>
+    <button
+      className="theme-toggle"
+      onClick={() => {
+        setTheme(next);
+        countUse("act", "theme");
+      }}
+      aria-label={`Switch to the ${next} theme`}
+      title={`Switch to the ${next} theme`}
+    >
       {/* Both icons are drawn; CSS shows the right one before scripts run (see .theme-toggle). */}
       <svg viewBox="0 0 24 24" aria-hidden className="tt-sun">
         <circle cx="12" cy="12" r="4.2" />
