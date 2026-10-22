@@ -286,9 +286,9 @@ export function SetupView({ setup, onChange, orientation, onOrientation, onAnaly
           {uncertain.length > 0 && (
             <p className="issue issue-warn">
               Check {uncertain.length} square{uncertain.length > 1 ? "s" : ""} marked <b>?</b> ({uncertain.slice(0, 6).join(", ")}
-              {uncertain.length > 6 ? "…" : ""}). Tap each to fix it, or{" "}
+              {uncertain.length > 6 ? "…" : ""}). {uncertain.length > 1 ? "Tap each to fix it" : "Tap it to fix it"}, or{" "}
               <button className="linkish" onClick={() => setUncertain([])}>
-                confirm they&apos;re right
+                {uncertain.length > 1 ? "confirm they're right" : "confirm it's right"}
               </button>
               .
             </p>

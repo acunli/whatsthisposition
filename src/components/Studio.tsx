@@ -135,7 +135,7 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
 
   return (
     <div className="shell">
-      <header className={stage === "home" ? `topbar topbar-home${atHero ? " topbar-hero" : ""}` : `topbar topbar-app${stage === "analysis" ? " topbar-crowded" : ""}`}>
+      <header className={stage === "home" ? `topbar topbar-home${atHero ? " topbar-hero" : ""}${game ? " topbar-back" : ""}` : `topbar topbar-app${stage === "analysis" ? " topbar-crowded" : ""}`}>
         {variant && stage === "home" ? (
           <Link className="topbar-brand" href="/" aria-label={`${SITE_NAME} home`}>
             <Logo size={34} animate={false} />
@@ -146,7 +146,7 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
           </button>
         )}
         <nav className="topbar-nav" aria-label="Site">
-          {game && stage !== "review" && stage !== "home" && (
+          {game && stage !== "review" && (
             <button className="btn btn-sm btn-primary" onClick={backToReview}>
               <span className="only-wide">← Back to game review</span>
               <span className="only-narrow">← Review</span>
@@ -161,11 +161,6 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
           {stage !== "home" && (
             <button className="navlink navlink-wide" onClick={home}>
               {stage === "review" ? "New game" : "New position"}
-            </button>
-          )}
-          {stage === "home" && game && (
-            <button className="navlink" onClick={backToReview}>
-              Last review
             </button>
           )}
           {(stage === "home" || stage === "review") && (

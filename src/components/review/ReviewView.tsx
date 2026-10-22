@@ -589,9 +589,12 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
 
         <section className="rv-table" aria-label="Move labels per player">
           <div className="rv-table-head">
-            <span className="mono">{game.white}</span>
-            <span />
-            <span className="mono">{game.black}</span>
+            <span className="mono" title={game.white}>
+              {game.white}
+            </span>
+            <span className="mono" title={game.black}>
+              {game.black}
+            </span>
           </div>
           {TABLE.map((c) => {
             const t = counts[c] ?? { w: 0, b: 0 };

@@ -54,7 +54,8 @@
   /* How much of a label's own colour its text keeps: on the light page, label colours like
      Inaccuracy's yellow are mixed with the text colour so they stay readable. */
   --tint: 100%;
-  /* The board's own tones: boards keep them in both themes. */
+  /* The board's own tones: boards keep them in both themes, and so do filled badges with
+     --on-bright text (on the light theme's deeper tones that text would be dark on dark). */
   --v-brand: 255 118 41;
   --v-red: 255 75 62;
   --v-gold: 255 197 61;
@@ -457,6 +458,8 @@ textarea.input {
 
 .side-w {
   background: var(--ivory);
+  /* An edge, so White's swatch shows on the light page too */
+  box-shadow: inset 0 0 0 1.5px var(--dim-2);
 }
 
 .side-b {
@@ -1423,7 +1426,7 @@ textarea.input {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   color: var(--on-bright);
 }
 
@@ -1662,7 +1665,7 @@ textarea.input {
   width: 24px;
   height: 24px;
   border-radius: 6px;
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   color: var(--on-bright);
   font-size: 15px;
 }
@@ -1698,7 +1701,7 @@ textarea.input {
   font-size: 12px;
   letter-spacing: 0;
   color: var(--on-bright);
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   padding: 2px 5px;
   border-radius: 4px;
   vertical-align: 1px;
@@ -1770,7 +1773,7 @@ textarea.input {
   place-items: center;
   font-weight: 900;
   font-size: 11px;
-  background: rgb(var(--red));
+  background: rgb(var(--v-red));
   color: var(--on-bright);
 }
 
@@ -1781,7 +1784,7 @@ textarea.input {
 
 .issue-warn::before {
   content: "?";
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
 }
 
 .issue-note {
@@ -1791,7 +1794,7 @@ textarea.input {
 
 .issue-note::before {
   content: "i";
-  background: rgb(var(--sky));
+  background: rgb(var(--v-sky));
 }
 
 .palette {
@@ -2375,7 +2378,7 @@ textarea.input {
   letter-spacing: 0;
   padding: 3px 7px;
   border-radius: 5px;
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   color: var(--on-bright);
   font-weight: 700;
 }
@@ -2785,13 +2788,33 @@ textarea.input {
   align-content: start;
 }
 
+/* The analysis tabs: one row, where the longest name takes two lines rather than leaving the
+   last tab alone on a second row; a narrow column splits them three and two. */
+.desk:not(.rv-desk) {
+  container-type: inline-size;
+}
+
 .desk > .tabs {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .desk > .tabs .tab {
+  flex: 1 1 auto;
   padding: 8px 11px;
   font-size: 13px;
+  line-height: 1.2;
+  white-space: normal;
+  text-wrap: balance;
+}
+
+@container (max-width: 470px) {
+  .desk > .tabs {
+    flex-wrap: wrap;
+  }
+
+  .desk > .tabs .tab {
+    flex: 1 0 30%;
+  }
 }
 
 .desk-body {
@@ -3379,7 +3402,7 @@ textarea.input {
 }
 
 .evalchip-mate {
-  background: rgb(var(--red));
+  background: rgb(var(--v-red));
   color: var(--on-bright);
 }
 
@@ -3481,7 +3504,7 @@ textarea.input {
   font-family: var(--font-display);
   font-weight: 900;
   font-size: 16px;
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   color: var(--on-bright);
 }
 
@@ -3948,13 +3971,13 @@ textarea.input {
 }
 
 .cls-brilliant {
-  background: rgb(var(--sky));
+  background: rgb(var(--v-sky));
   color: var(--on-bright);
 }
 
 .cls-only,
 .cls-great {
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   color: var(--on-bright);
 }
 
@@ -3970,7 +3993,7 @@ textarea.input {
 
 .cls-mistake,
 .cls-blunder {
-  background: rgb(var(--red));
+  background: rgb(var(--v-red));
   color: var(--on-bright);
 }
 
@@ -4617,6 +4640,24 @@ em {
 .topbar-hero .topbar-ext {
   opacity: 0;
   visibility: hidden;
+}
+
+/* While hidden, the button still takes its place in the row: first in the row, that space
+   sits beside the empty brand corner instead of opening a gap between the other links. */
+.topbar-home .topbar-ext {
+  order: -1;
+}
+
+.topbar-nav .btn {
+  white-space: nowrap;
+}
+
+/* Phones, with a review to go back to: the wordmark and "← Review" don't both fit beside the
+   other buttons, so the home bar keeps only the mark (the hero shows the name in full). */
+@media (max-width: 480px) {
+  .topbar-back .logo-word {
+    display: none;
+  }
 }
 
 .topbar-home {
@@ -5683,15 +5724,13 @@ a.btn {
 .wip-tag {
   display: inline-flex;
   align-items: center;
-  padding: 3px 9px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: 6px;
   border: 1px dashed rgb(var(--gold) / 0.7);
   background: rgb(var(--gold) / 0.12);
   color: rgb(var(--gold));
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -5729,7 +5768,6 @@ a.btn {
   padding: 10px 12px;
 }
 
-.rv-table-head,
 .rv-table-row {
   display: grid;
   grid-template-columns: 56px 1fr 56px;
@@ -5737,13 +5775,19 @@ a.btn {
   text-align: center;
 }
 
+/* The players' names over their columns of counts: each may use half the row, so only a
+   really long name is cut short. */
 .rv-table-head {
-  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11.5px;
   color: var(--dim);
-  padding-bottom: 4px;
+  padding: 0 4px 4px;
 }
 
 .rv-table-head span {
+  max-width: 50%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6099,7 +6143,7 @@ a.btn {
 
 .orient-guess {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   margin: 8px 0 0;
   font-size: 13.5px;
@@ -6472,7 +6516,7 @@ a.btn {
 }
 
 .peek-mv-on {
-  background: rgb(var(--gold));
+  background: rgb(var(--v-gold));
   color: var(--on-bright);
   font-weight: 700;
 }
@@ -6549,7 +6593,7 @@ a.btn {
   font-size: 12px;
   font-weight: 700;
   color: var(--on-bright);
-  background: var(--cls, rgb(var(--gold)));
+  background: var(--cls, rgb(var(--v-gold)));
 }
 
 .rv-steps b {

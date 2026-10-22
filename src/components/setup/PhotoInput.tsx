@@ -333,7 +333,7 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
           </span>
           <span>
             <span className="drop-title">Drop a screenshot or photo</span>
-            <span className="drop-sub">Chess.com, Lichess or any app · JPEG, PNG, WebP · the board is found automatically</span>
+            <span className="drop-sub">From Chess.com, Lichess or any app. The board is found automatically.</span>
           </span>
           <span />
           <input
@@ -498,9 +498,16 @@ export function PhotoInput({ onRecognized, initialFile, onInitialConsumed }: Pro
         </div>
       )}
 
+      {/* The AI reader is only offered (and only mentioned) when the server has one set up. */}
       <p className="privacy">
-        Screenshots are read on your device: the picture never leaves your browser. Only if you choose the AI reader is the cropped picture sent through this site&apos;s server to{" "}
-        {provider === "anthropic" ? "Anthropic's API" : "the NUS SoCLaaS gateway"}, then discarded.
+        {configured ? (
+          <>
+            Screenshots are read on your device: the picture never leaves your browser. Only if you choose the AI reader is the cropped picture sent through this site&apos;s server to{" "}
+            {provider === "anthropic" ? "Anthropic's API" : "the NUS SoCLaaS gateway"}, then discarded.
+          </>
+        ) : (
+          "The picture is read on your device and never leaves your browser."
+        )}
       </p>
     </div>
   );
