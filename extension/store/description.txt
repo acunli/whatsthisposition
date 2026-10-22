@@ -1,10 +1,11 @@
-Free, unlimited chess game review for Chess.com. Finish a game, click the what’sthisposition button, and Stockfish 19 analyses it on your own computer: both players’ accuracy and every move labelled, from Brilliant to Blunder. No account, no daily limit, no ads.
+Free, unlimited chess game review for Chess.com. Finish a game and a review card pops up next to the board: Stockfish 19 analyses it on your own computer, with both players’ accuracy and every move labelled, from Brilliant to Blunder. No account, no daily limit, no ads.
 
 HOW IT WORKS
-1. Finish a game on Chess.com, or open one of your past games.
-2. Click the what’sthisposition button in the toolbar, then “Review this game”.
-3. A card opens next to the board. Press “Analyze this game” and Stockfish reviews it on your computer, usually in about a minute.
-4. Want the details? “See every move explained” opens the full review on whatsthisposition.com, ready at once: nothing is searched twice.
+1. Play a game on Chess.com. When it ends, a card opens next to the board.
+2. Press “Analyze this game” and Stockfish reviews it on your computer, usually in about a minute.
+3. Want the details? “See every move explained” opens the full review on whatsthisposition.com, ready at once: nothing is searched twice.
+
+For a past game, open it on Chess.com and click the what’sthisposition button in the toolbar, then “Review this game”. The same button can turn the automatic card off.
 
 Tip: pin the extension (the puzzle-piece icon, then the pin) so its button is always in the toolbar.
 
@@ -22,12 +23,12 @@ ON THE WEBSITE (free, no account): https://www.whatsthisposition.com
 • Also reviews Lichess games and any PGN, and analyses a single position from a screenshot or a FEN
 
 FAIR PLAY
-The extension does nothing until you click it, and it only reviews games that are over. Chess.com’s own game data decides, so a game in progress is never analysed. It’s the same as reviewing a game on Chess.com afterwards.
+The card opens only once a game is over: when Chess.com shows the result, or its own game data says the game is finished. Nothing is analysed until you press Analyze, so a game in progress is never analysed. It’s the same as reviewing a game on Chess.com afterwards.
 
 PRIVATE BY DESIGN
 • Stockfish 19 runs on your computer. Your games aren’t uploaded anywhere.
 • The extension collects no data. No account, no sign-in, no ads.
-• It works only on Chess.com, and only when you click its button.
+• It works only on Chess.com, where it looks at the game on the page to know when it ends.
 • The link to the full review carries the game in the part of the address that browsers never send to a server. The website only counts visits, anonymously and without cookies.
 
 FREE AND OPEN SOURCE

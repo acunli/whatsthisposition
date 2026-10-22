@@ -1,11 +1,30 @@
 /**
  * The toolbar button's popup: finds the finished game in the current Chess.com tab and,
- * on "Review this game", opens the review card in the corner of that page.
+ * on "Review this game", opens the review card in the corner of that page. It also turns
+ * the automatic card (opened by the page script when a game ends) on or off.
  */
-import type { FindReply } from "./content";
+import type { FindReply, StatusReply } from "./content";
 
 const status = document.getElementById("status")!;
 const button = document.getElementById("review") as HTMLButtonElement;
+const autoBox = document.getElementById("auto") as HTMLInputElement;
+const watch = document.getElementById("watch")!;
+
+void chrome.storage.local.get({ auto: true }).then((v) => {
+  autoBox.checked = v.auto !== false;
+});
+autoBox.addEventListener("change", () => void chrome.storage.local.set({ auto: autoBox.checked }));
+
+/** What the page script is doing in this tab ("Watching this game…"), if it's a Chess.com tab. */
+async function showWatch() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+  try {
+    watch.textContent = ((await chrome.tabs.sendMessage(tab.id, { type: "wtp:status" })) as StatusReply).watching;
+  } catch {
+    // not a Chess.com tab, or no page script there yet
+  }
+}
 type Ask = FindReply | { ok: false; message: string; noPage: true };
 
 const NO_PAGE: Ask = { ok: false, noPage: true, message: "Open one of your games on Chess.com, then click here." };
@@ -68,4 +87,4 @@ button.addEventListener("click", async () => {
   }
 });
 
-void look();
+void look().finally(() => void showWatch());

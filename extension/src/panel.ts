@@ -205,7 +205,14 @@ async function analyse() {
 
 addEventListener("message", (e: MessageEvent) => {
   if (e.origin !== PARENT || e.source !== parent) return;
-  const msg = e.data as { type?: string; game?: ChessComGame };
+  const msg = e.data as { type?: string; game?: ChessComGame; message?: string };
+  if (msg?.type === "wtp:error" && typeof msg.message === "string" && !game) {
+    // The game couldn't be read: say so, with the website as the way out.
+    app.innerHTML = `${header()}<p class="status error">${esc(msg.message)}</p>
+      <a class="secondary" href="${esc(SITE_URL)}" target="_blank" rel="noopener">Open what’sthisposition →</a>`;
+    bind();
+    return;
+  }
   if (msg?.type !== "wtp:game" || !msg.game?.pgn || running) return;
   try {
     parsed = parseFirstGame(msg.game.pgn);

@@ -67,6 +67,8 @@ export interface ChessComGame {
   url: string;
   /** When the game ended (ms since the epoch), if Chess.com says. */
   endedAt: number | null;
+  /** How many moves (plies) were played. */
+  plies: number;
 }
 
 /** The PGN and summary of a finished standard game, or null if it isn't one. */
@@ -103,6 +105,7 @@ export function gameFromCallback(cb: ChessComCallback, kind: "live" | "daily"): 
     bottom: cb.players?.bottom?.color === "black" ? "b" : "w",
     url,
     endedAt: typeof g.endTime === "number" ? g.endTime * 1000 : null,
+    plies: chess.history().length,
   };
 }
 

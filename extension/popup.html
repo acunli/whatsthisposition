@@ -23,6 +23,25 @@
         cursor: default;
         filter: none;
       }
+      .auto {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .auto input {
+        margin: 2px 0 0;
+        accent-color: var(--brand);
+      }
+      .auto small {
+        display: block;
+        color: var(--dim);
+        font-size: 12px;
+      }
+      .auto input:not(:checked) ~ span small {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -31,6 +50,7 @@
       <p class="status" id="status" aria-live="polite">Looking for a game on this page…</p>
       <button class="primary" id="review" type="button" disabled>Review this game</button>
       <p class="note">Opens a review card in the corner of the page. Finished games only; Stockfish 19 runs on your computer and nothing is uploaded.</p>
+      <label class="auto"><input type="checkbox" id="auto" checked /><span>Open the card by itself when a game ends<small id="watch"></small></span></label>
       <a class="secondary" id="site" href="https://www.whatsthisposition.com" target="_blank" rel="noopener">Open what’sthisposition</a>
     </main>
     <script src="popup.js"></script>

@@ -12,7 +12,11 @@
   "permissions": [
     "offscreen",
     "activeTab",
-    "scripting"
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.chess.com/*"
   ],
   "background": {
     "service_worker": "background.js"
