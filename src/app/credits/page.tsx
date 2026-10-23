@@ -50,7 +50,9 @@ export default function Credits() {
           Analysis and game review run entirely in your browser. Screenshots and photos are read on your device by a small neural network
           trained on open-source piece sets; they never leave your browser. Only if you choose the optional AI reader (for angled photos of a
           real board) is the cropped picture sent through this site&apos;s server to the configured vision API (the NUS SoCLaaS gateway, or
-          Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device.
+          Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device. The game you
+          are reviewing is kept in that browser tab, so reloading the review page shows it again; it is never sent anywhere and is gone
+          when you close the tab.
         </p>
         <p>
           A game is stored only if you press <b>Share review</b> on it. That makes a public link: the game&apos;s moves and names as its PGN

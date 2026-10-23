@@ -84,6 +84,7 @@ export const CHANNEL_NAMES: Record<string, string> = {
 
 const PAGE_NAMES: Record<string, string> = {
   "/": "Home",
+  "/review": "Game review",
   "/games": "Reviewed games",
   "/credits": "How it works & credits",
   "/chess-com-game-review": "Chess.com game review",

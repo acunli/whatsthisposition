@@ -41,6 +41,8 @@ interface Props {
   depth?: number;
   /** A review the extension already ran: shown at once instead of searching again. */
   finished?: FinishedReview;
+  /** The engine has finished the review here (again after a re-run at another depth). */
+  onDone?: (done: FinishedReview) => void;
 }
 
 /** A line being previewed on the board (an engine line, or one from an explanation). */
@@ -85,7 +87,7 @@ function PlayerRow({ game, color, accuracy, active }: { game: ParsedGame; color:
   );
 }
 
-export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth, finished }: Props) {
+export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth, finished, onDone }: Props) {
   const [depthIdx, setDepthIdx] = useState(() => depthIndex(depth));
   const [run, setRun] = useState(0);
   const r = useReview(game, REVIEW_DEPTHS[depthIdx].depth, run, finished);
@@ -140,6 +142,13 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
       countUse("error", "engine");
     }
   }, [r.status, depthIdx]);
+  // Each time the engine finishes (a review given finished doesn't count), the page hears of it.
+  const wasDone = useRef(r.status === "done");
+  useEffect(() => {
+    const done = r.status === "done";
+    if (done && !wasDone.current) onDone?.({ depth: depthNow, positions: r.positions });
+    wasDone.current = done;
+  }, [r.status, r.positions, depthNow, onDone]);
   useEffect(() => {
     if (lines.length && !counted.current.line) {
       counted.current.line = true;

@@ -9,6 +9,7 @@ describe("pages", () => {
   it("keeps the site's pages, groups shared reviews, keeps reviewed games, and calls anything else other", () => {
     for (const l of Object.values(LANDING)) expect(SITE_PAGES).toContain(l.path);
     expect(pagePath("/")).toBe("/");
+    expect(pagePath("/review")).toBe("/review");
     expect(pagePath("/pgn-analyzer/")).toBe("/pgn-analyzer");
     expect(pagePath("/r/7fGh2K")).toBe("/r/*");
     expect(pagePath("/r/*")).toBe("/r/*");

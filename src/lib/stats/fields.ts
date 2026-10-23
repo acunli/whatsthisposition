@@ -8,6 +8,7 @@
 /** Pages counted by their own address. Shared reviews and reviewed games are grouped below. */
 export const SITE_PAGES = [
   "/",
+  "/review",
   "/games",
   "/credits",
   "/chess-com-game-review",
