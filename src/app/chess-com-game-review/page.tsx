@@ -35,7 +35,7 @@ export default function ChessComGameReview() {
                       <b>Step through it</b> with the arrow keys, the evaluation graph or the key moments. Each label appears as soon as its move is checked.
                     </li>
                   </ol>
-                  <p>For an older game, open it on Chess.com, choose Share, then PGN, and paste it in the PGN tab.</p>
+                  <p>For an older game, paste the game&apos;s address from Chess.com in the same box and press Review, or choose Share, then PGN, and paste it in the PGN tab.</p>
                 </>
               ),
             },

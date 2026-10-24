@@ -21,6 +21,9 @@ const SOURCES: [ImportSource, string][] = [
   ["pgn", "PGN"],
 ];
 
+/** A Chess.com or Lichess game link, which either site's box opens straight away. */
+const GAME_LINK = /lichess\.org\/|chess\.com\//i;
+
 const RESULT_TEXT: Record<string, string> = { "1-0": "1–0", "0-1": "0–1", "1/2-1/2": "½–½", "*": "…" };
 
 function when(ms?: number) {
@@ -28,7 +31,7 @@ function when(ms?: number) {
   return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Bring a game in: Chess.com / Lichess username, a Lichess game link, or a pasted / uploaded PGN. */
+/** Bring a game in: Chess.com / Lichess username or game link, or a pasted / uploaded PGN. */
 export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Props) {
   const [source, setSource] = useState<ImportSource>(initialSource);
   const fromFile = useRef(false);
@@ -63,7 +66,7 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
     setBusy(true);
     setError(null);
     setGames(null);
-    const isLink = /lichess\.org\/|chess\.com\//i.test(q);
+    const isLink = GAME_LINK.test(q);
     const url = isLink ? `/api/games?link=${encodeURIComponent(q)}` : `/api/games?site=${source}&user=${encodeURIComponent(q)}`;
     const where = isLink ? "link" : (source as "chesscom" | "lichess");
     try {
@@ -147,16 +150,16 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
         >
           <input
             className="input"
-            placeholder={source === "chesscom" ? "Chess.com username" : "Lichess username or game link"}
+            placeholder={source === "chesscom" ? "Chess.com username or game link" : "Lichess username or game link"}
             value={user}
             onChange={(e) => setUser(e.target.value)}
-            aria-label={source === "chesscom" ? "Chess.com username" : "Lichess username or game link"}
+            aria-label={source === "chesscom" ? "Chess.com username or game link" : "Lichess username or game link"}
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"
           />
           <button className="btn btn-primary" disabled={!user.trim() || busy}>
-            {busy ? "Fetching…" : source === "lichess" && /lichess\.org\//i.test(user) ? "Review" : "Find games"}
+            {busy ? "Fetching…" : GAME_LINK.test(user) ? "Review" : "Find games"}
           </button>
         </form>
       ) : (

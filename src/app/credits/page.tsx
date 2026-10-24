@@ -35,7 +35,8 @@ export default function Credits() {
           Chess.com&apos;s own reviews of real games.
         </p>
         <p>
-          Games you import from Chess.com or Lichess are fetched through this site from their free public APIs and aren&apos;t stored. Opening
+          Games you import from Chess.com or Lichess are fetched through this site from their free public APIs (a Chess.com game link, from
+          Chess.com&apos;s own game data) and aren&apos;t stored. Opening
           names come from the Lichess <a href="https://github.com/lichess-org/chess-openings">chess-openings</a> dataset (CC0). How deep theory
           goes, and what strong players play in each position, comes from 1.84 million games between strong players: over-the-board games from
           the <a href="https://database.lichess.org/#broadcasts">Lichess broadcast database</a> (CC BY-SA 4.0; this site&apos;s book is a

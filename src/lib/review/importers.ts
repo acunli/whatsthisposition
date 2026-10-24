@@ -1,11 +1,13 @@
 /**
- * Fetches a player's recent games from Lichess and Chess.com, or one Lichess game
- * by link. Both sites have free public APIs and no key is needed:
+ * Fetches a player's recent games from Lichess and Chess.com, or one game by link.
+ * No key is needed:
  *   Lichess    lichess.org/api/games/user/{name} (ndjson) · lichess.org/game/export/{id}
- *   Chess.com  api.chess.com/pub/player/{name}/games/archives → monthly archive
+ *   Chess.com  api.chess.com/pub/player/{name}/games/archives → monthly archive ·
+ *              www.chess.com/callback/{live|daily}/game/{id} (the JSON its game page loads)
  * `fetch` is injected so the parsing can be tested without the network.
  */
 import { SITE_ASCII, SITE_URL } from "../brand";
+import { chessComGameRef, gameFromCallback, type ChessComCallback } from "./chesscomGame";
 
 export type Site = "lichess" | "chesscom";
 
@@ -48,11 +50,6 @@ export function validUsername(name: string): boolean {
 export function lichessGameId(text: string): string | null {
   const m = text.trim().match(/^(?:https?:\/\/)?(?:www\.)?lichess\.org\/(?:game\/export\/)?([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:[/?#].*)?$/);
   return m ? m[1] : null;
-}
-
-/** True for a Chess.com game link (these can't be fetched by id through the public API). */
-export function isChessComGameLink(text: string): boolean {
-  return /^(?:https?:\/\/)?(?:www\.)?chess\.com\/(?:analysis\/)?game\/(?:live|daily)\/\d+/.test(text.trim());
 }
 
 interface LichessPlayer {
@@ -215,4 +212,45 @@ export async function chessComUserGames(user: string, fetchImpl: Fetch = fetch, 
     if (out.length >= max) break;
   }
   return out.slice(0, max);
+}
+
+/**
+ * One Chess.com game by link. The public API has no game-by-id endpoint, so this reads the
+ * JSON Chess.com's own game page loads (as the extension does) and rebuilds the PGN from it.
+ * A link that doesn't say live or daily (chess.com/game/123) is tried as both.
+ */
+export async function chessComGame(link: string, fetchImpl: Fetch = fetch): Promise<GameSummary> {
+  const ref = chessComGameRef(link);
+  if (!ref || !Number.isSafeInteger(ref.id)) throw new ImportError("That isn't a Chess.com game link.");
+  const kinds = /chess\.com\/game\/\d/.test(link) ? (["live", "daily"] as const) : [ref.kind];
+  const refused = new ImportError("Chess.com didn't hand over that game just now. Try again in a minute, or paste the game's PGN (Share → PGN).", 502);
+  for (const kind of kinds) {
+    let cb: ChessComCallback;
+    try {
+      cb = (await (await get(fetchImpl, `https://www.chess.com/callback/${kind}/game/${ref.id}`, "application/json")).json()) as ChessComCallback;
+    } catch (e) {
+      if (e instanceof ImportError && e.status === 404) continue;
+      if (e instanceof ImportError && e.status !== 502) throw e;
+      throw refused;
+    }
+    if (!cb?.game) throw refused;
+    if (!cb.game.isFinished) throw new ImportError("That game hasn't finished yet. Review it once it's over.");
+    if (!cb.game.moveList) throw new ImportError("That game has no moves to review.");
+    const g = gameFromCallback(cb, kind);
+    if (!g) throw new ImportError("That game isn't standard chess, so it can't be reviewed.");
+    const h = cb.game.pgnHeaders ?? {};
+    return {
+      id: String(g.id),
+      site: "chesscom",
+      url: g.url,
+      white: g.white,
+      black: g.black,
+      whiteElo: Number(h.WhiteElo) || undefined,
+      blackElo: Number(h.BlackElo) || undefined,
+      result: g.result,
+      playedAt: g.endedAt ?? undefined,
+      pgn: g.pgn,
+    };
+  }
+  throw new ImportError("No Chess.com game was found at that link.", 404);
 }

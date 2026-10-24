@@ -15,7 +15,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "How do I review my Chess.com games?",
-    a: "Type your Chess.com username and pick a game from your last three months. You can also paste the PGN (Share, then PGN, on Chess.com), or add the Chrome extension and review a game right on its Chess.com page.",
+    a: "Type your Chess.com username and pick a game from your last three months, or paste the link of any game. You can also paste the PGN (Share, then PGN, on Chess.com), or add the Chrome extension and review a game right on its Chess.com page.",
   },
   {
     q: "Can I review Lichess games or a PGN file?",
@@ -31,7 +31,7 @@ export const FAQ: FaqItem[] = [
   },
   {
     q: "Is my game uploaded anywhere?",
-    a: "No. Games, positions and photos stay in your browser. A username is only used to fetch your public games from Chess.com or Lichess. Visits are counted anonymously, without cookies.",
+    a: "No. Games, positions and photos stay in your browser. A username or game link is only used to fetch your public games from Chess.com or Lichess. Visits are counted anonymously, without cookies.",
   },
   {
     q: "Can it explain a single position or a screenshot?",

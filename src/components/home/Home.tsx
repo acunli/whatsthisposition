@@ -356,7 +356,7 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample, variant
 
           <section className="closing">
             <h2 className="h-section">Bring the game you lost last night.</h2>
-            <p className="section-lede">Type your Chess.com username or paste the PGN, then step through it move by move.</p>
+            <p className="section-lede">Type your Chess.com username, or paste a game link or the PGN, then step through it move by move.</p>
             <div className="closing-actions">
               <button className="btn btn-primary btn-xl" onClick={() => scrollTo(boxRef.current, "center")}>
                 Review a game

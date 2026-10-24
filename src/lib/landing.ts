@@ -28,7 +28,7 @@ export const LANDING = {
       "Review your Chess.com games free, with no daily limit. Enter your username, pick a game, and Stockfish labels and explains every move, Brilliant to Blunder.",
     name: "Chess.com game review",
     h1: "Chess.com game review, free and without a daily limit.",
-    lede: "Type your Chess.com username and pick one of your recent games, or paste its PGN. Stockfish labels every move from Brilliant to Blunder, explains why, and gives both players' accuracy.",
+    lede: "Type your Chess.com username and pick one of your recent games, or paste a game link or its PGN. Stockfish labels every move from Brilliant to Blunder, explains why, and gives both players' accuracy.",
     faq: [
       {
         q: "Is there a limit on how many Chess.com games I can review?",
@@ -36,11 +36,11 @@ export const LANDING = {
       },
       {
         q: "Which Chess.com games can I review?",
-        a: "Any standard game, live or daily, rated or casual, from bullet to classical. Your username lists your games from the last three months; for an older game, paste its PGN. Variants like Chess960 can't be reviewed.",
+        a: "Any standard game, live or daily, rated or casual, from bullet to classical. Your username lists your games from the last three months; for an older game, paste its link or PGN. Variants like Chess960 can't be reviewed.",
       },
       {
         q: "Do I need to sign in to Chess.com?",
-        a: "No. Finished Chess.com games are public, and the site reads them from Chess.com's free public API. Nothing is stored.",
+        a: "No. Finished Chess.com games are public: the site reads your games from Chess.com's free public API, and a linked game from its own page. Nothing is stored.",
       },
       {
         q: "Will my accuracy match Chess.com's?",

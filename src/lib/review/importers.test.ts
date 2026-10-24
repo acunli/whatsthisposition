@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chessComUserGames, fromChessCom, fromLichess, isChessComGameLink, lichessGame, lichessGameId, lichessUserGames, validUsername } from "./importers";
+import { chessComGame, chessComUserGames, fromChessCom, fromLichess, lichessGame, lichessGameId, lichessUserGames, validUsername } from "./importers";
 import { parseGame } from "./pgn";
 
 const PGN = `[Event "Live Chess"]
@@ -22,7 +22,42 @@ describe("game import", () => {
     expect(lichessGameId("https://lichess.org/7mLyypTV")).toBe("7mLyypTV");
     expect(lichessGameId("lichess.org/7mLyypTVab12/black")).toBe("7mLyypTV");
     expect(lichessGameId("https://lichess.org/@/thibault")).toBeNull();
-    expect(isChessComGameLink("https://www.chess.com/game/live/184775676072")).toBe(true);
+  });
+
+  it("opens a Chess.com game from its link, live or daily", async () => {
+    // Ay7u's mate against AAchun, as Chess.com's game page JSON gives it.
+    const game = {
+      id: 184654081790,
+      moveList: "lBZJmCJCbs5QnvCvdvQBvt6LtHBHsH!TcMYQHs0SftLtkt7tgv86en9InwtUvKUMwvMKoE7tvoTCsmCMpFKm",
+      isFinished: true,
+      typeName: "Standard Chess",
+      endTime: 1790861375,
+      pgnHeaders: { Event: "Live Chess", White: "AAchun", Black: "Ay7u", Result: "0-1", WhiteElo: 1484, BlackElo: 1507 },
+    };
+    const calls: string[] = [];
+    const site = (live: unknown, daily: unknown = null) => async (url: string) => {
+      calls.push(url);
+      const body = url.includes("/callback/live/") ? live : daily;
+      return body ? respond(body) : respond({}, 404);
+    };
+
+    const g = await chessComGame("https://www.chess.com/game/live/184654081790?move=12", site({ game }));
+    expect(calls).toEqual(["https://www.chess.com/callback/live/game/184654081790"]);
+    expect(g).toMatchObject({ site: "chesscom", white: "AAchun", black: "Ay7u", whiteElo: 1484, blackElo: 1507, result: "0-1", url: "https://www.chess.com/game/live/184654081790" });
+    expect(parseGame(g.pgn).moves).toHaveLength(42);
+
+    // A link that doesn't say live or daily is tried as both; one that does isn't.
+    calls.length = 0;
+    expect((await chessComGame("chess.com/game/9876", site(null, { game: { ...game, id: 9876 } }))).url).toBe("https://www.chess.com/game/daily/9876");
+    expect(calls).toEqual(["https://www.chess.com/callback/live/game/9876", "https://www.chess.com/callback/daily/game/9876"]);
+    calls.length = 0;
+    await expect(chessComGame("https://www.chess.com/analysis/game/daily/9876?tab=review", site(null))).rejects.toThrow(/No Chess.com game/);
+    expect(calls).toEqual(["https://www.chess.com/callback/daily/game/9876"]);
+
+    await expect(chessComGame("https://www.chess.com/game/live/1", site({ game: { ...game, isFinished: false } }))).rejects.toThrow(/hasn't finished/);
+    await expect(chessComGame("https://www.chess.com/game/live/1", site({ game: { ...game, typeName: "Chess960" } }))).rejects.toThrow(/isn't standard chess/);
+    await expect(chessComGame("https://www.chess.com/game/live/1", async () => new Response("<!DOCTYPE html>", { status: 403 }))).rejects.toThrow(/didn't hand over/);
+    await expect(chessComGame("https://www.chess.com/member/ay7u", site({ game }))).rejects.toThrow(/isn't a Chess.com game link/);
   });
 
   it("reads Chess.com archive games (newest first) into reviewable PGN", async () => {

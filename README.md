@@ -48,7 +48,7 @@ That is the idea of the whole site: labels you already know, plus reasons a club
 <td width="50%" valign="top">
 
 ### Game review
-Bring a game by **Chess.com or Lichess username**, **Lichess link** or **PGN**, or straight from Chess.com with the [browser extension](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
+Bring a game by **Chess.com or Lichess username**, **game link** or **PGN**, or straight from Chess.com with the [browser extension](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
 
 </td>
 <td width="50%" valign="top">
