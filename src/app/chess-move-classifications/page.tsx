@@ -71,8 +71,9 @@ export default function ChessMoveClassifications() {
               title: "Miss",
               body: (
                 <p>
-                  A chance let go. Your opponent&apos;s last move was a mistake or a blunder, and yours gives back at least 10% of your winning chances, but leaves you
-                  no worse than you were before their mistake. If it leaves you worse, it&apos;s a Mistake or a Blunder instead.
+                  A chance let go. You had a forced mate, a line that wins at least two points of material more than yours, or a winning position (about +3 for club
+                  players, +2.3 at the top), and your move, an error by the bands above, lets it go without giving anything away itself. If it allows mate, loses
+                  material or leaves you lost, it stays a Mistake or a Blunder: on Chess.com, too, a Blunder must lose material or allow checkmate.
                 </p>
               ),
             },

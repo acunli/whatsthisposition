@@ -4,7 +4,7 @@ import { START_FEN } from "../chess/fen";
 import type { Evaluation } from "../engine/score";
 import { gameAccuracy } from "./accuracy";
 import { makeBook } from "./book";
-import { classifyMove, decisiveSlope, expectedScore, gameRating, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
+import { classifyMove, decisiveSlope, expectedScore, gameRating, lossClass, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
 import { GAME_OF_THE_CENTURY, OPERA_GAME, SHILLING_TRAP } from "./fixtures/games";
 import { mainLineTokens, parseFirstGame, parseGame, splitGames } from "./pgn";
 import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, runReview, searchQuietMoves } from "./review";
@@ -137,7 +137,9 @@ describe("classification rules (synthetic evaluations)", () => {
     const mateB = (n: number): Evaluation => ({ kind: "mate", moves: n, winner: "b" });
     expect(classifyMove({ ...base, move: nf3, before: pa(mateW(3), ["e2e4"]), after: pa(mateW(3)) }).cls).toBe("excellent");
     expect(classifyMove({ ...base, move: nf3, before: pa(mateW(3), ["e2e4"]), after: pa(mateW(6)) }).cls).toBe("good");
-    expect(classifyMove({ ...base, move: nf3, before: pa(mateW(3), ["e2e4"]), after: pa(cp(50)) }).cls).toBe("mistake");
+    // A mate let go is a Mistake by the bands, and a Miss when the move gives nothing else away.
+    expect(lossClass(mateW(3), cp(50), "w")).toBe("mistake");
+    expect(classifyMove({ ...base, move: nf3, before: pa(mateW(3), ["e2e4"]), after: pa(cp(50)) }).cls).toBe("miss");
     expect(classifyMove({ ...base, move: nf3, before: pa(cp(20), ["e2e4"]), after: pa(mateB(1)) }).cls).toBe("blunder");
   });
 
@@ -245,6 +247,50 @@ describe("classification rules (synthetic evaluations)", () => {
     // We were at 45% before their blunder, the best reply would give 95%, we played something worth 50%.
     const r = classifyMove({ ...base, move: nf3, previous: prev, before: pa(cp(500), ["e2e4"]), after: pa(cp(10)) });
     expect(r.cls).toBe("miss");
+    expect(r.missedPly).toBe(1);
+  });
+
+  describe("Miss: a chance let go, without giving anything away", () => {
+    // White's rook can take the knight on d5, which nothing defends.
+    const hanging = (moves: string) => parseGame(`[SetUp "1"]\n[FEN "2r1k3/8/8/3n4/8/8/8/3RK3 w - - 0 1"]\n\n${moves} *`).moves[0];
+    const takeIt = pa(cp(0), ["d1d5", "c8c2", "e1d1"]);
+
+    it("leaving a hanging piece is a Miss, whatever the opponent's last move was", () => {
+      const r = classifyMove({ ...base, move: hanging("1. Ke2"), before: takeIt, after: pa(cp(-300), ["d5f4", "e2e3"]) });
+      expect(r.cls).toBe("miss");
+      expect(r.missed).toEqual({ kind: "material", material: 3 });
+      expect(r.missedPly).toBeUndefined();
+    });
+
+    it("a move that loses material itself stays a Blunder", () => {
+      // 1.Rc1?? leaves the knight and hangs the rook: 1…Rxc1+.
+      const r = classifyMove({ ...base, move: hanging("1. Rc1"), before: takeIt, after: pa(cp(-800), ["c8c1", "e1d2"]) });
+      expect(r.cls).toBe("blunder");
+    });
+
+    it("a move that allows mate stays a Blunder", () => {
+      const r = classifyMove({ ...base, move: hanging("1. Ke2"), before: takeIt, after: pa({ kind: "mate", moves: 2, winner: "b" }, ["d5f4", "e2e3"]) });
+      expect(r.cls).toBe("blunder");
+    });
+
+    it("letting a winning position go is a Miss", () => {
+      const r = classifyMove({ ...base, move: nf3, before: pa(cp(500), ["e2e4"]), after: pa(cp(10)) });
+      expect(r.cls).toBe("miss");
+      expect(r.missed?.kind).toBe("win");
+    });
+
+    it("letting a forced mate go is a Miss", () => {
+      const r = classifyMove({ ...base, move: nf3, before: pa({ kind: "mate", moves: 2, winner: "w" }, ["e2e4"]), after: pa(cp(150)) });
+      expect(r.cls).toBe("miss");
+      expect(r.missed?.kind).toBe("mate");
+    });
+
+    it("going from level to worse is the mover's own error, even right after the opponent's", () => {
+      // They blundered from 90% to level; our move then drops to −3 with no chance missed.
+      const prev = { cls: "blunder", before: 0.9, move: { ply: 1 } } as unknown as ClassifiedMove;
+      const r = classifyMove({ ...base, move: nf3, previous: prev, before: pa(cp(0), ["e2e4"]), after: pa(cp(-300)) });
+      expect(r.cls).toBe("blunder");
+    });
   });
 
   it("computes Lichess-style accuracy", () => {

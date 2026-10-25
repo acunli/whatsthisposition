@@ -178,6 +178,35 @@ python3 scripts/eval/fit-winprob.py scripts/eval/out/winprob-*.jsonl
 
 Single 200-point bands are noisy (each is a few accounts, and depth-12 evaluations flatten every slope a little), but the split is clear: below about 2900 the curve is roughly 0.73× as steep (pooled), at the top it is Lichess's. `decisiveSlope` in `src/lib/review/classify.ts` uses 0.73× up to 2600, rising to 1× at 3000, only for the "already decided" gates of Great and Brilliant. Refit with more mid-rated games before changing it, and before using rating-aware curves for the bands or accuracy (which are calibrated on Lichess's curve).
 
+## 7. Miss: a chance let go, or the player's own error?
+
+The owner found that moves Chess.com calls a Miss came out here as Inaccuracies, Mistakes or Blunders. Chess.com's Game Review v2 says a Miss "happens when a player fails to take advantage of a tactical opportunity, find mate, or punish an opponent's bad move", and that a Blunder "must not only drop the position's evaluation significantly but also lose material or allow checkmate". Its per-move labels can't be fetched, so the rule is checked by reading every error in fresh games.
+
+```bash
+node scripts/eval/fetch-games.mjs Ay7u scripts/eval/out/ay7u-oct.json 2
+# Warm the engine cache and write each shard's labels (rerun until no shard reports new searches).
+ALL=$(ls scripts/eval/out/miss-cache-*.jsonl 2>/dev/null | tr '\n' ',' | sed 's/,$//'); mkdir -p scripts/eval/out/miss-new
+for s in 0 1 2 3 4 5 6 7; do EVAL_GAMES=scripts/eval/out/ay7u-oct.json EVAL_N=120 EVAL_SHARD=$s/8 EVAL_BUDGET_S=420 EVAL_CACHES=$ALL \
+  EVAL_CACHE=scripts/eval/out/miss-cache-$s.jsonl EVAL_OUT=scripts/eval/out/miss-new/report-$s.txt EVAL_LABELS=scripts/eval/out/miss-new/labels-$s.json \
+  npx vitest run src/lib/eval/miss-report.test.ts > /dev/null 2>&1 & done; wait
+node scripts/eval/miss-diff.mjs scripts/eval/out/miss-base scripts/eval/out/miss-new miss 20   # against an earlier run
+```
+
+The report runs the review exactly as the site does (`runReview` at Standard 14 with the second pass at 18, the master book, the players' rating) and prints, for every error, the evaluations, the move before it, and the material the best line and the game's line win or lose (`lineMaterial`). Keep a copy of a run's folder before changing a rule, then compare.
+
+**Results on 2026-10-25**, Ay7u's 119 newest non-bullet games (one more, 185213737676, was left out: see the gotcha below):
+
+| | Miss | Blunder | Mistake | Inaccuracy |
+| --- | --- | --- | --- | --- |
+| Before (a Mistake or Blunder right after the opponent's error, no worse than before it) | 151 | 357 | 329 | 798 |
+| **Now** (`missedChance`) | **208** | **306** | **329** | **790** |
+
+- 116 moves became a Miss: missed tactics (16.Qxd8 instead of 16.Qxg4 winning a piece; 22…b6 instead of 22…Re7 trapping the queen), recaptures not made, missed mates, and won positions let go without losing anything (20.Nd4 from +10.5 to 0.0; 34.g3 from +5.3 to +0.3 in a rook ending). Most had no opponent error the move before, which the old rule required.
+- 59 lost the label: moves that lose material themselves (21.Bxe5, −2 along the line; 20…Re8, −3) or that go from level to worse after an opponent's error that only gave equality (the old rule only asked that the mover end no lower than before the error, even when that was lost).
+- Not settled by data: where "winning" starts (0.70 on the players' curve, about +3 at club level; 0.75 gives 182 Misses, 0.80 gives 176) and whether Chess.com calls a +3 → +1 slip a Miss. Ask the owner for Chess.com's label on any move that disagrees.
+
+**Gotcha:** one position (`4kb1r/p2rpppp/2Q5/3p3b/4PB2/5P2/PP4PP/3RK1NR w Kk - 1 20`, game 185213737676) makes the lite engine's search explode: depth 10 in 28 ms, 13 in 11 s, 14 not done after 5 minutes. A review of that game in the browser stalls there too.
+
 ## Notes
 
 - These tests are skipped unless `EVAL_GAMES` (or `EVAL_PGN`) is set, so `npm test` stays fast.

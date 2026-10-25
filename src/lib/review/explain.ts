@@ -307,8 +307,17 @@ function moveStory(c: ClassifiedMove, prev?: ClassifiedMove): MoveStory {
         points.push(point(bp ? because(lead, bp.text) : `${lead}.`, "opportunity", "engine", better.marks, bl));
       }
       const drop = `${COLOR_NAME[me]}'s winning chances go from ${pct(c.before)} to ${pct(c.after)}`;
-      if (c.cls === "miss" && prev) {
-        return { headline: `${numbered(m)} misses the chance ${numbered(prev.move)} gave: ${c.bestSan ?? "the best move"} would have punished it. ${drop}.`, points, better };
+      if (c.cls === "miss") {
+        const bestNo = c.bestSan ? numbered({ ...m, san: c.bestSan }) : "the best move";
+        const chance =
+          c.missed?.kind === "mate" && c.evalBefore.kind === "mate"
+            ? `misses a forced mate: ${bestNo} mates in ${c.evalBefore.moves}`
+            : c.missed?.kind === "material"
+              ? `misses ${bestNo}, which wins material`
+              : c.missedPly && prev
+                ? `misses the chance ${numbered(prev.move)} gave: ${bestNo} would have punished it`
+                : `lets the win slip: ${bestNo} kept ${COLOR_NAME[me]} winning`;
+        return { headline: `${numbered(m)} ${chance}. ${drop}.`, points, better };
       }
       const what = c.cls === "blunder" ? "a blunder" : c.cls === "mistake" ? "a mistake" : "an inaccuracy";
       const mated = c.evalAfter.kind === "mate" && c.evalAfter.winner === them ? ` It allows mate in ${c.evalAfter.moves}.` : "";

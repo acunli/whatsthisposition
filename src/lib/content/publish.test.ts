@@ -22,7 +22,7 @@ import { explainOpening, explainReviewMove } from "../review/explain";
 import { readMasters } from "../review/masters";
 import { parseGame } from "../review/pgn";
 import { classifyGame, runReview } from "../review/review";
-import { packReview } from "../review/share";
+import { packReview, unpackReview } from "../review/share";
 import { summarize } from "../review/shareCard";
 import type { Searcher } from "../deep/deep";
 import { nodeSearcher } from "../eval/nodeEngine";
@@ -137,6 +137,34 @@ async function review(c: Pick, search: Searcher, book: OpeningBook, depth: numbe
     ...(opening ? { opening: { name: opening.name, eco: opening.eco, points: opening.points.map((p) => p.text) } } : {}),
   };
 }
+
+/**
+ * After a change to the label rules: labels every published game again from its stored review
+ * (no new searches for the labels) and, where they changed, rewrites its labels, summary and key
+ * moments (whose explanations need the engine).
+ *   CONTENT_STEP=relabel npx vitest run src/lib/content/publish.test.ts
+ */
+it.skipIf(env.CONTENT_STEP !== "relabel")("label the published games again", async () => {
+  const buf = readFileSync("public/data/masters-book.bin.gz");
+  const masters = await readMasters(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer).catch(() => null);
+  const book = makeBook(openings as never, masters);
+  let search: Searcher | null = null;
+  for (const rec of published()) {
+    const stored = await unpackReview(rec.data);
+    if (!stored) throw new Error(`${rec.slug}: unreadable review`);
+    const g = parseGame(rec.pgn);
+    const r = classifyGame(g, stored.positions, book);
+    const labels = r.moves.map((m) => m.cls);
+    if (labels.join() === rec.labels.join()) continue;
+    search ??= await nodeSearcher();
+    const moments: GameMoment[] = [];
+    for (const m of pickMoments(r.moves)) moments.push(await moment(m, r.moves[m.move.ply - 2], search, Math.min(rec.depth, 16)));
+    const summary = summarize({ ...g, white: rec.white, black: rec.black }, r.moves, gameAccuracy(r.moves), rec.as, r.opening?.name ?? g.opening);
+    writeFileSync(join(DIR, `${rec.slug}.json`), JSON.stringify({ ...rec, summary, labels, moments }));
+    const changed = labels.flatMap((l, i) => (l === rec.labels[i] ? [] : [`${r.moves[i].move.moveNumber}${r.moves[i].move.color === "w" ? "." : "…"}${r.moves[i].move.san} ${rec.labels[i]} → ${l}`]));
+    console.log(`${rec.slug}: ${changed.join(", ")}`);
+  }
+}, 5_400_000);
 
 it.skipIf(env.CONTENT_STEP !== "review")("review and write the picked games", async () => {
   const [shard, of] = (env.CONTENT_SHARD ?? "0/1").split("/").map(Number);

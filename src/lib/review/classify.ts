@@ -10,13 +10,14 @@
  *   Great      the best move when every alternative is clearly worse (≥ 10% loss)
  *   Brilliant  the best move, it really gives material away (see safety.ts), and it beats the best
  *              move that gives nothing away (SACRIFICE_MARGIN; see quietAlternative)
- *   Miss       failing to punish the opponent's mistake without actually making things worse
+ *   Miss       an error that only lets a chance go (a mate, material, a winning position) without
+ *              giving anything away itself (see missedChance)
  *
  * Expected score uses Lichess's win% curve. Thresholds match Chess.com's published
  * expected-points bands; Great/Brilliant gating follows WintrChess's ideas.
  */
 import { Chess } from "chess.js";
-import type { Color } from "../chess/types";
+import { other, type Color } from "../chess/types";
 import type { EngineLine } from "../engine/client";
 import { evalFor, type Evaluation } from "../engine/score";
 import { detectSacrifice, unsafePieces, wasFreeMaterial, type SacrificeInfo } from "./safety";
@@ -126,7 +127,9 @@ export interface ClassifiedMove {
   sacrifice: SacrificeInfo | null;
   /** For a sacrifice the engine plays: the best move that gives nothing away, which it was measured against. */
   quietLine?: EngineLine | null;
-  /** For Miss: the opponent's mistake that went unpunished. */
+  /** For Miss: what was let go (see `missedChance`), and how much more material the best line would have won. */
+  missed?: { kind: MissKind; material?: number };
+  /** For Miss right after the opponent's error: that error, which went unpunished. */
   missedPly?: number;
   opening?: { eco: string; name: string } | null;
   /** What masters played in the position before the move: set on book moves and on the move that left the book. */
@@ -323,13 +326,58 @@ export function classifyMove(inp: ClassifyInput): ClassifiedMove {
     }
   }
 
-  // Miss: the opponent just erred, and this move lets the chance go without making things worse than before.
-  if (prev && isBad(cls) && cls !== "inaccuracy" && (prev.cls === "mistake" || prev.cls === "blunder" || prev.cls === "miss")) {
-    const beforeTheirMistake = 1 - prev.before; // our expected score before their move
-    if (epAfter >= beforeTheirMistake - 0.02) return { ...base, cls: "miss", missedPly: prev.move.ply, sacrifice, quietLine };
-  }
+  // Miss: an error whose cost is a chance let go, not damage done (missedChance).
+  const missed = !topPlayed ? missedChance(move, before, after, cls, slope, prev) : null;
+  if (missed) return { ...base, cls: "miss", missed, ...(prev && isError(prev.cls) ? { missedPly: prev.move.ply } : {}), sacrifice, quietLine };
 
   return { ...base, cls, sacrifice, quietLine };
+}
+
+export type MissKind = "mate" | "material" | "win" | "error";
+
+/**
+ * Winning chances on the players' own curve (`decisiveSlope`) that count as "winning" for Miss
+ * (about +3 for club players, +2.3 at the top) and as "ahead" after the opponent's error (about
+ * +1.5 and +1.1). Chosen by reading every error in 119 of Ay7u's games (2026-10-25).
+ */
+const WINNING = 0.7;
+const AHEAD = 0.6;
+
+const isError = (c: MoveClass) => c === "mistake" || c === "blunder" || c === "miss";
+
+/**
+ * What an error let go, when that is all it did: Chess.com's Miss ("fails to take advantage of a
+ * tactical opportunity, find mate, or punish an opponent's bad move"), next to its Blunder, which
+ * "must lose material or allow checkmate". There was a chance:
+ *   mate      the best line mates, and the move doesn't;
+ *   material  the best line wins material, at least two points more than the game's line;
+ *   win       the mover was winning, and isn't after the move;
+ *   error     the opponent's last move was a Mistake, Blunder or Miss that put the mover ahead, and
+ *             the move hands it back, though no lower than before that error;
+ * and the move gives nothing away itself: it doesn't allow mate or lose two points of material or
+ * more along the engine's line (nor, for the last two, leave the mover lost). A slip in the
+ * Inaccuracy band only counts when it costs a tenth of the winning chances on the players' own curve.
+ */
+export function missedChance(move: GameMove, before: PositionAnalysis, after: PositionAnalysis, cls: MoveClass, slope: number, prev?: ClassifiedMove): ClassifiedMove["missed"] | null {
+  if (cls !== "inaccuracy" && cls !== "mistake" && cls !== "blunder") return null;
+  const mover = move.color;
+  const mates = (e: Evaluation, c: Color) => e.kind === "mate" && e.winner === c;
+  if (mates(after.eval, other(mover))) return null;
+  const was = expectedScoreAt(before.eval, mover, slope);
+  const now = expectedScoreAt(after.eval, mover, slope);
+  if (cls === "inaccuracy" && was - now < 0.1) return null;
+  const kept = lineMaterial(move.fenBefore, [move.uci, ...(after.lines[0]?.pv ?? [])], mover);
+  if (kept <= -2) return null;
+  if (mates(before.eval, mover) && !mates(after.eval, mover)) return { kind: "mate" };
+  const won = before.lines[0] ? lineMaterial(move.fenBefore, before.lines[0].pv, mover) : 0;
+  if (won >= 2 && won - kept >= 2) return { kind: "material", material: won - kept };
+  // From winning (or ahead) to lost with no material gone along the line is damage the line doesn't
+  // show yet (a mating attack, a piece that can't escape): the move's own error, not a chance let go.
+  if (now < 1 - WINNING) return null;
+  if (was >= WINNING && now < WINNING && was - now >= 0.1) return { kind: "win" };
+  // Where the mover stood before the opponent's error, on the same (Lichess) curve as prev.before.
+  if (prev && isError(prev.cls) && was >= AHEAD && expectedScore(after.eval, mover) >= 1 - prev.before - 0.05) return { kind: "error" };
+  return null;
 }
 
 /**
@@ -349,6 +397,37 @@ export function quietAlternative(fen: string, uci: string, before: PositionAnaly
 export function needsQuietSearch(fen: string, uci: string, before: PositionAnalysis, declined: ReturnType<typeof unsafePieces> = []): boolean {
   const second = before.lines.find((l) => l.pv[0] && l.pv[0] !== uci);
   return !!second && !before.quiet && !!detectSacrifice(fen, second.pv[0], declined)?.pieces.length;
+}
+
+const POINTS: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+
+/**
+ * Material `mover` comes out with along an engine line from `fen`, against the material now:
+ * counted at the last point within `maxPlies` where the captures have settled (a move that takes
+ * nothing, answered by one that takes nothing), so a piece taken and retaken counts as a trade,
+ * not a win. The end of the line stands in when it never settles.
+ */
+export function lineMaterial(fen: string, pv: string[], mover: Color, maxPlies = 10): number {
+  const c = new Chess(fen);
+  const count = () => {
+    let d = 0;
+    for (const row of c.board()) for (const p of row) if (p) d += (p.color === mover ? 1 : -1) * POINTS[p.type];
+    return d;
+  };
+  const start = count();
+  const after: number[] = [];
+  const took: boolean[] = [];
+  for (const uci of pv.slice(0, maxPlies)) {
+    try {
+      const m = c.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci[4] });
+      took.push(!!m.captured);
+    } catch {
+      break;
+    }
+    after.push(count() - start);
+  }
+  for (let k = after.length - 1; k >= 0; k--) if (!took[k] && (k + 1 >= took.length || !took[k + 1])) return after[k];
+  return after.length ? after[after.length - 1] : 0;
 }
 
 interface LineLike {

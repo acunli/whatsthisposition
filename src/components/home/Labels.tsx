@@ -13,7 +13,7 @@ const RULES: Record<MoveClass, string> = {
   book: "Opening theory: a move strong players really choose here, from 1.8 million of their games.",
   inaccuracy: "Gives away 5–10% of your winning chances.",
   mistake: "Gives away 10–20% of your winning chances.",
-  miss: "Your opponent just made a mistake and you let it go unpunished.",
+  miss: "You had a mate, a way to win material or a winning position, and let it go without losing anything yourself.",
   blunder: "Gives away 20% or more, or walks into a forced mate.",
   forced: "The only legal move.",
 };

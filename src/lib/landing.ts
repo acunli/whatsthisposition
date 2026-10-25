@@ -179,7 +179,7 @@ export const LANDING = {
       },
       {
         q: "What is a Miss?",
-        a: "Your opponent had just made a mistake or a blunder, and your reply let the chance go: it gives back at least 10% of your winning chances, though you end up no worse than before their mistake.",
+        a: "A chance let go: you had a forced mate, a way to win material or a winning position, and your move gives it up without losing anything itself. Not taking a piece your opponent left hanging is the classic Miss. A move that allows mate, loses material or leaves you lost is a Mistake or a Blunder instead.",
       },
       {
         q: "Is a Blunder always a losing move?",
