@@ -4629,13 +4629,16 @@ em {
   color: var(--dim);
 }
 
-/* Games reviewed so far, by everyone: its line is kept while the number loads, then fades in. */
+/* Games reviewed so far, by everyone, live: its line is kept while the number loads, then fades
+   in; the dot pulses to say it's live. */
 .hero-count {
-  min-height: 21px;
-  margin: 16px 0 0;
-  font-size: 14px;
-  line-height: 21px;
-  color: var(--dim);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  margin: 22px 0 0;
+  line-height: 48px;
   opacity: 0;
   transition: opacity 0.4s ease;
 }
@@ -4644,21 +4647,58 @@ em {
   opacity: 1;
 }
 
-.hero-count-on::before {
-  content: "";
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  margin-right: 8px;
+.hero-count-dot {
+  align-self: center;
+  flex: none;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: rgb(var(--brand));
-  vertical-align: 1px;
+  animation: hero-live 2s ease-out infinite;
+}
+
+@keyframes hero-live {
+  from {
+    box-shadow: 0 0 0 0 rgb(var(--brand) / 0.5);
+  }
+  to {
+    box-shadow: 0 0 0 9px rgb(var(--brand) / 0);
+  }
+}
+
+.hero-count-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--bone-2);
 }
 
 .hero-count-n {
-  color: var(--bone);
+  display: inline-block;
+  font-family: var(--font-display);
   font-weight: 800;
+  font-stretch: 74%;
+  font-variation-settings: "wdth" 74;
+  font-size: 40px;
+  line-height: 1;
+  text-align: left;
+  color: rgb(var(--brand));
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 480px) {
+  .hero-count-label {
+    font-size: 18px;
+  }
+
+  .hero-count-n {
+    font-size: 34px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-count-dot {
+    animation: none;
+  }
 }
 
 /* The top bar on the home page: its logo and Add to Chrome wait until the hero's have

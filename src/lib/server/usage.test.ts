@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseUse, type Use } from "../usage";
+import { isGameReview } from "../stats/fields";
 
 vi.mock("server-only", () => ({}));
 const U = await import("./usage");
@@ -46,6 +47,7 @@ function fakeDb() {
           }),
           p),
         hgetall: (key) => (ops.push(() => (calls.hgetall++, hashes.has(key) ? Object.fromEntries(hashes.get(key)!) : null)), p),
+        incr: (key) => (ops.push(() => (strings.set(key, String(Number(strings.get(key) ?? 0) + 1)), Number(strings.get(key)))), p),
         expire: (key) => (ops.push(() => (expiring.add(key), 1)), p),
         exec: async () => ops.map((f) => f()),
       };
@@ -53,7 +55,7 @@ function fakeDb() {
     },
     mget: async (...keys) => (calls.mget++, keys.map((k) => strings.get(k) ?? null)),
     get: async (key) => strings.get(key) ?? null,
-    set: async (key, value) => (strings.set(key, value), "OK"),
+    set: async (key, value, opts) => (opts?.nx && strings.has(key) ? null : (strings.set(key, value), "OK")),
     del: async (...keys) => keys.reduce((n, k) => n + (sets.delete(k) || hashes.delete(k) || strings.delete(k) ? 1 : 0), 0),
   };
   return db;
@@ -374,8 +376,8 @@ describe("the dashboard's reading", () => {
 });
 
 describe("games reviewed, for the home page", () => {
-  it("counts every review started, not shared or published reviews opened, and sums finished days once a day", async () => {
-    const { isGameReview, readReviewTotal } = await import("./reviewTotal");
+  it("counts every review started, not shared or published reviews opened, live from one counter", async () => {
+    const { readReviewTotal } = await import("./reviewTotal");
     expect(isGameReview("e|review|chesscom|google|/")).toBe(true);
     expect(isGameReview("e|review|pgn||")).toBe(true);
     expect(isGameReview("e|review|link|none|/r/*")).toBe(false);
@@ -392,13 +394,18 @@ describe("games reviewed, for the home page", () => {
     await recordUse(db, "use", at("2026-10-26T01:00:00Z"), use("review", { s: "pgn", p: "/pgn-analyzer" }), person("c"));
     await recordUse(db, "use", at("2026-10-26T02:00:00Z"), use("review_done", { s: "standard", p: "/review" }), person("c"));
 
+    // Each game review counted adds one to the running total; the rest don't.
+    expect(db.strings.get("use:reviews")).toBe("3");
+    // The first read sets what came before the counter (the old daily form's 3), once.
     expect(await readReviewTotal(db, "use", at("2026-10-26T12:00:00Z"))).toBe(3 + 1 + 1 + 1);
-    expect(db.strings.get("use:reviews-before:2026-10-26")).toBe("5");
-    // The finished days come from that key now; only today is read again.
-    const mgets = db.calls.mget;
+    expect(db.strings.get("use:reviews:base")).toBe("3");
+    expect(await db.set("use:reviews:base", "999", { nx: true })).toBeNull();
+    // Then every read is the counter and that base, in one command.
     await recordUse(db, "use", at("2026-10-26T13:00:00Z"), use("review", { s: "lichess", p: "/" }), person("d"));
+    const hgetalls = db.calls.hgetall;
+    const mgets = db.calls.mget;
     expect(await readReviewTotal(db, "use", at("2026-10-26T13:30:00Z"))).toBe(7);
-    expect(db.calls.mget).toBe(mgets);
+    expect([db.calls.mget - mgets, db.calls.hgetall - hgetalls]).toEqual([1, 0]);
   });
 });
 

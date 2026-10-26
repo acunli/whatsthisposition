@@ -12,7 +12,9 @@ import "server-only";
  *   {prefix}:live:{minute}            a HyperLogLog of the people active that minute (expires after an hour)
  *   {prefix}:roll:{day}               a finished day, summed up once (JSON), so the dashboard reads it in one go
  *   {prefix}:snap:{day}               the day's outside numbers: the extension's store listing, the GitHub repository
- *   {prefix}:reviews-before:{day}     games reviewed on the days before it, for the home page (src/lib/server/reviewTotal.ts)
+ * and for the home page's running total of games reviewed (src/lib/server/reviewTotal.ts):
+ *   {prefix}:reviews                  games reviewed since the total began to be kept (one INCR each)
+ *   {prefix}:reviews:base             the ones counted before that, set once from the counts above
  * (Before 2026-10-22 a day kept one hash of daily counts, {prefix}:{day}:n; it's still read.)
  *
  * A person is a monthly token, HMAC(secret, month + IP + browser), computed in memory and only
@@ -25,7 +27,7 @@ import "server-only";
 import { createHmac } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import { USAGE_EVENT_NAMES, type Use, type UsageEvent } from "../usage";
-import { DEVICE_CLASS_NAMES, REVIEW_SECONDS, VITALS, bucketOf, field, type VitalName } from "../stats/fields";
+import { DEVICE_CLASS_NAMES, REVIEW_SECONDS, VITALS, bucketOf, field, isGameReview, type VitalName } from "../stats/fields";
 import type { Software } from "../stats/visitor";
 
 /** The commands the counter needs, as Upstash's pipeline offers them (a fake one in tests). */
@@ -33,6 +35,7 @@ export interface UsagePipe {
   pfadd(key: string, member: string): UsagePipe;
   pfcount(key: string, ...keys: string[]): UsagePipe;
   hincrby(key: string, field: string, increment: number): UsagePipe;
+  incr(key: string): UsagePipe;
   hgetall(key: string): UsagePipe;
   expire(key: string, seconds: number): UsagePipe;
   exec(): Promise<unknown[]>;
@@ -41,7 +44,7 @@ export interface UsageDb {
   pipeline(): UsagePipe;
   mget(...keys: string[]): Promise<unknown[]>;
   get(key: string): Promise<unknown>;
-  set(key: string, value: string, opts?: { ex: number }): Promise<unknown>;
+  set(key: string, value: string, opts?: { nx: true }): Promise<unknown>;
   del(...keys: string[]): Promise<unknown>;
 }
 
@@ -106,7 +109,8 @@ export function usageKeys(prefix: string) {
     roll: (day: string) => `${prefix}:roll:${day}`,
     snap: (day: string) => `${prefix}:snap:${day}`,
     retention: (month: string) => `${prefix}:ret:${month}`,
-    reviewsBefore: (day: string) => `${prefix}:reviews-before:${day}`,
+    reviews: `${prefix}:reviews`,
+    reviewsBase: `${prefix}:reviews:base`,
   };
 }
 
@@ -150,6 +154,11 @@ export async function recordUse(db: UsageDb, prefix: string, t: number, use: Use
     add(at("ds", use.s), use.n);
   }
   if (use.e === "error" && use.x) add(at("x", use.s, use.x));
+  // The running total of games reviewed, for the home page (src/lib/server/reviewTotal.ts).
+  if (isGameReview(field("e", use.e, use.s, use.c, use.p))) {
+    p.incr(K.reviews);
+    commands++;
+  }
   const first = commands;
   const minute = Math.floor(t / 60_000);
   p.pfadd(K.seen(day), v.token)

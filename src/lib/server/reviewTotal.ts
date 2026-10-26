@@ -2,44 +2,35 @@ import "server-only";
 
 /**
  * How many games have been reviewed on the site, by everyone, since counting began: the public
- * number on the home page (GET /api/reviewed). It is read from the usage counts
- * (src/lib/server/usage.ts) rather than kept apart: the finished days are summed once a day from
- * their roll-ups and kept under one key, and today's reviews are read from today's hourly counts,
- * so a read costs two commands.
+ * number on the home page (GET /api/reviewed), read live. Each review adds one to a counter as it
+ * is counted (recordUse); the reviews counted before that counter existed are summed once from
+ * the usage counts and kept beside it. A read is one command.
  */
-import { SHARED_REVIEW_PAGE } from "../stats/fields";
-import { COUNTING_SINCE, countsOf, daysBetween, readDays, usageKeys, utcDay, type UsageDb } from "./usage";
+import { isGameReview } from "../stats/fields";
+import { COUNTING_SINCE, daysBetween, readDays, usageKeys, utcDay, type UsageDb } from "./usage";
 
-/** Long enough for the day it sums up to, and the next. */
-const KEEP_SECONDS = 2 * 86_400;
+const num = (x: unknown) => Number(x) || 0;
 
-/**
- * Whether a count (a field without its hour) is games reviewed: every review started on the site,
- * but not a shared review or a published one (/games/…) being opened, which was reviewed before.
- */
-export function isGameReview(f: string): boolean {
-  const [kind, event, , , page = ""] = f.split("|");
-  return kind === "e" && event === "review" && page !== SHARED_REVIEW_PAGE && !page.startsWith("/games/");
-}
-
-/** Games reviewed in a set of counts: a day's fields, or an hourly hash ("HH|e|review|…"). */
-export function reviewsIn(fields: Record<string, number>, hourly = false): number {
+/** Games reviewed in a set of counts (a day's fields, without their hour). */
+export function reviewsIn(fields: Record<string, number>): number {
   let n = 0;
-  for (const [f, c] of Object.entries(fields)) if (isGameReview(hourly ? f.slice(3) : f)) n += c;
+  for (const [f, c] of Object.entries(fields)) if (isGameReview(f)) n += c;
   return n;
 }
 
 /** Games reviewed on the site up to now (at `now`, ms). */
 export async function readReviewTotal(db: UsageDb, prefix: string, now = Date.now()): Promise<number> {
   const K = usageKeys(prefix);
-  const today = utcDay(now);
-  const before = K.reviewsBefore(today);
-  const [kept, [hours]] = await Promise.all([db.get(before), db.pipeline().hgetall(K.hours(today)).exec()]);
-  let done = Number(kept);
-  if (kept === null || kept === undefined || !Number.isFinite(done)) {
-    const days = today > COUNTING_SINCE ? daysBetween(COUNTING_SINCE, utcDay(Date.parse(`${today}T00:00:00Z`) - 86_400_000)) : [];
-    done = (await readDays(db, prefix, days, today)).reduce((n, d) => n + reviewsIn(d.fields), 0);
-    await db.set(before, String(done), { ex: KEEP_SECONDS });
-  }
-  return done + reviewsIn(countsOf(hours), true);
+  const [kept, base] = await db.mget(K.reviews, K.reviewsBase);
+  if (base !== null && base !== undefined) return num(kept) + num(base);
+  // The first read: everything counted so far (the finished days' roll-ups and today's hourly
+  // counts), less what the counter already has, is what came before it. A review counted while
+  // this runs can make the total one off, once.
+  const days = await readDays(db, prefix, daysBetween(COUNTING_SINCE, utcDay(now)), utcDay(now));
+  const counted = days.reduce((n, d) => n + reviewsIn(d.fields), 0);
+  const [since] = await db.mget(K.reviews);
+  if ((await db.set(K.reviewsBase, String(counted - num(since)), { nx: true })) !== null) return counted;
+  // Another read set it first.
+  const [k, b] = await db.mget(K.reviews, K.reviewsBase);
+  return num(k) + num(b);
 }

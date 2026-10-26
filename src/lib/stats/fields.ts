@@ -99,6 +99,16 @@ const seg = (x: string | number | null | undefined) => String(x ?? "").replace(/
 export const field = (...parts: (string | number | null | undefined)[]) => parts.map(seg).join("|");
 
 /**
+ * Whether a count (a field without its hour) is games reviewed, for the home page's total: every
+ * review started on the site, but not a shared review or a published one (/games/…) being opened,
+ * which was reviewed before.
+ */
+export function isGameReview(f: string): boolean {
+  const [kind, event, , , page = ""] = f.split("|");
+  return kind === "e" && event === "review" && page !== SHARED_REVIEW_PAGE && !page.startsWith("/games/");
+}
+
+/**
  * The fields one use writes, each counted once (or by `by`). Kinds, after the UTC hour "HH|":
  *   e|event|source|channel|page          every use but `leave`
  *   g|country|region|city|lang|hour|day  a visit's place and the visitor's local time
