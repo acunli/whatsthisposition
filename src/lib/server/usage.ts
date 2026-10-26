@@ -12,6 +12,7 @@ import "server-only";
  *   {prefix}:live:{minute}            a HyperLogLog of the people active that minute (expires after an hour)
  *   {prefix}:roll:{day}               a finished day, summed up once (JSON), so the dashboard reads it in one go
  *   {prefix}:snap:{day}               the day's outside numbers: the extension's store listing, the GitHub repository
+ *   {prefix}:reviews-before:{day}     games reviewed on the days before it, for the home page (src/lib/server/reviewTotal.ts)
  * (Before 2026-10-22 a day kept one hash of daily counts, {prefix}:{day}:n; it's still read.)
  *
  * A person is a monthly token, HMAC(secret, month + IP + browser), computed in memory and only
@@ -40,7 +41,7 @@ export interface UsageDb {
   pipeline(): UsagePipe;
   mget(...keys: string[]): Promise<unknown[]>;
   get(key: string): Promise<unknown>;
-  set(key: string, value: string): Promise<unknown>;
+  set(key: string, value: string, opts?: { ex: number }): Promise<unknown>;
   del(...keys: string[]): Promise<unknown>;
 }
 
@@ -105,6 +106,7 @@ export function usageKeys(prefix: string) {
     roll: (day: string) => `${prefix}:roll:${day}`,
     snap: (day: string) => `${prefix}:snap:${day}`,
     retention: (month: string) => `${prefix}:ret:${month}`,
+    reviewsBefore: (day: string) => `${prefix}:reviews-before:${day}`,
   };
 }
 

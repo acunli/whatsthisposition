@@ -4629,6 +4629,38 @@ em {
   color: var(--dim);
 }
 
+/* Games reviewed so far, by everyone: its line is kept while the number loads, then fades in. */
+.hero-count {
+  min-height: 21px;
+  margin: 16px 0 0;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.hero-count-on {
+  opacity: 1;
+}
+
+.hero-count-on::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: rgb(var(--brand));
+  vertical-align: 1px;
+}
+
+.hero-count-n {
+  color: var(--bone);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The top bar on the home page: its logo and Add to Chrome wait until the hero's have
    scrolled away, so the first screen shows each once. */
 .topbar-home .topbar-brand,

@@ -15,6 +15,7 @@ import { Concepts } from "./Concepts";
 import { Extension } from "./Extension";
 import { Faq } from "./Faq";
 import { Labels } from "./Labels";
+import { ReviewedCount } from "./ReviewedCount";
 import { Story } from "./Story";
 
 const HeroKnight = dynamic(() => import("./HeroKnight"), { ssr: false });
@@ -303,6 +304,7 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample, variant
             )}
           </div>
           {!positionFirst && <p className="hero-note">The Chrome extension reviews your Chess.com games right where you play them.</p>}
+          {!variant && <ReviewedCount />}
         </div>
       </section>
 

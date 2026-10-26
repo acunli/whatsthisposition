@@ -373,6 +373,35 @@ describe("the dashboard's reading", () => {
   });
 });
 
+describe("games reviewed, for the home page", () => {
+  it("counts every review started, not shared or published reviews opened, and sums finished days once a day", async () => {
+    const { isGameReview, readReviewTotal } = await import("./reviewTotal");
+    expect(isGameReview("e|review|chesscom|google|/")).toBe(true);
+    expect(isGameReview("e|review|pgn||")).toBe(true);
+    expect(isGameReview("e|review|link|none|/r/*")).toBe(false);
+    expect(isGameReview("e|review|link|none|/games/a-vs-b-2026-10-20/review")).toBe(false);
+    expect(isGameReview("e|review_done|standard|none|/review")).toBe(false);
+
+    const db = fakeDb();
+    // A day from before hourly counting, in its old daily form.
+    db.hashes.set("use:2026-10-15:n", new Map([["review", 3], ["review:pgn", 2], ["visit", 9]]));
+    await recordUse(db, "use", at("2026-10-24T10:00:00Z"), use("review", { s: "chesscom", p: "/" }), person("a"));
+    await recordUse(db, "use", at("2026-10-25T23:59:00Z"), use("review", { s: "extension", p: "/" }), person("b"));
+    await recordUse(db, "use", at("2026-10-25T08:00:00Z"), use("review", { s: "link", p: "/r/*" }), person("b"));
+    await recordUse(db, "use", at("2026-10-25T08:00:00Z"), use("review", { s: "link", p: "/games/a-vs-b-2026-10-20/review" }), person("b"));
+    await recordUse(db, "use", at("2026-10-26T01:00:00Z"), use("review", { s: "pgn", p: "/pgn-analyzer" }), person("c"));
+    await recordUse(db, "use", at("2026-10-26T02:00:00Z"), use("review_done", { s: "standard", p: "/review" }), person("c"));
+
+    expect(await readReviewTotal(db, "use", at("2026-10-26T12:00:00Z"))).toBe(3 + 1 + 1 + 1);
+    expect(db.strings.get("use:reviews-before:2026-10-26")).toBe("5");
+    // The finished days come from that key now; only today is read again.
+    const mgets = db.calls.mget;
+    await recordUse(db, "use", at("2026-10-26T13:00:00Z"), use("review", { s: "lichess", p: "/" }), person("d"));
+    expect(await readReviewTotal(db, "use", at("2026-10-26T13:30:00Z"))).toBe(7);
+    expect(db.calls.mget).toBe(mgets);
+  });
+});
+
 describe("the outside numbers", () => {
   it("reads the extension's users and rating from its store page", () => {
     const html = '<div class="F9iKBc">5 out of 5 stars</div><span>3 ratings</span><div>Featured</div><div>1,234 users</div>';
