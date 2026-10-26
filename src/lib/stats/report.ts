@@ -40,6 +40,8 @@ export interface Breakdown {
   reviewTime: Record<string, { count: number; seconds: number; buckets: number[] }>;
   /** Seconds the site's pages were visible, in all. */
   time: number;
+  /** Errors by where they happened ("TypeError@chunk.js:1:234", ERROR_WHERE), per source ("page", "script"). */
+  errorsAt: Table;
 }
 
 const inc = (c: Counts, k: string, n: number) => void (c[k] = (c[k] ?? 0) + n);
@@ -64,6 +66,7 @@ export function emptyBreakdown(): Breakdown {
     vitals: Object.fromEntries(VITAL_NAMES.map((v) => [v, { all: Array(VITALS[v].bounds.length + 1).fill(0), byDevice: {} }])) as Breakdown["vitals"],
     reviewTime: {},
     time: 0,
+    errorsAt: {},
   };
 }
 
@@ -124,6 +127,9 @@ export function addFields(b: Breakdown, fields: Counts): Breakdown {
         break;
       case "r":
         if (p[1] === "new" || p[1] === "back") b.returning[p[1]] += n;
+        break;
+      case "x":
+        if (p[1] && p[2]) incIn(b.errorsAt, p[1], p[2], n);
         break;
     }
   }

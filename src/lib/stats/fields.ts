@@ -107,5 +107,21 @@ export const field = (...parts: (string | number | null | undefined)[]) => parts
  *   w|vital|device|range                 one page-speed measurement (`leave`)
  *   d|depth|range, ds|depth              a finished review's time: its range, and the seconds
  *   r|new, r|back                        a person's first use of the day: new this month or back
+ *   x|source|where                       an error's kind and place in the site's own scripts (ERROR_WHERE)
  */
-export type FieldKind = "e" | "g" | "t" | "s" | "w" | "d" | "ds" | "r";
+export type FieldKind = "e" | "g" | "t" | "s" | "w" | "d" | "ds" | "r" | "x";
+
+/**
+ * Where an error happened: its kind, and the file, line and column in the site's own (minified)
+ * scripts, e.g. "TypeError@0gij9ks01ahg.js:342:24176". Never the message, which can hold a move or a name.
+ */
+export const ERROR_WHERE = /^(TypeError|RangeError|ReferenceError|SyntaxError|Error|other)(@[A-Za-z0-9_-]{1,40}\.js:\d{1,7}:\d{1,7})?$/;
+
+/** An error's kind and place (ERROR_WHERE), read from its stack's first frame in one of the site's scripts. */
+export function errorWhere(error: unknown, origin: string): string {
+  const name = error instanceof Error && /^(TypeError|RangeError|ReferenceError|SyntaxError|Error)$/.test(error.name) ? error.name : "other";
+  const stack = error instanceof Error && typeof error.stack === "string" ? error.stack : "";
+  for (const m of stack.matchAll(/(https?:\/\/[^\s()]+?)\/_next\/static\/chunks\/(?:[^\s()/]+\/)*([A-Za-z0-9_-]{1,40}\.js):(\d{1,7}):(\d{1,7})/g))
+    if (m[1] === origin) return `${name}@${m[2]}:${m[3]}:${m[4]}`;
+  return name;
+}

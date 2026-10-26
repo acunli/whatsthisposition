@@ -189,6 +189,17 @@ describe("the anonymous counter", () => {
     expect(Object.fromEntries([...db.hashes.get("use:2026-10-22:h")!].filter(([f]) => /\|ds?\|/.test(f)))).toEqual({ "13|d|thorough|5": 1, "13|ds|thorough": 75 });
   });
 
+  it("counts where an error happened, and takes only a kind and a place in the site's scripts", async () => {
+    expect(parseUse({ e: "error", s: "page", x: "TypeError@0gij9ks01ahg.js:342:24176" })).toEqual({ e: "error", s: "page", x: "TypeError@0gij9ks01ahg.js:342:24176" });
+    expect(parseUse({ e: "error", s: "script", x: "other" })).toEqual({ e: "error", s: "script", x: "other" });
+    expect(parseUse({ e: "error", s: "page", x: "TypeError: Invalid move Nf3" })).toBeNull();
+    expect(parseUse({ e: "error", s: "page", x: "TypeError@https://evil.example/a.js:1:2" })).toBeNull();
+    expect(parseUse({ e: "review", s: "pgn", x: "Error" })).toBeNull();
+    const db = fakeDb();
+    await recordUse(db, "use", at("2026-10-26T09:00:00Z"), use("error", { s: "page", x: "TypeError@0gij9ks01ahg.js:342:24176" }), person("x"));
+    expect([...db.hashes.get("use:2026-10-26:h")!.keys()].filter((f) => f.startsWith("09|x|"))).toEqual(["09|x|page|TypeError@0gij9ks01ahg.js:342:24176"]);
+  });
+
   it("reads the daily counts kept before hourly counting in today's format", () => {
     expect(legacyFields({ visit: 5, "visit:direct": 3, "visit:extension": 1, "arrive:google": 2, arrive: 2, "country:SG": 4, review_done: 1 })).toEqual({
       "e|visit|direct||": 3,

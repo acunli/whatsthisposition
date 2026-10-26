@@ -4,13 +4,14 @@
  * sent: only the kind of use and where it started (e.g. "review", "chesscom"), the page it
  * happened on, the channel the visit came from, and for each page load a few coarse classes of
  * the device (window width, touch or mouse, theme, processor threads…), how long pages were
- * visible and how fast they loaded (src/lib/stats/fields.ts). The server (src/lib/server/usage.ts)
+ * visible and how fast they loaded, and when something breaks, the kind of error and the line of
+ * the site's own scripts it happened on (src/lib/stats/fields.ts). The server (src/lib/server/usage.ts)
  * counts it per UTC hour; the owner reads the totals at /stats.
  */
 
 import { CHANNELS, type Channel } from "./channel";
 import { REVIEW_DEPTHS } from "./review/depths";
-import { DEVICE_CLASSES, MAX_SECONDS, VITALS, pagePath, type DeviceClass, type DeviceClasses, type VitalName } from "./stats/fields";
+import { DEVICE_CLASSES, ERROR_WHERE, MAX_SECONDS, VITALS, pagePath, type DeviceClass, type DeviceClasses, type VitalName } from "./stats/fields";
 
 /** Where a game import can go wrong, and how. */
 export const IMPORT_SITES = ["chesscom", "lichess", "link", "pgn", "file"] as const;
@@ -70,6 +71,8 @@ export interface Use {
   t?: Record<string, number>;
   /** Page-speed measurements (leave). */
   v?: Partial<Record<VitalName, number>>;
+  /** Where an error happened in the site's scripts (error; ERROR_WHERE). */
+  x?: string;
 }
 
 const isObject = (x: unknown): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x);
@@ -78,7 +81,7 @@ const wholeSeconds = (x: unknown, max: number) => typeof x === "number" && Numbe
 /** A counted use, checked against the lists (unknown events, sources or classes are refused). */
 export function parseUse(body: unknown): Use | null {
   if (!isObject(body)) return null;
-  const { e, s, p, c, n, d, t, v } = body;
+  const { e, s, p, c, n, d, t, v, x } = body;
   if (typeof e !== "string" || !Object.hasOwn(USAGE_EVENTS, e)) return null;
   const use: Use = { e: e as UsageEvent };
   const allowed = USAGE_EVENTS[use.e] as readonly string[];
@@ -122,6 +125,10 @@ export function parseUse(body: unknown): Use | null {
       if (!Object.hasOwn(VITALS, k) || typeof x !== "number" || !Number.isFinite(x) || x < 0 || x > 600_000) return null;
       use.v[k as VitalName] = x;
     }
+  }
+  if (x !== undefined) {
+    if (use.e !== "error" || typeof x !== "string" || !ERROR_WHERE.test(x)) return null;
+    use.x = x;
   }
   return use;
 }

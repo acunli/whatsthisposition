@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useReportWebVitals } from "next/web-vitals";
 import { useEffect, useRef } from "react";
 import { channelOf } from "@/lib/channel";
-import { MAX_SECONDS, VITALS, pagePath, type VitalName } from "@/lib/stats/fields";
+import { MAX_SECONDS, VITALS, errorWhere, pagePath, type VitalName } from "@/lib/stats/fields";
 import { countUse, deviceClasses, rememberChannel, sendUse } from "@/lib/usage";
 
 /**
@@ -17,6 +17,8 @@ import { countUse, deviceClasses, rememberChannel, sendUse } from "@/lib/usage";
  */
 const first = typeof window === "undefined" ? null : { hash: window.location.hash, search: window.location.search, path: window.location.pathname, referrer: document.referrer };
 const counted = (path: string) => !path.startsWith("/stats");
+/** "ResizeObserver loop completed with undelivered notifications." (and Chrome's older "…limit exceeded"). */
+const BENIGN_ERROR = /^ResizeObserver loop/;
 
 /** Page-speed measurements waiting to be sent with the next report, each sent once per page load. */
 const vitals: Partial<Record<VitalName, number>> = {};
@@ -66,8 +68,10 @@ export function UsageTracker() {
     let broke = false;
     const onError = (e: ErrorEvent | PromiseRejectionEvent) => {
       if (broke || ("filename" in e && e.filename && !e.filename.startsWith(window.location.origin))) return;
+      // The browser's note that some size changes were passed on a frame later: nothing broke.
+      if ("message" in e && BENIGN_ERROR.test(e.message)) return;
       broke = true;
-      countUse("error", "script");
+      countUse("error", "script", { x: errorWhere("reason" in e ? e.reason : e.error, window.location.origin) });
     };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", report);

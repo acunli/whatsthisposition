@@ -147,6 +147,7 @@ export async function recordUse(db: UsageDb, prefix: string, t: number, use: Use
     add(at("d", use.s, bucketOf(REVIEW_SECONDS, use.n)));
     add(at("ds", use.s), use.n);
   }
+  if (use.e === "error" && use.x) add(at("x", use.s, use.x));
   const first = commands;
   const minute = Math.floor(t / 60_000);
   p.pfadd(K.seen(day), v.token)

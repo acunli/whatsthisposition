@@ -1,7 +1,8 @@
 /**
  * Fetches a player's recent games from Lichess and Chess.com, or one game by link.
  * No key is needed:
- *   Lichess    lichess.org/api/games/user/{name} (ndjson) · lichess.org/game/export/{id}
+ *   Lichess    lichess.org/api/games/user/{name} (ndjson) · lichess.org/game/export/{id} ·
+ *              lichess.org/api/study/{study}/{chapter}.pgn (a study's or broadcast's game)
  *   Chess.com  api.chess.com/pub/player/{name}/games/archives → monthly archive ·
  *              www.chess.com/callback/{live|daily}/game/{id} (the JSON its game page loads)
  * `fetch` is injected so the parsing can be tested without the network.
@@ -46,10 +47,29 @@ export function validUsername(name: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9_-]{1,29}$/.test(name);
 }
 
-/** A Lichess game id from a game link (lichess.org/abcd1234, …/abcd1234/black, …/abcd1234wxyz). */
+/** Lichess pages whose address looks like a game's (eight letters) but isn't one. */
+const LICHESS_PAGES = new Set(["analysis", "practice", "training", "streamer", "features", "insights", "download"]);
+
+/** A Lichess game id from a game link (lichess.org/abcd1234, …/abcd1234/black, …/abcd1234wxyz, …/embed/game/abcd1234). */
 export function lichessGameId(text: string): string | null {
-  const m = text.trim().match(/^(?:https?:\/\/)?(?:www\.)?lichess\.org\/(?:game\/export\/)?([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:[/?#].*)?$/);
-  return m ? m[1] : null;
+  const m = text.trim().match(/^(?:https?:\/\/)?(?:www\.)?lichess\.org\/(?:game\/export\/|embed\/(?:game\/)?)?([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:[/?#].*)?$/);
+  return m && !LICHESS_PAGES.has(m[1]) ? m[1] : null;
+}
+
+/** A game in a Lichess study or broadcast (each broadcast round is a study, each game a chapter). */
+export function lichessChapterRef(text: string): { study: string; chapter: string } | null {
+  const m = text.trim().match(/lichess\.org\/(?:study|broadcast\/[^/?#\s]+\/[^/?#\s]+)\/([A-Za-z0-9]{8})\/([A-Za-z0-9]{8})(?:[/?#]|$)/);
+  return m ? { study: m[1], chapter: m[2] } : null;
+}
+
+/** A player's profile or games page (lichess.org/@/name, chess.com/member/name …): that player's games. */
+export function profileLink(text: string): { site: Site; user: string } | null {
+  const t = text.trim();
+  const m =
+    t.match(/lichess\.org\/@\/([A-Za-z0-9_-]+)/) ??
+    t.match(/chess\.com\/(?:members?|player|games\/archive|stats\/(?:live|daily)\/[a-z0-9_]+)\/([A-Za-z0-9_-]+)/i);
+  if (!m || !validUsername(m[1])) return null;
+  return { site: t.includes("lichess.org") ? "lichess" : "chesscom", user: m[1] };
 }
 
 interface LichessPlayer {
@@ -194,6 +214,27 @@ export async function lichessGame(id: string, fetchImpl: Fetch = fetch): Promise
   const g = fromLichess((await (await get(fetchImpl, url, "application/json")).json()) as LichessGame);
   if (!g) throw new ImportError("That game isn't standard chess, so it can't be reviewed.");
   return g;
+}
+
+/** One game of a Lichess study or broadcast, by its chapter (public studies only). */
+export async function lichessChapter(ref: { study: string; chapter: string }, fetchImpl: Fetch = fetch): Promise<GameSummary> {
+  if (!/^[A-Za-z0-9]{8}$/.test(ref.study) || !/^[A-Za-z0-9]{8}$/.test(ref.chapter)) throw new ImportError("That isn't a Lichess study or broadcast game link.");
+  const pgn = await (await get(fetchImpl, `https://lichess.org/api/study/${ref.study}/${ref.chapter}.pgn?clocks=true&comments=false&variations=false`, "application/x-chess-pgn")).text();
+  const h = (k: string) => pgn.match(new RegExp(`^\\[${k} "([^"]*)"\\]`, "m"))?.[1];
+  const variant = h("Variant");
+  if (variant && !/^(standard|from position)$/i.test(variant)) throw new ImportError("That game isn't standard chess, so it can't be reviewed.");
+  return {
+    id: ref.chapter,
+    site: "lichess",
+    url: h("GameURL") ?? h("ChapterURL") ?? `https://lichess.org/study/${ref.study}/${ref.chapter}`,
+    white: h("White") ?? "White",
+    black: h("Black") ?? "Black",
+    whiteElo: Number(h("WhiteElo")) || undefined,
+    blackElo: Number(h("BlackElo")) || undefined,
+    result: h("Result") ?? "*",
+    opening: h("Opening"),
+    pgn,
+  };
 }
 
 export async function chessComUserGames(user: string, fetchImpl: Fetch = fetch, max = 20): Promise<GameSummary[]> {

@@ -44,6 +44,16 @@ describe("PGN parsing", () => {
     expect(() => parseGame("1. e4 e5 2. Ke3")).toThrow(/2\.Ke3 isn't legal/);
   });
 
+  it("reads move lists written other ways: ½–½, e.p., 1…, ++, figurines, 0-0", () => {
+    const sans = (pgn: string) => parseGame(pgn).moves.map((m) => m.san);
+    expect(sans("1. e4 e5 2. Nf3 Nc6 ½-½")).toEqual(["e4", "e5", "Nf3", "Nc6"]);
+    expect(sans("1. e4 e5 2. Nf3 Nc6 ½–½")).toHaveLength(4);
+    expect(sans("1. d4 e5 2. dxe5 1… Nc6 2. Nf3 0–1")).toEqual(["d4", "e5", "dxe5", "Nc6", "Nf3"]);
+    expect(sans("1. e4 d5 2. e5 f5 3. exf6 e.p. Nxf6")).toEqual(["e4", "d5", "e5", "f5", "exf6", "Nxf6"]);
+    expect(sans("1. e4 e5 2. Qh5 Nc6 3. Bc4 Nf6 4. Qxf7++")).toEqual(["e4", "e5", "Qh5", "Nc6", "Bc4", "Nf6", "Qxf7#"]);
+    expect(sans("1. e4 e5 2. ♘f3 ♞c6 3. ♗c4 ♗c5 4. 0-0")).toEqual(["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "O-O"]);
+  });
+
   it("starts from a FEN header", () => {
     const g = parseGame('[SetUp "1"]\n[FEN "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1"]\n\n1. e4 Kd7 *');
     expect(g.startFen).toBe("4k3/8/8/8/8/8/4P3/4K3 w - - 0 1");

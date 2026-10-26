@@ -361,6 +361,23 @@ function Overview({ d, q }: { d: Dashboard; q: Query }) {
             <BarList rows={rows(t.sources.act ?? {}, (s) => sourceName("act", s))} unit="changes" tone="use" empty="None." />
             <h3 className="st-h3 st-gap">Errors</h3>
             <BarList rows={rows(t.sources.error ?? {}, (s) => sourceName("error", s))} unit="errors" tone="use" empty="None." />
+            <h3 className="st-h3 st-gap">Where errors happened</h3>
+            <BarList
+              rows={rows(
+                Object.fromEntries(Object.entries(t.errorsAt).flatMap(([s, at]) => Object.entries(at).map(([where, n]) => [`${s}|${where}`, n]))),
+                (k) => {
+                  const [s, where] = k.split("|");
+                  return (
+                    <>
+                      {sourceName("error", s)} · <span className="mono">{where}</span>
+                    </>
+                  );
+                },
+              )}
+              unit="errors"
+              tone="use"
+              empty="Counted from 2026-10-26: the kind of error and the line of the site's scripts it came from."
+            />
           </Card>
         </div>
       </Section>

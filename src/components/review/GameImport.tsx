@@ -2,8 +2,9 @@
 
 import { IMPORT_ERRORS, IMPORT_SITES, countUse } from "@/lib/usage";
 import { useRef, useState } from "react";
+import { parseFen } from "@/lib/chess/fen";
 import type { Color } from "@/lib/chess/types";
-import type { GameSummary } from "@/lib/review/importers";
+import { profileLink, type GameSummary, type Site } from "@/lib/review/importers";
 import { PgnError, parseGame, splitGames, type ParsedGame } from "@/lib/review/pgn";
 import { CLASSIC_GAMES } from "@/lib/review/samples";
 
@@ -21,7 +22,7 @@ const SOURCES: [ImportSource, string][] = [
   ["pgn", "PGN"],
 ];
 
-/** A Chess.com or Lichess game link, which either site's box opens straight away. */
+/** A Chess.com or Lichess link: a game, which either site's box (or the PGN box) opens straight away, or a player's page. */
 const GAME_LINK = /lichess\.org\/|chess\.com\//i;
 
 const RESULT_TEXT: Record<string, string> = { "1-0": "1–0", "0-1": "0–1", "1/2-1/2": "½–½", "*": "…" };
@@ -60,15 +61,24 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
     }
   };
 
-  const fetchGames = async () => {
-    const q = user.trim();
+  /** A username's recent games, or the game at a link (typed in either site's box, or pasted as the PGN). */
+  const fetchGames = async (text = user) => {
+    let q = text.trim().replace(/^@/, "");
     if (!q) return;
     setBusy(true);
     setError(null);
     setGames(null);
-    const isLink = GAME_LINK.test(q);
-    const url = isLink ? `/api/games?link=${encodeURIComponent(q)}` : `/api/games?site=${source}&user=${encodeURIComponent(q)}`;
-    const where = isLink ? "link" : (source as "chesscom" | "lichess");
+    let site: Site = source === "lichess" ? "lichess" : "chesscom";
+    // A player's profile page stands for their games, on the site it's from.
+    const profile = profileLink(q);
+    if (profile) {
+      q = profile.user;
+      site = profile.site;
+      setSource(site);
+    }
+    const isLink = !profile && GAME_LINK.test(q);
+    const url = isLink ? `/api/games?link=${encodeURIComponent(q)}` : `/api/games?site=${site}&user=${encodeURIComponent(q)}`;
+    const where = isLink ? "link" : site;
     try {
       const res = await fetch(url);
       const data = (await res.json()) as { ok: true; games: GameSummary[] } | { ok: false; message: string };
@@ -95,6 +105,14 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
 
   const reviewPgn = (text: string) => {
     setError(null);
+    const t = text.trim();
+    // A game link (or a player's page) pasted here instead of in a site's box.
+    if (GAME_LINK.test(t) && !/\s/.test(t)) return void fetchGames(t);
+    if (t.includes("/") && !/\d\./.test(t) && parseFen(t).ok) {
+      setError("That's a single position (a FEN), not a game: analyse it as a single position instead.");
+      failed(fromFile.current ? "file" : "pgn", "unreadable");
+      return;
+    }
     const parts = splitGames(text);
     if (!parts.length) {
       setError("Paste a PGN or a move list first.");
@@ -159,7 +177,7 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
             autoComplete="off"
           />
           <button className="btn btn-primary" disabled={!user.trim() || busy}>
-            {busy ? "Fetching…" : GAME_LINK.test(user) ? "Review" : "Find games"}
+            {busy ? "Fetching…" : GAME_LINK.test(user) && !profileLink(user) ? "Review" : "Find games"}
           </button>
         </form>
       ) : (
@@ -177,8 +195,8 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
             rows={4}
           />
           <div className="row">
-            <button className="btn btn-primary" disabled={!pgn.trim()} onClick={() => reviewPgn(pgn)}>
-              Review game
+            <button className="btn btn-primary" disabled={!pgn.trim() || busy} onClick={() => reviewPgn(pgn)}>
+              {busy ? "Fetching…" : "Review game"}
             </button>
             <button className="btn btn-ghost" onClick={() => file.current?.click()}>
               Upload .pgn

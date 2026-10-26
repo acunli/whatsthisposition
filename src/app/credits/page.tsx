@@ -66,7 +66,8 @@ export default function Credits() {
           started and on which page (for example &ldquo;review, from a Chess.com username&rdquo;, or &ldquo;arrived from Google&rdquo;: the
           name of the referring site or app, never its address), never the game, position, photo or username. With each page load it also
           sends a few rough classes of your device (window width, touch or mouse, light or dark theme, the number of processor threads), how
-          long the page stayed open and how fast it loaded. The server adds your device type, system and browser family, and the country,
+          long the page stayed open and how fast it loaded. If something breaks, it sends the kind of error and the line of the site&apos;s own
+          code it came from, never the error&apos;s message. The server adds your device type, system and browser family, and the country,
           region, city and time zone that the host works out from your IP address, and counts everything per hour. To tell visitors apart
           within a month it uses a code made from your IP address and browser that is never stored and can&apos;t be linked to another
           month. Your browser&apos;s Do Not Track or Global Privacy Control setting turns this counting off. Page views also go to Vercel Web

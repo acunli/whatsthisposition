@@ -54,6 +54,9 @@ function readHeaders(pgn: string): Record<string, string> {
   return headers;
 }
 
+/** Figurine notation's pieces as letters (a pawn has none). */
+const FIGURINES: Record<string, string> = { "♔": "K", "♚": "K", "♕": "Q", "♛": "Q", "♖": "R", "♜": "R", "♗": "B", "♝": "B", "♘": "N", "♞": "N" };
+
 /** Removes comments (keeping clocks), variations, NAGs and results: the bare main line. */
 export function mainLineTokens(pgn: string): { sans: string[]; clocks: (number | undefined)[] } {
   let body = pgn.replace(/^\s*\[[^\]]*\]\s*$/gm, " ");
@@ -93,8 +96,15 @@ export function mainLineTokens(pgn: string): { sans: string[]; clocks: (number |
     i = j;
     if (depth > 0) continue;
     if (/^\$\d+$/.test(tok)) continue; // NAG
-    if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tok)) continue;
-    const san = tok.replace(/^\d+\.(\.\.)?/, "").replace(/^\.+/, "").replace(/[!?]+$/, "");
+    if (/^(1[-–]0|0[-–]1|(1\/2|½)[-–](1\/2|½)|\*)$/.test(tok)) continue;
+    if (/^e\.?p\.?$/i.test(tok)) continue; // "exd6 e.p."
+    // Move numbers ("12." "12..." "12…"), annotations, a doubled check sign, and figurines (♘f3).
+    const san = tok
+      .replace(/^\d+[.…]+/, "")
+      .replace(/^[.…]+/, "")
+      .replace(/[!?]+$/, "")
+      .replace(/\+\+$/, "+")
+      .replace(/[♔♚♕♛♖♜♗♝♘♞♙♟]/gu, (f) => FIGURINES[f] ?? "");
     if (!san || /^\d+\.*$/.test(san)) continue;
     sans.push(san);
   }

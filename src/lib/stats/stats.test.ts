@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LANDING } from "../landing";
-import { SITE_PAGES, VITALS, bucketOf, field, pagePath } from "./fields";
+import { ERROR_WHERE, SITE_PAGES, VITALS, bucketOf, errorWhere, field, pagePath } from "./fields";
 import { groupDays, periodOf, weekOf } from "./period";
 import { breakdown, quantile, ranked, ratings } from "./report";
 import { cityName, languageOf, localClock, software } from "./visitor";
@@ -120,6 +120,7 @@ describe("reading the counts back", () => {
         "ds|standard": 70,
         "r|new": 2,
         "r|back": 1,
+        "x|page|TypeError@0gij9ks01ahg.js:342:24176": 2,
       },
       { "e|visit|direct|google|/": 1 },
     );
@@ -139,6 +140,20 @@ describe("reading the counts back", () => {
     expect(b.vitals.LCP.byDevice.desktop[7]).toBe(1);
     expect(b.reviewTime.standard).toMatchObject({ count: 2, seconds: 70 });
     expect(b.returning).toEqual({ new: 2, back: 1 });
+    expect(b.errorsAt).toEqual({ page: { "TypeError@0gij9ks01ahg.js:342:24176": 2 } });
+  });
+
+  it("finds where an error happened in the site's own scripts, and never keeps its message", () => {
+    const origin = "https://www.whatsthisposition.com";
+    const chrome = new TypeError("Cannot read properties of undefined (reading 'lines')");
+    chrome.stack = `TypeError: Cannot read properties of undefined (reading 'lines')\n    at chrome-extension://abc/inject.js:1:2\n    at uU (${origin}/_next/static/chunks/00gij9ks01ahg.js:342:24176)\n    at h (${origin}/_next/static/chunks/0zz.js:1:5)`;
+    expect(errorWhere(chrome, origin)).toBe("TypeError@00gij9ks01ahg.js:342:24176");
+    const safari = new RangeError("Invalid move: e9");
+    safari.stack = `uU@${origin}/_next/static/chunks/0abc.js:7:99\nh@${origin}/_next/static/chunks/0zz.js:1:5`;
+    expect(errorWhere(safari, origin)).toBe("RangeError@0abc.js:7:99");
+    expect(errorWhere(Object.assign(new Error("x"), { stack: "at https://elsewhere.example/_next/static/chunks/a.js:1:1" }), origin)).toBe("Error");
+    expect(errorWhere("a thrown string", origin)).toBe("other");
+    for (const w of ["TypeError@00gij9ks01ahg.js:342:24176", "RangeError@0abc.js:7:99", "Error", "other"]) expect(ERROR_WHERE.test(w)).toBe(true);
   });
 
   it("estimates percentiles within their range and splits loads into good, needs improvement and poor exactly", () => {

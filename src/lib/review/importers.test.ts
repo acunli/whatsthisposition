@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chessComGame, chessComUserGames, fromChessCom, fromLichess, lichessGame, lichessGameId, lichessUserGames, validUsername } from "./importers";
+import { chessComGame, chessComUserGames, fromChessCom, fromLichess, lichessChapter, lichessChapterRef, lichessGame, lichessGameId, lichessUserGames, profileLink, validUsername } from "./importers";
 import { parseGame } from "./pgn";
 
 const PGN = `[Event "Live Chess"]
@@ -22,6 +22,36 @@ describe("game import", () => {
     expect(lichessGameId("https://lichess.org/7mLyypTV")).toBe("7mLyypTV");
     expect(lichessGameId("lichess.org/7mLyypTVab12/black")).toBe("7mLyypTV");
     expect(lichessGameId("https://lichess.org/@/thibault")).toBeNull();
+    expect(lichessGameId("https://lichess.org/embed/game/7mLyypTV?theme=auto")).toBe("7mLyypTV");
+    // Lichess pages with eight-letter addresses aren't games.
+    expect(lichessGameId("https://lichess.org/analysis/standard/rnbqkbnr")).toBeNull();
+    expect(lichessGameId("https://lichess.org/training/abc12")).toBeNull();
+  });
+
+  it("recognises study and broadcast games, and players' pages", () => {
+    expect(lichessChapterRef("https://lichess.org/study/abcdEFGH/ijklMNOP#12")).toEqual({ study: "abcdEFGH", chapter: "ijklMNOP" });
+    expect(lichessChapterRef("https://lichess.org/broadcast/english-championships/round-6/UzfvBEiM/3DFLz5cf")).toEqual({ study: "UzfvBEiM", chapter: "3DFLz5cf" });
+    expect(lichessChapterRef("https://lichess.org/broadcast/english-championships/round-6/UzfvBEiM")).toBeNull();
+    expect(lichessChapterRef("https://lichess.org/7mLyypTV")).toBeNull();
+    expect(profileLink("https://lichess.org/@/DrNykterstein/all")).toEqual({ site: "lichess", user: "DrNykterstein" });
+    expect(profileLink("https://www.chess.com/member/Hikaru")).toEqual({ site: "chesscom", user: "Hikaru" });
+    expect(profileLink("chess.com/games/archive/ay7u?gameOwner=other")).toEqual({ site: "chesscom", user: "ay7u" });
+    expect(profileLink("https://www.chess.com/stats/live/rapid/ay7u")).toEqual({ site: "chesscom", user: "ay7u" });
+    expect(profileLink("https://www.chess.com/game/live/184654081790")).toBeNull();
+  });
+
+  it("opens a game of a Lichess study or broadcast", async () => {
+    const chapter = `[Event "English Rapid"]\n[White "Ghasi, Ameet K"]\n[Black "Gormally, Daniel W"]\n[Result "1-0"]\n[WhiteElo "2505"]\n[BlackElo "2454"]\n[Variant "Standard"]\n[GameURL "https://lichess.org/broadcast/e/r/UzfvBEiM/3DFLz5cf"]\n\n1. Nf3 { [%clk 0:15:18] } 1... Nf6 2. g3 g6 1-0\n`;
+    let asked = "";
+    const g = await lichessChapter({ study: "UzfvBEiM", chapter: "3DFLz5cf" }, async (url) => {
+      asked = url;
+      return new Response(chapter, { status: 200 });
+    });
+    expect(asked).toMatch(/^https:\/\/lichess\.org\/api\/study\/UzfvBEiM\/3DFLz5cf\.pgn/);
+    expect(g).toMatchObject({ site: "lichess", white: "Ghasi, Ameet K", black: "Gormally, Daniel W", whiteElo: 2505, blackElo: 2454, result: "1-0", url: "https://lichess.org/broadcast/e/r/UzfvBEiM/3DFLz5cf" });
+    expect(parseGame(g.pgn).moves).toHaveLength(4);
+    await expect(lichessChapter({ study: "UzfvBEiM", chapter: "3DFLz5cf" }, async () => new Response(chapter.replace("Standard", "Chess960")))).rejects.toThrow(/isn't standard chess/);
+    await expect(lichessChapter({ study: "UzfvBEiM", chapter: "3DFLz5cf" }, async () => new Response("", { status: 404 }))).rejects.toThrow(/No such player or game/);
   });
 
   it("opens a Chess.com game from its link, live or daily", async () => {

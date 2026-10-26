@@ -27,9 +27,9 @@ export function SmoothHeight({ children, className, keepHeight = false }: { chil
     const i = inner.current;
     if (!o || !i || typeof ResizeObserver === "undefined") return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    // The content's height as last laid out. While the box's height is automatic it is the
+    // box's too, so it is what is on screen when the next change arrives.
     let last = i.offsetHeight;
-    // The box's height as last laid out: what is on screen when the next change arrives.
-    let shown = o.getBoundingClientRect().height;
     let hold: ReturnType<typeof setTimeout> | null = null;
     let settle: ReturnType<typeof setTimeout> | null = null;
     const boxHeight = () => o.getBoundingClientRect().height;
@@ -60,20 +60,18 @@ export function SmoothHeight({ children, className, keepHeight = false }: { chil
       if (!hold) hold = setTimeout(glide, HOLD_MS);
     };
     // Runs after layout and before paint, so the old height is what gets drawn first.
-    // Both boxes are watched: the outer one to know what is on screen, the inner one for changes.
-    const ro = new ResizeObserver((entries) => {
-      const before = shown;
-      shown = boxHeight();
-      if (!entries.some((e) => e.target === i)) return;
+    // Only the content is watched: the box is resized from here, and a watched box resized
+    // inside its own observer makes the browser report a "ResizeObserver loop" error.
+    const ro = new ResizeObserver(() => {
       const h = i.offsetHeight;
       if (h === last) return;
+      const before = last;
       last = h;
       // A fixed height (mid-change) is on screen as it is; an automatic one has just
-      // grown or shrunk with the content, so what was on screen is its height before.
+      // grown or shrunk with the content, so what was on screen is the content's height before.
       change(o.style.height ? boxHeight() : before);
     });
     ro.observe(i);
-    ro.observe(o);
     resync.current = () => {
       if (o.style.height && !hold && Math.abs(boxHeight() - i.offsetHeight) > 0.5) change(boxHeight());
     };
