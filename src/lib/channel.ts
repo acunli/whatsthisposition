@@ -39,6 +39,7 @@ export const CHANNELS = [
   "email",
   "extension",
   "share",
+  "app",
   "other",
 ] as const;
 

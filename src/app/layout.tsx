@@ -6,6 +6,7 @@ import { UsageTracker } from "@/components/UsageTracker";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import { OG_IMAGE } from "@/lib/seo";
 import { THEME_BG, THEME_SCRIPT } from "@/lib/theme";
+import { INSTALL_SCRIPT } from "@/lib/install";
 import "./globals.css";
 
 // One family for the whole site. Archivo's width axis gives the condensed display cut
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={archivo.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: INSTALL_SCRIPT }} />
       </head>
       <body>
         {/* Without JavaScript nothing starts the loading logo (see .veil-play), so it plays at once. */}

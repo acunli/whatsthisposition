@@ -9,6 +9,7 @@ import { PgnError, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { holdPageVeil, useBootLogoPlayed } from "../PageVeil";
 import { GameImport, type ImportSource } from "../review/GameImport";
 import { AddToChrome } from "../AddToChrome";
+import { InstallApp } from "../InstallApp";
 import { LogoMark, Wordmark } from "../Logo";
 import { useTheme } from "../ThemeToggle";
 import { Concepts } from "./Concepts";
@@ -294,6 +295,7 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample, variant
               </button>
             ) : (
               <>
+                <InstallApp className="btn btn-primary" />
                 <AddToChrome from="hero" className="btn btn-chrome">
                   Add to Chrome
                 </AddToChrome>

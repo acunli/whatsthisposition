@@ -12,6 +12,7 @@ export const EVENT_NAMES: Record<string, string> = {
   side_line: "Side lines tried",
   share: "Reviews shared",
   get_extension: "Add to Chrome clicks",
+  get_app: "App installs",
   act: "Settings changed",
   error: "Errors",
 };
@@ -22,8 +23,9 @@ export const SOURCE_NAMES: Record<string, Record<string, string>> = {
   review_done: { fast: "Fast (12)", standard: "Standard (14)", thorough: "Thorough (18)" },
   analysis: { fen: "Pasted FEN", sample: "Sample position", setup: "Set up by hand", photo: "From a photo", review: "From a review", link: "Position link" },
   photo: { device: "Read on the device", cloud: "Cloud reader" },
-  lookup: { chesscom: "Chess.com username", lichess: "Lichess username", link: "Game link" },
+  lookup: { chesscom: "Chess.com username", lichess: "Lichess username", link: "Game link", back: "Their games, on coming back" },
   get_extension: { header: "Top bar", hero: "Home hero", section: "Extension section", closing: "Closing section", footer: "Footer" },
+  get_app: { hero: "Install pressed", installed: "Installed" },
   act: { depth: "Review depth changed", theme: "Theme switched" },
   error: { page: "Error screen", script: "Script error", engine: "Engine stopped" },
 };
@@ -79,6 +81,7 @@ export const CHANNEL_NAMES: Record<string, string> = {
   email: "Email",
   extension: "The extension",
   share: "A shared review",
+  app: "The installed app",
   other: "Other sites",
 };
 

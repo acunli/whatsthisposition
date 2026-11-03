@@ -53,7 +53,9 @@ export default function Credits() {
           real board) is the cropped picture sent through this site&apos;s server to the configured vision API (the NUS SoCLaaS gateway, or
           Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device. The game you
           are reviewing is kept in that browser tab, so reloading the review page shows it again; it is never sent anywhere and is gone
-          when you close the tab.
+          when you close the tab. The last Chess.com or Lichess username you looked up, and which of its games you reviewed, are kept in
+          your browser so that coming back lists that player&apos;s latest games straight away; &quot;Not you?&quot; under the list forgets
+          them.
         </p>
         <p>
           A game is stored only if you press <b>Share review</b> on it. That makes a public link: the game&apos;s moves and names as its PGN

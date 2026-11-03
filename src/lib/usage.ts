@@ -27,8 +27,8 @@ export const USAGE_EVENTS = {
   leave: [],
   /** Before 2026-10-22 the channel a visitor came from was its own use; it now rides on the visit. */
   arrive: CHANNELS,
-  /** A player's recent games listed, by site (or a game link opened). */
-  lookup: ["chesscom", "lichess", "link"],
+  /** A player's recent games listed, by site (or a game link opened); "back": the remembered player's, on coming back. */
+  lookup: ["chesscom", "lichess", "link", "back"],
   /** A game that couldn't be brought in, by where and why ("chesscom.notfound"). */
   import_error: IMPORT_SITES.flatMap((s) => IMPORT_ERRORS.map((k) => `${s}.${k}`)),
   /** A game review started, by where the game came from. */
@@ -45,6 +45,8 @@ export const USAGE_EVENTS = {
   share: [],
   /** A click on "Add to Chrome" (the extension's store page), by where on the site. */
   get_extension: ["header", "hero", "section", "closing", "footer"],
+  /** The site installed as an app (phones): the Install button pressed, and the install done. */
+  get_app: ["hero", "installed"],
   /** A setting changed: the review's depth, the theme. */
   act: ["depth", "theme"],
   /** Something broke: a page's error screen, an uncaught script error, the engine failing. */

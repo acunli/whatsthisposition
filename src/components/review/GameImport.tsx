@@ -1,10 +1,11 @@
 "use client";
 
 import { IMPORT_ERRORS, IMPORT_SITES, countUse } from "@/lib/usage";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseFen } from "@/lib/chess/fen";
 import type { Color } from "@/lib/chess/types";
 import { profileLink, type GameSummary, type Site } from "@/lib/review/importers";
+import { forgetPlayer, isNewGame, markReviewed, rememberPlayer, rememberedPlayer, reviewedGames } from "@/lib/review/player";
 import { PgnError, parseGame, splitGames, type ParsedGame } from "@/lib/review/pgn";
 import { CLASSIC_GAMES } from "@/lib/review/samples";
 
@@ -12,7 +13,10 @@ export type ImportSource = "chesscom" | "lichess" | "pgn";
 
 interface Props {
   onGame: (game: ParsedGame, orientation?: Color) => void;
-  /** The tab it opens on (Chess.com unless a page says otherwise). */
+  /**
+   * The tab it opens on: a page's own, else the remembered player's site (their latest games are
+   * listed straight away), else Chess.com.
+   */
   initialSource?: ImportSource;
 }
 
@@ -32,9 +36,25 @@ function when(ms?: number) {
   return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
 }
 
-/** Bring a game in: Chess.com / Lichess username or game link, or a pasted / uploaded PGN. */
-export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Props) {
-  const [source, setSource] = useState<ImportSource>(initialSource);
+/** A player's listed games: whose, from where, and what this browser knows about them. */
+interface Listed {
+  /** The username as typed, and lower-cased to find their side. */
+  name: string;
+  owner: string;
+  list: GameSummary[];
+  /** Their list was last seen then (0: never), so games played since are new. */
+  seenAt: number;
+  reviewed: Set<string>;
+  /** Listed by itself on coming back to the site (the remembered player). */
+  welcome: boolean;
+}
+
+/**
+ * Bring a game in: Chess.com / Lichess username or game link, or a pasted / uploaded PGN. The
+ * address can hand it one too: `?game=<a game or profile link>`, or `?user=<name>&site=lichess`.
+ */
+export function GameImport({ onGame: openGame, initialSource }: Props) {
+  const [source, setSource] = useState<ImportSource>(initialSource ?? "chesscom");
   const fromFile = useRef(false);
   /** A review starts: counted (anonymously) by where the game came from. */
   const onGame = (g: ParsedGame, orientation?: Color) => {
@@ -45,7 +65,7 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
   const [pgn, setPgn] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [games, setGames] = useState<{ owner: string; list: GameSummary[] } | null>(null);
+  const [games, setGames] = useState<Listed | null>(null);
   const [pgnGames, setPgnGames] = useState<ParsedGame[] | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -61,14 +81,17 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
     }
   };
 
-  /** A username's recent games, or the game at a link (typed in either site's box, or pasted as the PGN). */
-  const fetchGames = async (text = user) => {
+  /**
+   * A username's recent games, or the game at a link (typed in either site's box, or pasted as the
+   * PGN). `welcome`: the remembered player's list, shown by itself on coming back.
+   */
+  const fetchGames = async (text = user, opts: { site?: Site; welcome?: boolean } = {}) => {
     let q = text.trim().replace(/^@/, "");
     if (!q) return;
     setBusy(true);
     setError(null);
     setGames(null);
-    let site: Site = source === "lichess" ? "lichess" : "chesscom";
+    let site: Site = opts.site ?? (source === "lichess" ? "lichess" : "chesscom");
     // A player's profile page stands for their games, on the site it's from.
     const profile = profileLink(q);
     if (profile) {
@@ -92,8 +115,11 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
         setError("No recent standard games found for that player.");
         failed(where, "empty");
       } else {
-        countUse("lookup", where);
-        setGames({ owner: q.toLowerCase(), list: data.games });
+        countUse("lookup", opts.welcome ? "back" : where);
+        const before = rememberedPlayer();
+        const same = before?.site === site && before.user.toLowerCase() === q.toLowerCase();
+        rememberPlayer(site as Site, q);
+        setGames({ name: q, owner: q.toLowerCase(), list: data.games, seenAt: same ? before.seenAt : 0, reviewed: reviewedGames(), welcome: !!opts.welcome });
       }
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");
@@ -102,6 +128,34 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
       setBusy(false);
     }
   };
+
+  // On arrival: a game or player handed over in the address, else the remembered player's latest games.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const link = url.searchParams.get("game")?.trim();
+    const named = url.searchParams.get("user")?.trim();
+    const namedSite: Site = url.searchParams.get("site") === "lichess" ? "lichess" : "chesscom";
+    let start: { text: string; site: Site; welcome?: boolean } | null = null;
+    if (link || named) {
+      // Read once: Back to this page later shouldn't open the same game again.
+      for (const k of ["game", "user", "site"]) url.searchParams.delete(k);
+      window.history.replaceState(window.history.state, "", url);
+      if (link) start = { text: link, site: profileLink(link)?.site ?? (/lichess\.org/i.test(link) ? "lichess" : "chesscom") };
+      else start = { text: named!, site: namedSite };
+    } else {
+      const me = rememberedPlayer();
+      if (me && (!initialSource || initialSource === me.site)) start = { text: me.user, site: me.site, welcome: true };
+    }
+    if (!start) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- read from the address and this browser's storage after hydration */
+    setSource(start.site);
+    setUser(start.text);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    void fetchGames(start.text, { site: start.site, welcome: start.welcome });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
+  }, []);
+
+  const fresh = games ? games.list.filter((g) => isNewGame(g.playedAt, games.seenAt, games.reviewed.has(g.id))).length : 0;
 
   const reviewPgn = (text: string) => {
     setError(null);
@@ -228,16 +282,46 @@ export function GameImport({ onGame: openGame, initialSource = "chesscom" }: Pro
       )}
 
       {games && (
+        <div className="glist-head small">
+          <span>
+            {games.welcome ? "Welcome back. " : ""}
+            <b>{games.name}</b>&apos;s latest games
+            {fresh > 0 && <span className="muted">: {fresh === 1 ? "1 new since your last visit" : `${fresh} new since your last visit`}</span>}
+          </span>
+          <button
+            className="glist-forget"
+            title="Forgets this player on this device"
+            onClick={() => {
+              forgetPlayer();
+              setGames(null);
+              setUser("");
+            }}
+          >
+            {games.welcome ? "Not you?" : "Don't remember me"}
+          </button>
+        </div>
+      )}
+
+      {games && (
         <ul className="glist" aria-label="Recent games">
           {games.list.map((g) => {
             const mine: Color | undefined = g.white.toLowerCase() === games.owner ? "w" : g.black.toLowerCase() === games.owner ? "b" : undefined;
+            const done = games.reviewed.has(g.id);
+            const isNew = isNewGame(g.playedAt, games.seenAt, done);
             return (
               <li key={g.id}>
-                <button className="glist-item" onClick={() => open(g.pgn, mine, source === "lichess" ? "lichess" : "chesscom")}>
+                <button
+                  className="glist-item"
+                  onClick={() => {
+                    markReviewed(g.id);
+                    open(g.pgn, mine, source === "lichess" ? "lichess" : "chesscom");
+                  }}
+                >
                   <span className="glist-players">
                     <span className="side-dot side-w" aria-hidden /> {g.white} {g.whiteElo ? <span className="muted mono">{g.whiteElo}</span> : null}
                     <span className="muted"> vs </span>
                     <span className="side-dot side-b" aria-hidden /> {g.black} {g.blackElo ? <span className="muted mono">{g.blackElo}</span> : null}
+                    {(isNew || done) && <span className={isNew ? "glist-tag glist-new" : "glist-tag"}>{isNew ? "New" : "Reviewed"}</span>}
                   </span>
                   <span className="glist-meta small muted">
                     <b className="mono">{RESULT_TEXT[g.result] ?? g.result}</b>

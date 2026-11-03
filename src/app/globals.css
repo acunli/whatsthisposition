@@ -6139,6 +6139,51 @@ a.btn {
   color: var(--bone);
 }
 
+/* Whose games these are; "Not you?" forgets the player on this device. */
+.glist-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--bone-2);
+  animation: caption-in 0.3s var(--ease-out) both;
+}
+
+.glist-head b {
+  color: var(--bone);
+}
+
+.glist-forget {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dim);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.glist-forget:hover {
+  color: var(--bone);
+}
+
+.glist-tag {
+  margin-left: auto;
+  padding: 1px 7px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.glist-new {
+  border-color: transparent;
+  background: rgb(var(--v-brand));
+  color: var(--on-bright);
+}
+
 
 
 
@@ -6184,6 +6229,7 @@ a.btn {
   .rv-wait-dot,
   .rv-card,
   .glist,
+  .glist-head,
   .review > * {
     animation: none;
   }
