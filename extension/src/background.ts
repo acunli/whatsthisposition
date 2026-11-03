@@ -1,21 +1,15 @@
 /**
- * The extension's service worker. It opens the hidden engine page (an offscreen document,
- * engine.html) when a card asks for it, and closes it when no card needs it. Stockfish runs
- * there rather than in the card, because the card lives inside Chess.com's page, where the
- * browser may not let it start workers.
+ * The extension's service worker (Chromium browsers; Firefox has background-firefox.ts). It
+ * opens the hidden engine page (an offscreen document, engine.html) when a card asks for it, and
+ * closes it when no card needs it. Stockfish runs there rather than in the card, because the
+ * card lives inside Chess.com's page, where the browser may not let it start workers.
  *
  * After an install, update or reload it also adds the page script to the Chess.com tabs that
- * are already open: until they reload, they have no script, or one cut off from the extension
- * (the old copy stops itself when the new one arrives), and no card would open in them.
+ * are already open (reinject.ts).
  */
-chrome.runtime.onInstalled.addListener(() => {
-  void chrome.tabs.query({ url: "https://www.chess.com/*" }).then((tabs) => {
-    for (const tab of tabs) {
-      if (tab.id === undefined || tab.discarded) continue;
-      void chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] }).catch(() => undefined);
-    }
-  });
-});
+import { reinjectOnInstall } from "./reinject";
+
+reinjectOnInstall();
 
 const ENGINE_PAGE = "engine.html";
 let opening: Promise<void> | null = null;

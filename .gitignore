@@ -18,6 +18,7 @@ public/engine/
 
 # The built browser extension and its store package (npm run ext:build / ext:zip)
 /extension/dist/
+/extension/dist-firefox/
 /extension/*.zip
 # Vercel CLI link (vercel link)
 .vercel

@@ -1,6 +1,8 @@
 /**
  * Builds the browser extension into extension/dist: load that folder with "Load
  * unpacked" in chrome://extensions. `--zip` also packs it for the Chrome Web Store.
+ * `--firefox` builds Firefox's version into extension/dist-firefox instead (packed for
+ * addons.mozilla.org with `--zip`): its background is a page that runs the engine itself.
  *
  * The scripts are bundled from the site's own code (src/lib), so the extension's
  * labels and accuracy are the website's. Stockfish and the opening book ship inside it.
@@ -13,7 +15,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-const out = join(root, "extension", "dist");
+const firefox = process.argv.includes("--firefox");
+const out = join(root, "extension", firefox ? "dist-firefox" : "dist");
 const site = (process.env.EXT_SITE_URL ?? "https://www.whatsthisposition.com").replace(/\/+$/, "");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
@@ -26,7 +29,9 @@ mkdirSync(out, { recursive: true });
 
 await build({
   absWorkingDir: root,
-  entryPoints: { content: "extension/src/content.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
+  entryPoints: firefox
+    ? { content: "extension/src/content.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background-firefox.ts" }
+    : { content: "extension/src/content.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
   outdir: out,
   bundle: true,
   format: "iife",
@@ -52,9 +57,18 @@ for (const [field, max] of [["name", 75], ["short_name", 12], ["description", 13
 }
 manifest.version = pkg.version;
 manifest.homepage_url = site;
+if (firefox) {
+  // addons.mozilla.org allows a name of up to 45 characters.
+  manifest.name = "Free Chess.com game review & analysis";
+  manifest.background = { scripts: ["background.js"] };
+  manifest.permissions = manifest.permissions.filter((p) => p !== "offscreen");
+  manifest.browser_specific_settings = {
+    gecko: { id: "extension@whatsthisposition.com", strict_min_version: "128.0", data_collection_permissions: { required: ["none"] } },
+  };
+}
 writeFileSync(join(out, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 
-for (const f of ["panel.html", "panel.css", "engine.html"]) cpSync(join(root, "extension", f), join(out, f));
+for (const f of ["panel.html", "panel.css", ...(firefox ? [] : ["engine.html"])]) cpSync(join(root, "extension", f), join(out, f));
 // The toolbar popup links to the same site as the card.
 writeFileSync(join(out, "popup.html"), readFileSync(join(root, "extension", "popup.html"), "utf8").replace("https://www.whatsthisposition.com", site));
 cpSync(join(root, "extension", "icons"), join(out, "icons"), { recursive: true });
@@ -64,10 +78,10 @@ mkdirSync(join(out, "data"));
 cpSync(join(root, "public", "data", "masters-book.bin.gz"), join(out, "data", "masters-book.bin.gz"));
 cpSync(join(root, "LICENSE"), join(out, "LICENSE"));
 
-console.log(`Built the extension (v${pkg.version}, site ${site}) in extension/dist`);
+console.log(`Built the ${firefox ? "Firefox " : ""}extension (v${pkg.version}, site ${site}) in extension/${firefox ? "dist-firefox" : "dist"}`);
 
 if (process.argv.includes("--zip")) {
-  const zip = join(root, "extension", `whatsthisposition-extension-${pkg.version}.zip`);
+  const zip = join(root, "extension", `whatsthisposition-${firefox ? "firefox" : "extension"}-${pkg.version}.zip`);
   rmSync(zip, { force: true });
   execFileSync("zip", ["-qr", zip, "."], { cwd: out });
   console.log(`Packed ${zip}`);

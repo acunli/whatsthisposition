@@ -5,7 +5,7 @@ const config = [
   ...nextVitals,
   ...nextTs,
   {
-    ignores: [".next/**", "node_modules/**", "public/**", "next-env.d.ts", "coverage/**", "extension/dist/**"],
+    ignores: [".next/**", "node_modules/**", "public/**", "next-env.d.ts", "coverage/**", "extension/dist/**", "extension/dist-firefox/**"],
   },
 ];
 

@@ -25,7 +25,7 @@ npm run ext:build          # builds extension/dist
 - The toolbar popup says what the page is doing ("Watching this game: the card opens when it ends").
 - To see each step, open DevTools on the Chess.com tab, set the console's level to include **Verbose**, and filter on `what’sthisposition`: it logs the game's id, Chess.com's answers, when the game ended and why the card opened (or why not).
 
-It works in any Chromium browser (Chrome, Edge, Brave, Arc, Opera).
+It works in any Chromium browser (Chrome, Edge, Brave, Arc, Opera). Firefox has its own build: see [Firefox](#firefox).
 
 ## Publish it on the Chrome Web Store
 
@@ -42,6 +42,14 @@ It works in any Chromium browser (Chrome, Edge, Brave, Arc, Opera).
 4. Submit for review. Updates: bump `version` in `package.json`, `npm run ext:zip`, upload.
 
 The review link opens `https://www.whatsthisposition.com` (the site's primary address; the bare domain redirects there, keeping the `#review=…` part). `EXT_SITE_URL=https://whatsthisposition.vercel.app npm run ext:zip` points it at another address, e.g. a preview deployment.
+
+## Firefox
+
+`npm run ext:firefox` builds Firefox's version into `extension/dist-firefox` and packs `extension/whatsthisposition-firefox-<version>.zip`. The code is the same; only the background differs: Firefox's background is an event page rather than a service worker, so it starts Stockfish's workers itself (`src/background-firefox.ts` runs `src/engine.ts`), and Firefox has no `offscreen` permission or engine page. The manifest gets `background.scripts`, `browser_specific_settings.gecko` (id `extension@whatsthisposition.com`, Firefox 128 or later, `data_collection_permissions: none`) and a name within addons.mozilla.org's 45 characters ("Free Chess.com game review & analysis").
+
+- **Try it:** `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick `extension/dist-firefox/manifest.json`. Checked on Firefox 154: the card opened by itself on a game that had just ended and **Analyze** reviewed it (78 plies at Fast in about 20 s).
+- **`npx web-ext lint -s extension/dist-firefox --self-hosted=false`:** no errors; 7 warnings about `innerHTML` in `panel.js`/`content.js`, where every value from a game is escaped (`esc()`) and the rest is the extension's own markup.
+- **Publish:** sign in at [addons.mozilla.org's Developer Hub](https://addons.mozilla.org/developers/) (free) → **Submit a New Add-on** → **On this site** → upload the zip. The bundle is minified, so AMO asks for the source: upload a zip of the repository (or `git archive -o source.zip HEAD`) and say how to build it: "`npm ci`, then `npm run ext:firefox`; the add-on is `extension/dist-firefox` (Node 20+)". Listing: the same description (`store/description.txt`) and screenshots, slug `whatsthisposition`, category Games & Entertainment, support site and privacy policy as for Chrome. Data collection: none.
 
 ## Fair play
 
