@@ -20,6 +20,7 @@ import { Home, type HomeVariant } from "./home/Home";
 import { SetupView } from "./setup/SetupView";
 import { AnalysisView } from "./analysis/AnalysisView";
 import { ReviewView } from "./review/ReviewView";
+import { Invite } from "./review/Invite";
 
 type Stage = "home" | "setup" | "analysis" | "review";
 
@@ -311,6 +312,8 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
           <SupportButton />
         </nav>
       </header>
+
+      {given && stage === "review" && <Invite />}
 
       {stage === "home" && (
         <Home

@@ -11,6 +11,8 @@ export const EVENT_NAMES: Record<string, string> = {
   photo: "Photos read",
   side_line: "Side lines tried",
   share: "Reviews shared",
+  share_to: "Shared links sent",
+  invite: "Own games from a shared review",
   get_extension: "Add to Chrome clicks",
   get_app: "App installs",
   act: "Settings changed",
@@ -26,6 +28,8 @@ export const SOURCE_NAMES: Record<string, Record<string, string>> = {
   lookup: { chesscom: "Chess.com username", lichess: "Lichess username", link: "Game link", back: "Their games, on coming back" },
   get_extension: { header: "Top bar", hero: "Home hero", section: "Extension section", closing: "Closing section", footer: "Footer" },
   get_app: { hero: "Install pressed", installed: "Installed" },
+  share_to: { x: "X", reddit: "Reddit", whatsapp: "WhatsApp", facebook: "Facebook", copy: "Copied again" },
+  invite: { shared: "Username entered" },
   act: { depth: "Review depth changed", theme: "Theme switched" },
   error: { page: "Error screen", script: "Script error", engine: "Engine stopped" },
 };

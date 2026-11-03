@@ -5683,6 +5683,87 @@ a.btn {
   color: rgb(var(--red));
 }
 
+/* A review worth showing (a Brilliant or Great move, or a high accuracy): the share line says so. */
+.rv-share-boast {
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--slab-2);
+}
+
+.rv-share-lead {
+  flex-basis: 100%;
+  margin: 0;
+  font-weight: 600;
+  color: var(--bone);
+}
+
+.rv-share-to {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rv-share-to a.chip {
+  text-decoration: none;
+}
+
+/* On a shared or published review: the visitor's own games, one username away. */
+.invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  width: 100%;
+  padding: 10px var(--gutter);
+  border-bottom: 1px solid var(--line);
+  background: var(--night-2);
+}
+
+.invite p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.invite form {
+  display: flex;
+  gap: 6px;
+}
+
+.invite .input {
+  width: 190px;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 14px;
+}
+
+.invite .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .invite {
+    gap: 6px;
+    padding-block: 8px;
+  }
+
+  .invite p {
+    font-size: 13.5px;
+  }
+
+  .invite form {
+    width: 100%;
+  }
+
+  .invite .input {
+    flex: 1;
+    width: auto;
+  }
+}
+
 .chip-sm {
   padding: 4px 10px;
   font-size: 12px;

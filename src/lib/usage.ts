@@ -43,6 +43,10 @@ export const USAGE_EVENTS = {
   side_line: [],
   /** A review shared as a public link (/r/…). */
   share: [],
+  /** Where a shared review's link was sent from the review (or copied again). */
+  share_to: ["x", "reddit", "whatsapp", "facebook", "copy"],
+  /** On a shared or published review: "review your own games" used. */
+  invite: ["shared"],
   /** A click on "Add to Chrome" (the extension's store page), by where on the site. */
   get_extension: ["header", "hero", "section", "closing", "footer"],
   /** The site installed as an app (phones): the Install button pressed, and the install done. */
