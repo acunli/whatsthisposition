@@ -153,7 +153,13 @@ describe("reading the counts back", () => {
     expect(errorWhere(safari, origin)).toBe("RangeError@0abc.js:7:99");
     expect(errorWhere(Object.assign(new Error("x"), { stack: "at https://elsewhere.example/_next/static/chunks/a.js:1:1" }), origin)).toBe("Error");
     expect(errorWhere("a thrown string", origin)).toBe("other");
-    for (const w of ["TypeError@00gij9ks01ahg.js:342:24176", "RangeError@0abc.js:7:99", "Error", "other"]) expect(ERROR_WHERE.test(w)).toBe(true);
+    // On Vercel the chunks are under /_next/static/immutable/chunks/; the browser's own errors keep their name.
+    const translated = new DOMException("Failed to execute 'insertBefore' on 'Node'", "NotFoundError");
+    Object.defineProperty(translated, "stack", { value: `NotFoundError: x\n    at iR (${origin}/_next/static/immutable/chunks/1k__zuwipnzw8.js:1:124092)` });
+    expect(errorWhere(translated, origin)).toBe("NotFoundError@1k__zuwipnzw8.js:1:124092");
+    expect(errorWhere(Object.assign(new Error("x"), { name: "SomethingElse" }), origin)).toBe("other");
+    for (const w of ["TypeError@00gij9ks01ahg.js:342:24176", "RangeError@0abc.js:7:99", "NotFoundError@1k__zuwipnzw8.js:1:124092", "ChunkLoadError", "Error", "other"]) expect(ERROR_WHERE.test(w)).toBe(true);
+    expect(ERROR_WHERE.test("Whatever@a.js:1:1")).toBe(false);
   });
 
   it("estimates percentiles within their range and splits loads into good, needs improvement and poor exactly", () => {

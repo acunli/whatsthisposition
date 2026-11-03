@@ -457,7 +457,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
     <main className="review">
       <section className="board-col rv-board" aria-label="Board">
         {/* Phones only: the game's moves on one line above the board, swipe sideways to browse. */}
-        <div className="rv-strip" ref={stripRef} role="group" aria-label="Moves">
+        <div className="rv-strip" ref={stripRef} role="group" aria-label="Moves" translate="no">
           <button data-ply={0} className={`rv-strip-mv ${ply === 0 && !side ? "rv-strip-on" : ""}`} onClick={() => go(0)}>
             Start
           </button>
@@ -703,7 +703,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
           </section>
         )}
 
-        <section className="rv-moves" aria-label="Moves" ref={listRef}>
+        <section className="rv-moves" aria-label="Moves" ref={listRef} translate="no">
           <button data-ply={0} className={`rv-start ${ply === 0 && !side ? "rv-cell-on" : ""}`} onClick={() => go(0)}>
             Start position
           </button>

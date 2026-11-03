@@ -35,7 +35,7 @@ export function EngineLines({ fen, lines, depth, searching, onPlay, onHover, max
     [fen, lines, max],
   );
   return (
-    <section className="elines" aria-label="Engine lines">
+    <section className="elines" aria-label="Engine lines" translate="no">
       <header className="elines-head">
         <span>Engine lines</span>
         <span className="muted">

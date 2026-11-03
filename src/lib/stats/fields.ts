@@ -127,16 +127,24 @@ export function isGameReview(f: string): boolean {
 export type FieldKind = "e" | "g" | "t" | "s" | "w" | "d" | "ds" | "r" | "x";
 
 /**
+ * The kinds of error counted by name: JavaScript's own, and the browser's (DOMException) ones a
+ * page can meet, e.g. NotFoundError when a translated page's nodes have moved, ChunkLoadError when
+ * a script of an older deployment is gone. Anything else is "other".
+ */
+const ERROR_NAMES = "TypeError|RangeError|ReferenceError|SyntaxError|Error|NotFoundError|HierarchyRequestError|InvalidStateError|ChunkLoadError|AbortError|SecurityError|QuotaExceededError|NetworkError|DataCloneError";
+
+/**
  * Where an error happened: its kind, and the file, line and column in the site's own (minified)
  * scripts, e.g. "TypeError@0gij9ks01ahg.js:342:24176". Never the message, which can hold a move or a name.
  */
-export const ERROR_WHERE = /^(TypeError|RangeError|ReferenceError|SyntaxError|Error|other)(@[A-Za-z0-9_-]{1,40}\.js:\d{1,7}:\d{1,7})?$/;
+export const ERROR_WHERE = new RegExp(`^(${ERROR_NAMES}|other)(@[A-Za-z0-9_-]{1,40}\\.js:\\d{1,7}:\\d{1,7})?$`);
 
 /** An error's kind and place (ERROR_WHERE), read from its stack's first frame in one of the site's scripts. */
 export function errorWhere(error: unknown, origin: string): string {
-  const name = error instanceof Error && /^(TypeError|RangeError|ReferenceError|SyntaxError|Error)$/.test(error.name) ? error.name : "other";
+  const name = error instanceof Error && new RegExp(`^(${ERROR_NAMES})$`).test(error.name) ? error.name : "other";
   const stack = error instanceof Error && typeof error.stack === "string" ? error.stack : "";
-  for (const m of stack.matchAll(/(https?:\/\/[^\s()]+?)\/_next\/static\/chunks\/(?:[^\s()/]+\/)*([A-Za-z0-9_-]{1,40}\.js):(\d{1,7}):(\d{1,7})/g))
+  // Chunks are at /_next/static/chunks/ locally and /_next/static/immutable/chunks/ on Vercel.
+  for (const m of stack.matchAll(/(https?:\/\/[^\s()]+?)\/_next\/static\/(?:immutable\/)?chunks\/(?:[^\s()/]+\/)*([A-Za-z0-9_-]{1,40}\.js):(\d{1,7}):(\d{1,7})/g))
     if (m[1] === origin) return `${name}@${m[2]}:${m[3]}:${m[4]}`;
   return name;
 }
