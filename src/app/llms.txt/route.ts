@@ -24,6 +24,7 @@ export function GET() {
     `- [Game review](${SITE_URL}/): review any game by Chess.com or Lichess username, game link or PGN.`,
     ...LANDINGS.map((p) => `- [${p.name}](${SITE_URL}${p.path}): ${p.description}`),
     `- [Chrome extension for Chess.com](${EXTENSION_URL}): reviews a finished Chess.com game on the game page, with accuracy and every move labelled.`,
+    `- [Chess openings](${SITE_URL}/openings): every named opening that strong players reach often, with its moves, how it scores for White and Black, and what is played next.`,
     "",
     "## Reviewed games",
     "",

@@ -7127,16 +7127,16 @@ a.btn {
   }
 }
 
-/* Phones: the home bar also holds the theme switch, so the cookie button keeps only its
-   cookie (as on the app screens). */
+/* Phones: the home bar and the other pages' bars also hold the theme switch, so the cookie
+   button keeps only its cookie (as on the app screens). */
 @media (max-width: 480px) {
-  .topbar-home .bmc {
+  .topbar .bmc {
     width: 36px;
     padding: 0;
     justify-content: center;
   }
 
-  .topbar-home .bmc-text {
+  .topbar .bmc-text {
     display: none;
   }
 }
@@ -7355,6 +7355,201 @@ a.btn {
     height: 100%;
     background: rgb(var(--brand));
     transition: width 0.4s var(--ease-out);
+  }
+}
+
+/* Opening pages (/openings, /openings/[slug]) */
+.op-top {
+  display: grid;
+  grid-template-columns: minmax(0, 520px) minmax(0, 1fr);
+  gap: clamp(20px, 3vw, 40px);
+  align-items: start;
+}
+
+.sboard {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sboard-l {
+  fill: var(--sq-l);
+}
+
+.sboard-d {
+  fill: var(--sq-d);
+}
+
+.sboard-c {
+  font-size: 0.16px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+}
+
+.sboard-on-l {
+  fill: var(--sq-d);
+}
+
+.sboard-on-d {
+  fill: var(--sq-l);
+}
+
+.op-line {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--bone);
+}
+
+.op-facts {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: start;
+  gap: 4px 28px;
+  margin: 0;
+}
+
+.op-facts dt {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.op-facts dd {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+/* White's wins, draws and Black's wins, as one bar. */
+.op-bar {
+  display: flex;
+  width: 100%;
+  min-width: 140px;
+  height: 22px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line-2);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.op-bar > span {
+  display: block;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.op-bar-w {
+  background: var(--ivory);
+  color: var(--ebony);
+}
+
+.op-bar-d {
+  background: var(--dim-2);
+  color: var(--ivory);
+}
+
+.op-bar-b {
+  background: var(--ebony);
+  color: var(--ivory);
+}
+
+.op-next {
+  width: 100%;
+  max-width: 1100px;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.op-next th,
+.op-next td {
+  padding: 9px 8px;
+  border-top: 1px solid var(--line);
+  text-align: left;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.op-next thead th {
+  border-top: 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.op-next tbody th {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.op-next td:nth-child(3) {
+  width: 38%;
+}
+
+.op-parent {
+  margin: 0 0 14px;
+}
+
+.op-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 6px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.op-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.op-list .muted {
+  white-space: nowrap;
+}
+
+.op-families {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+}
+
+.op-family {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--slab);
+}
+
+.op-family h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.op-family ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+@media (max-width: 860px) {
+  .op-top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .op-next-to {
+    display: none;
   }
 }
 

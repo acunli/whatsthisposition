@@ -17,14 +17,18 @@ export const SITE_PAGES = [
   "/chess-position-analyzer",
   "/chess-com-extension",
   "/chess-move-classifications",
+  "/openings",
 ] as const;
 
 /** Every shared review (/r/<id>) counts as one page: the ids aren't kept. */
 export const SHARED_REVIEW_PAGE = "/r/*";
+/** The opening pages (/openings/<name>), counted together: there are about 1,800. */
+export const OPENING_PAGE = "/openings/*";
 
 /**
  * The page a use happened on, as the counter keeps it: a page of the site, "/r/*" for any shared
- * review, a reviewed game's article or review page, or "other" (an address that isn't a page).
+ * review, a reviewed game's article or review page, "/openings/*" for any opening's page, or
+ * "other" (an address that isn't a page).
  * Applying it twice gives the same answer, so the server can check what the browser sent.
  */
 export function pagePath(pathname: string): string {
@@ -32,6 +36,7 @@ export function pagePath(pathname: string): string {
   if ((SITE_PAGES as readonly string[]).includes(p)) return p;
   if (/^\/r\/[^/]+$/.test(p)) return SHARED_REVIEW_PAGE;
   if (/^\/games\/[a-z0-9-]{1,100}(\/review)?$/.test(p)) return p;
+  if (/^\/openings\/[a-z0-9-]{1,120}$/.test(p)) return OPENING_PAGE;
   return "other";
 }
 

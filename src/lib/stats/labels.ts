@@ -101,6 +101,8 @@ const PAGE_NAMES: Record<string, string> = {
   "/chess-com-extension": "Chess.com extension",
   "/chess-move-classifications": "Move classifications",
   "/r/*": "Shared reviews",
+  "/openings": "Chess openings",
+  "/openings/*": "Opening pages",
   other: "Other addresses (404s)",
 };
 
