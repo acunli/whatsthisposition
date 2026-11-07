@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { THEME_BG, THEME_KEY, THEME_SCRIPT } from "./theme";
+import { DEFAULT_THEME, THEME_BG, THEME_KEY, THEME_SCRIPT } from "./theme";
 import { FAQ } from "./faq";
 import { SITE_DESCRIPTION } from "./brand";
 
 /** Runs the pre-paint script against a minimal stand-in for the page. */
 function run(stored: string | null, throws = false) {
   const attrs: Record<string, string> = {};
-  const metas = [{ content: "#0c110f" }, { content: "#f2f4f1" }].map((m) => ({ ...m, setAttribute: (_: string, v: string) => (m.content = v), m }));
+  const metas = [{ content: THEME_BG[DEFAULT_THEME] }].map((m) => ({ ...m, setAttribute: (_: string, v: string) => (m.content = v), m }));
   const localStorage = {
     getItem: (k: string) => {
       if (throws) throw new Error("blocked");
@@ -23,14 +23,15 @@ function run(stored: string | null, throws = false) {
 
 describe("theme script", () => {
   it("applies a stored choice and the browser bar's colour before the first paint", () => {
-    expect(run("light")).toEqual({ theme: "light", metas: [THEME_BG.light, THEME_BG.light] });
-    expect(run("dark")).toEqual({ theme: "dark", metas: [THEME_BG.dark, THEME_BG.dark] });
+    expect(run("light")).toEqual({ theme: "light", metas: [THEME_BG.light] });
+    expect(run("dark")).toEqual({ theme: "dark", metas: [THEME_BG.dark] });
   });
 
-  it("leaves the system's choice alone without a valid stored one", () => {
+  it("keeps the light default without a valid stored choice", () => {
+    expect(DEFAULT_THEME).toBe("light");
     expect(run(null).theme).toBeUndefined();
     expect(run("purple").theme).toBeUndefined();
-    expect(run(null).metas).toEqual(["#0c110f", "#f2f4f1"]);
+    expect(run(null).metas).toEqual([THEME_BG.light]);
   });
 
   it("never breaks the page when storage is blocked", () => {

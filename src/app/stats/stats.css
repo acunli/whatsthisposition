@@ -16,18 +16,10 @@
   gap: 18px;
 }
 
-:root[data-theme="light"] .st {
+:root:not([data-theme="dark"]) .st {
   --viz-1: #d4551a;
   --viz-2: #2a78d6;
   --viz-prev: #a3aca6;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .st {
-    --viz-1: #d4551a;
-    --viz-2: #2a78d6;
-    --viz-prev: #a3aca6;
-  }
 }
 
 .st-title {

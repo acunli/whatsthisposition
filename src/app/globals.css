@@ -69,10 +69,10 @@
   color-scheme: dark;
 }
 
-/* The light theme: the system's choice unless the visitor picked one (data-theme on <html>,
-   set before the first paint by the script in layout.tsx). Tones are deeper so they read as
-   text on a light page; boards keep the vivid ones (below). */
-:root[data-theme="light"] {
+/* The light theme is the default; the dark one is only for visitors who pick it (data-theme="dark"
+   on <html>, set before the first paint by the script in layout.tsx). Tones are deeper so they read
+   as text on a light page; boards keep the vivid ones (below). */
+:root:not([data-theme="dark"]) {
   --night: #f2f4f1;
   --night-2: #f8faf8;
   --slab: #ffffff;
@@ -93,31 +93,6 @@
   --lime: 72 134 8;
   --tint: 68%;
   color-scheme: light;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --night: #f2f4f1;
-    --night-2: #f8faf8;
-    --slab: #ffffff;
-    --slab-2: #edf1ee;
-    --slab-3: #e2e8e3;
-    --line: #dce3de;
-    --line-2: #c6d0c9;
-    --bone: #101613;
-    --bone-2: #39443d;
-    --dim: #5c6760;
-    --dim-2: #89938c;
-    --sage: #4b7a5c;
-    --brand: 234 90 16;
-    --red: 212 38 30;
-    --gold: 163 106 0;
-    --sky: 0 126 190;
-    --violet: 118 72 226;
-    --lime: 72 134 8;
-    --tint: 68%;
-    color-scheme: light;
-  }
 }
 
 /* Boards (and anything drawn on them) keep the vivid tones in both themes. */
@@ -4774,22 +4749,12 @@ em {
   display: none;
 }
 
-:root[data-theme="light"] .tt-sun {
+:root:not([data-theme="dark"]) .tt-sun {
   display: none;
 }
 
-:root[data-theme="light"] .tt-moon {
+:root:not([data-theme="dark"]) .tt-moon {
   display: block;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) .tt-sun {
-    display: none;
-  }
-
-  :root:not([data-theme="dark"]) .tt-moon {
-    display: block;
-  }
 }
 
 /* Single positions: a drop zone for a photo, and a FEN or a board set up by hand. */

@@ -1,12 +1,12 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { currentTheme, setTheme, subscribeTheme, type Theme } from "@/lib/theme";
+import { currentTheme, DEFAULT_THEME, setTheme, subscribeTheme, type Theme } from "@/lib/theme";
 import { countUse } from "@/lib/usage";
 
-/** The theme in use, kept in sync with the toggle and the system setting ("dark" on the server). */
+/** The theme in use, kept in sync with the toggle (the default on the server). */
 export function useTheme(): Theme {
-  return useSyncExternalStore(subscribeTheme, currentTheme, () => "dark");
+  return useSyncExternalStore(subscribeTheme, currentTheme, () => DEFAULT_THEME);
 }
 
 /** Switches between the light and dark themes; the icon shows the one it switches to. */

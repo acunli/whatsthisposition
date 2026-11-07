@@ -5,7 +5,7 @@ import { SiteAnalytics } from "@/components/SiteAnalytics";
 import { UsageTracker } from "@/components/UsageTracker";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/brand";
 import { OG_IMAGE } from "@/lib/seo";
-import { THEME_BG, THEME_SCRIPT } from "@/lib/theme";
+import { DEFAULT_THEME, THEME_BG, THEME_SCRIPT } from "@/lib/theme";
 import { INSTALL_SCRIPT } from "@/lib/install";
 import { DOM_GUARD_SCRIPT } from "@/lib/domGuard";
 import "./globals.css";
@@ -61,10 +61,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: THEME_BG.dark },
-    { media: "(prefers-color-scheme: light)", color: THEME_BG.light },
-  ],
+  // The default theme's page colour; THEME_SCRIPT swaps it for a visitor who picked the other.
+  themeColor: THEME_BG[DEFAULT_THEME],
   width: "device-width",
   initialScale: 1,
 };

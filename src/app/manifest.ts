@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/brand";
+import { DEFAULT_THEME, THEME_BG } from "@/lib/theme";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -11,8 +12,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     categories: ["games", "education"],
-    background_color: "#0c110f",
-    theme_color: "#0c110f",
+    background_color: THEME_BG[DEFAULT_THEME],
+    theme_color: THEME_BG[DEFAULT_THEME],
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
       { src: "/icon-192.png", sizes: "192x192", type: "image/png" },

@@ -11,6 +11,7 @@
 
 import { CHANNELS, type Channel } from "./channel";
 import { REVIEW_DEPTHS } from "./review/depths";
+import { DEFAULT_THEME } from "./theme";
 import { DEVICE_CLASSES, ERROR_WHERE, MAX_SECONDS, VITALS, pagePath, type DeviceClass, type DeviceClasses, type VitalName } from "./stats/fields";
 
 /** Where a game import can go wrong, and how. */
@@ -183,8 +184,7 @@ export function deviceClasses(): DeviceClasses {
     app: window.matchMedia("(display-mode: standalone)").matches ? "app" : "browser",
   };
   const set = document.documentElement.getAttribute("data-theme");
-  const theme = set === "light" || set === "dark" ? set : window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-  out.theme = set === theme ? `${theme}-picked` : theme;
+  out.theme = set === "light" || set === "dark" ? `${set}-picked` : DEFAULT_THEME;
   const c = nav.hardwareConcurrency;
   if (c) out.cores = c <= 2 ? "1-2" : c <= 4 ? "3-4" : c <= 8 ? "5-8" : c <= 16 ? "9-16" : "17+";
   const m = nav.deviceMemory;
