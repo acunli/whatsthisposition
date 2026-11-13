@@ -7705,3 +7705,147 @@ a.btn {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* History: the games this browser has reviewed (src/lib/history)      */
+/* ------------------------------------------------------------------ */
+
+.history-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 18px;
+}
+
+.history-search {
+  flex: 1 1 220px;
+  width: auto;
+  max-width: 340px;
+  padding: 8px 12px;
+}
+
+.history-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 13.5px;
+  color: var(--dim);
+}
+
+.history-note {
+  margin: -8px 0 16px;
+  font-size: 13.5px;
+  color: var(--sage);
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.history-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--slab);
+  border: 1px solid var(--line);
+}
+
+.history-main {
+  min-width: 0;
+}
+
+.history-players {
+  margin: 0 0 4px;
+  font-size: 16.5px;
+  font-weight: 650;
+  line-height: 1.3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+}
+
+.history-side {
+  overflow-wrap: anywhere;
+}
+
+.history-as {
+  text-decoration: underline;
+  text-decoration-color: rgb(var(--gold));
+  text-decoration-thickness: 2.5px;
+  text-underline-offset: 3px;
+}
+
+.history-elo {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--dim);
+}
+
+.history-vs {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--dim);
+}
+
+.history-result {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.history-facts {
+  margin: 0;
+  font-size: 13px;
+  color: var(--bone-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  align-items: baseline;
+}
+
+.history-opening {
+  font-weight: 600;
+}
+
+.history-acc .history-side {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.history-date {
+  color: var(--dim);
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.history-usage {
+  margin: 18px 0 0;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+@media (max-width: 520px) {
+  .history-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .history-actions {
+    justify-content: flex-end;
+  }
+}
