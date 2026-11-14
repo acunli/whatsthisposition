@@ -8,6 +8,9 @@ import type { Color, PositionSetup } from "@/lib/chess/types";
 import { keepReview, keptReview, updateKeptReview } from "@/lib/review/kept";
 import { gamePgn, parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { packReview, readReviewHash, unpackReview } from "@/lib/review/share";
+import type { GameReview } from "@/lib/review/review";
+import { buildRecord } from "@/lib/history/record";
+import { recordGame } from "@/lib/history/store";
 import { countUse, type UsageSource } from "@/lib/usage";
 import type { FinishedReview } from "./review/useReview";
 import { SITE_NAME } from "@/lib/brand";
@@ -45,6 +48,8 @@ interface Reviewed {
   kept?: string;
   depth?: number;
   finished?: FinishedReview;
+  /** The finished review as it arrived, packed (a hand-off or kept review's). */
+  data?: string;
 }
 
 /** A position in the address (?fen=) that can be analysed, or null. */
@@ -115,9 +120,9 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
   }, []);
 
   /** Shows a game's review, reviewed at `at`; `push` adds the review page to the browser's history. */
-  const review = (g: ParsedGame, o: Color | undefined, at: string, opts: { depth?: number; finished?: FinishedReview; kept?: string; push?: boolean } = {}) =>
+  const review = (g: ParsedGame, o: Color | undefined, at: string, opts: { depth?: number; finished?: FinishedReview; data?: string; kept?: string; push?: boolean } = {}) =>
     go("review", () => {
-      setGame((cur) => ({ g, id: (cur?.id ?? 0) + 1, at, kept: opts.kept, depth: opts.depth, finished: opts.finished }));
+      setGame((cur) => ({ g, id: (cur?.id ?? 0) + 1, at, kept: opts.kept, depth: opts.depth, finished: opts.finished, data: opts.data }));
       setReviewOrientation(o ?? "w");
       if (opts.push && window.location.pathname !== at) window.history.pushState(null, "", at);
     });
@@ -142,7 +147,7 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
       return false;
     }
     void (shared.data ? unpackReview(shared.data) : Promise.resolve(null)).then((done) => {
-      const opts = { depth: done?.depth ?? shared.depth, finished: done ?? undefined, kept };
+      const opts = { depth: done?.depth ?? shared.depth, finished: done ?? undefined, data: shared.data, kept };
       if (!behind) return review(g, shared.as, at, opts);
       setGame((cur) => ({ g, id: (cur?.id ?? 0) + 1, at, ...opts }));
       setReviewOrientation(shared.as ?? "w");
@@ -233,11 +238,36 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
     setReviewOrientation(c);
     if (keptPgn) updateKeptReview(keptPgn, { as: c });
   };
+  // A finished review is packed once, for the tab's kept copy and the history alike.
+  const packed = useRef<{ pgn: string; depth: number; promise: Promise<string> } | null>(null);
+  const packOnce = useCallback((pgn: string, done: FinishedReview) => {
+    const p = packed.current;
+    if (p && p.pgn === pgn && p.depth === done.depth) return p.promise;
+    const promise = packReview(done.positions, done.depth);
+    packed.current = { pgn, depth: done.depth, promise };
+    return promise;
+  }, []);
   const keepDone = useCallback(
     (done: FinishedReview) => {
-      if (keptPgn) void packReview(done.positions, done.depth).then((data) => updateKeptReview(keptPgn, { depth: done.depth, data }));
+      if (keptPgn) void packOnce(keptPgn, done).then((data) => updateKeptReview(keptPgn, { depth: done.depth, data }));
     },
-    [keptPgn],
+    [keptPgn, packOnce],
+  );
+  // The user's own games (at /review) land in the browser's history once reviewed
+  // (lib/history): a game that arrived finished is heard of too, and a re-run at
+  // another depth replaces what the history keeps. Nothing is sent anywhere.
+  const onReviewed = useCallback(
+    (done: FinishedReview, info: { review: GameReview; accuracy: Record<Color, number | null> }) => {
+      if (!game || game.at !== REVIEW_PATH) return;
+      const { g, data, finished } = game;
+      // The packed review the game arrived with is the same one, if it is what's shown.
+      const pack = data && finished?.depth === done.depth ? Promise.resolve(data) : packOnce(gamePgn(g), done);
+      void pack
+        .then((data) => buildRecord({ game: g, as: reviewOrientation, depth: done.depth, data, review: info.review, accuracy: info.accuracy, now: Date.now() }))
+        .then((record) => recordGame(record))
+        .catch(() => undefined); // the history failing is the history's problem, never the review's
+    },
+    [game, reviewOrientation, packOnce],
   );
 
   const deepFromReview = (f: string) => {
@@ -307,6 +337,9 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
           <Link className="navlink navlink-wide navlink-how" href="/credits">
             How it works
           </Link>
+          <Link className="navlink navlink-wide" href="/history">
+            History
+          </Link>
           <SiteCredit className="navlink navlink-wide" />
           <ThemeToggle />
           <SupportButton />
@@ -365,6 +398,7 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
             onOrientation={turnReview}
             onDeep={deepFromReview}
             onDone={keepDone}
+            onReviewed={onReviewed}
             active={stage === "review"}
             depth={game.depth}
             finished={game.finished}
