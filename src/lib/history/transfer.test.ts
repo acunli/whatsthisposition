@@ -54,7 +54,36 @@ describe("exporting and importing", () => {
     expect(imported.data).toBe(rec.data);
     expect(imported.depth).toBe(14);
     expect(imported.as).toBe("w");
-    expect(imported.summary).toEqual(rec.summary);
+    // The facts come from the PGN; the numbers are recomputed from the packed review.
+    expect(imported.summary.white).toBe("Ada");
+    expect(imported.summary.black).toBe("Ben");
+    expect(imported.summary.result).toBe("1-0");
+    expect(imported.summary.plies).toBe(6);
+  });
+
+  it("never trusts the file's summary", async () => {
+    const rec = record({
+      data: await packed(),
+      summary: { ...record().summary, white: "Mallory", black: "Eve", result: "0-1", accuracy: { w: 99.9, b: 99.9 } },
+    });
+    const back = await parseImport(exportFile([rec]));
+    if (!back.ok) throw new Error("should have imported");
+    const summary = back.records[0].summary;
+    expect(summary.white).toBe("Ada");
+    expect(summary.black).toBe("Ben");
+    expect(summary.result).toBe("1-0");
+    expect(summary.accuracy.w).not.toBe(99.9);
+    expect(summary.accuracy.b).not.toBe(99.9);
+  });
+
+  it("has no numbers for a record whose packed review is missing or doesn't fit", async () => {
+    const tooShort = await packReview([null, null], 14);
+    for (const data of [undefined, tooShort]) {
+      const back = await parseImport(exportFile([record({ data })]));
+      if (!back.ok) throw new Error("should have imported");
+      expect(back.records[0].summary.accuracy).toEqual({ w: null, b: null });
+      expect(back.records[0].summary.counts).toEqual({});
+    }
   });
 
   it("keeps a record whose packed review doesn't fit, without the review", async () => {

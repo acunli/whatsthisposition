@@ -155,7 +155,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
   }, [r.status, r.positions, depthNow, onDone]);
   // The game is heard of once its review is finished (finished here, or it arrived finished),
   // and again when the review is re-run at another depth.
-  useReviewed(r.status, r.accuracy, r.review, r.positions, depthNow, onReviewed);
+  useReviewed(r.status, r.accuracy, r.review, r.positions, r.bookSettled, depthNow, onReviewed);
   useEffect(() => {
     if (lines.length && !counted.current.line) {
       counted.current.line = true;
@@ -566,8 +566,6 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
               <p className="rv-sub">
                 <span className="mono">{game.result}</span>
                 {opening && <> · {opening}</>}
-                {" · "}
-                <Link href="/history">Your game history</Link>
               </p>
             </div>
             <div className="rv-acc" aria-label="Accuracy">
@@ -580,6 +578,9 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
               ))}
             </div>
           </div>
+          <p className="rv-history-link">
+            <Link href="/history">Your game history</Link>
+          </p>
           {running && (
             <div className="rv-progress" aria-live="polite">
               <div className={`rv-progress-bar ${verifying ? "rv-progress-verify" : ""}`}>

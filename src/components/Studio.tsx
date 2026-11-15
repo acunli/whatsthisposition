@@ -337,7 +337,7 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
           <Link className="navlink navlink-wide navlink-how" href="/credits">
             How it works
           </Link>
-          <Link className="navlink navlink-wide" href="/history">
+          <Link className="navlink navlink-wide navlink-history" href="/history">
             History
           </Link>
           <SiteCredit className="navlink navlink-wide" />

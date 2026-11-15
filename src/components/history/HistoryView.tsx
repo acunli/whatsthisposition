@@ -87,16 +87,21 @@ export function HistoryView() {
       setNote(IMPORT_REASONS["too-large"]);
       return;
     }
-    const back = await parseImport(await file.text());
-    if (!back.ok) {
-      setNote(IMPORT_REASONS[back.reason]);
-      return;
+    try {
+      const back = await parseImport(await file.text());
+      if (!back.ok) {
+        setNote(IMPORT_REASONS[back.reason]);
+        return;
+      }
+      const existing = await listHistory();
+      const { changed, added, skipped } = mergeImported(existing, back.records);
+      for (const rec of changed) await saveHistory(rec);
+      refresh();
+      setNote(`Added ${added}${skipped ? `, skipped ${skipped} already here` : ""}${back.rejected ? `, ${back.rejected} couldn't be read` : ""}.`);
+    } catch {
+      // A file that makes anything below throw is just a file that can't be read.
+      setNote("That file couldn't be read. Is it the history file this page exports?");
     }
-    const existing = await listHistory();
-    const { changed, added, skipped } = mergeImported(existing, back.records);
-    for (const rec of changed) await saveHistory(rec);
-    refresh();
-    setNote(`Added ${added}${skipped ? `, skipped ${skipped} already here` : ""}${back.rejected ? `, ${back.rejected} couldn't be read` : ""}.`);
   };
 
   const filtered = useMemo(() => {
@@ -123,7 +128,7 @@ export function HistoryView() {
       {filtered && (
         <div className="history-tools">
           <input className="input history-search" type="search" placeholder="Search players or opening" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search the history" />
-          <button className="btn btn-sm" onClick={exportAll} disabled={!filtered.length}>
+          <button className="btn btn-sm" onClick={exportAll} disabled={!records?.length}>
             Export
           </button>
           <button className="btn btn-sm" onClick={() => fileRef.current?.click()}>
@@ -151,7 +156,7 @@ export function HistoryView() {
               </button>
             </span>
           ) : (
-            <button className="btn btn-sm btn-ghost" onClick={() => setConfirming(true)} disabled={!filtered.length}>
+            <button className="btn btn-sm btn-ghost" onClick={() => setConfirming(true)} disabled={!records?.length}>
               Clear history
             </button>
           )}
@@ -168,8 +173,15 @@ export function HistoryView() {
         <p className="section-lede" aria-live="polite">
           Loading…
         </p>
-      ) : !filtered.length ? (
+      ) : !records?.length ? (
         <p className="section-lede">No reviewed games yet. Review a game and it shows up here.</p>
+      ) : !filtered.length ? (
+        <p className="section-lede" aria-live="polite">
+          No games match that search.{" "}
+          <button className="btn btn-sm btn-ghost" onClick={() => setQuery("")}>
+            Clear search
+          </button>
+        </p>
       ) : (
         <ul className="history-list">
           {filtered.map((rec) => (

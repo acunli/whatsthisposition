@@ -52,9 +52,9 @@ export default function Credits() {
           trained on open-source piece sets; they never leave your browser. Only if you choose the optional AI reader (for angled photos of a
           real board) is the cropped picture sent through this site&apos;s server to the configured vision API (the NUS SoCLaaS gateway, or
           Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device. Every game you
-          review is saved in your browser&apos;s own storage (IndexedDB), so reloading the review page shows it again and it is still
-          there after a restart; it is never sent anywhere, and it stays until you delete it on the{" "}
-          <a href="/history">history page</a>, clear this site&apos;s data in your browser, or export it and delete it. The last Chess.com
+          review is saved in your browser&apos;s own storage (IndexedDB), so it is there again when you come back, even after a restart;
+          it is never sent anywhere, and it stays until you delete it on the{" "}
+          <a href="/history">history page</a> or clear this site&apos;s data in your browser. The last Chess.com
           or Lichess username you looked up, and which of its games you reviewed, are kept in your browser so that coming back lists
           that player&apos;s latest games straight away; &quot;Not you?&quot; under the list forgets them.
         </p>

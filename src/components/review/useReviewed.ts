@@ -19,19 +19,25 @@ export interface ReviewedInfo {
  *
  * `heard` starts false rather than from `status`: `useReview` starts at "done" when a finished
  * review is handed over, and seeding the ref from that swallowed the only time it was news.
+ *
+ * It also waits for the opening book to settle (loaded or failed): a handed-over review is
+ * classified while `loadBook()` is still pending, so hearing of it then would save a summary
+ * with no opening and different counts from the same game reviewed here. By the time the book
+ * settles, `review` and `accuracy` are the corrected ones.
  */
 export function useReviewed(
   status: ReviewStatus,
   accuracy: Record<Color, number | null> | null,
   review: GameReview,
   positions: (PositionAnalysis | null)[],
+  bookSettled: boolean,
   depth: number,
   onReviewed?: (done: FinishedReview, info: ReviewedInfo) => void,
 ): void {
   const heard = useRef(false);
   useEffect(() => {
-    const done = status === "done" && accuracy != null;
+    const done = status === "done" && accuracy != null && bookSettled;
     if (done && !heard.current) onReviewed?.({ depth, positions }, { review, accuracy });
     heard.current = done;
-  }, [status, accuracy, review, positions, depth, onReviewed]);
+  }, [status, accuracy, review, positions, bookSettled, depth, onReviewed]);
 }

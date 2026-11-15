@@ -82,8 +82,7 @@ export async function buildRecord(input: {
 /**
  * The rules for keeping one game's record: a new review of the same game either replaces
  * the old one (another depth, or the old record had no packed review) or, when nothing has
- * changed but the visit, only the visit is noted. An older review never lowers a record's
- * depth this way.
+ * changed but the visit, only the visit is noted.
  */
 export function upsert(existing: HistoryRecord | null, incoming: HistoryRecord, now: number): HistoryRecord {
   if (!existing) return incoming;

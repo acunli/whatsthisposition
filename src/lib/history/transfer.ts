@@ -4,12 +4,13 @@
  * field is checked, a bad record is skipped rather than failing the whole file, and an
  * import never deletes a game the history already holds.
  */
-import { PgnError, parseGame, gamePgn, type ParsedGame } from "../review/pgn";
+import { gamePgn, parseGame, type ParsedGame } from "../review/pgn";
 import { unpackReview } from "../review/share";
-import type { MoveClass } from "../review/classify";
-import { CLASS_ORDER } from "../review/classify";
-import { gameIdOf } from "./record";
-import type { HistoryRecord, HistorySummary } from "./types";
+import { loadBook } from "../review/book";
+import { classifyGame } from "../review/review";
+import { gameAccuracy } from "../review/accuracy";
+import { gameIdOf, summarise } from "./record";
+import type { HistoryRecord } from "./types";
 import { HISTORY_VERSION } from "./types";
 
 export const HISTORY_APP = "whatsthisposition-history";
@@ -19,9 +20,6 @@ const MAX_FILE_CHARS = 50 * 1024 * 1024;
 const MAX_GAMES = 2000;
 const MAX_PGN_CHARS = 100 * 1024;
 const MAX_DATA_CHARS = 512 * 1024;
-const MAX_TEXT = 200;
-
-const cap = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
 
 /** The export file's name: whatsthisposition-history-2026-11-13.json. */
 export function exportFileName(exportedAt: number): string {
@@ -80,9 +78,9 @@ async function readRecord(value: unknown, now: number): Promise<HistoryRecord | 
   let game: ParsedGame;
   try {
     game = parseGame(r.pgn);
-  } catch (e) {
-    if (e instanceof PgnError) return null;
-    throw e;
+  } catch {
+    // Whatever threw, a record whose PGN won't parse is skipped, never the whole file.
+    return null;
   }
   const depth = r.depth;
   if (typeof depth !== "number" || !Number.isInteger(depth) || depth <= 0 || depth > 100) return null;
@@ -90,11 +88,19 @@ async function readRecord(value: unknown, now: number): Promise<HistoryRecord | 
   // The file's own id is ignored: the id comes from the PGN, so the same game from two
   // sources collapses to one record.
   const pgn = gamePgn(game);
-  const summary = readSummary(r.summary, game);
+  // The file's `summary` is never read: a hand-edited file can say any result or accuracy.
+  // The facts come from the PGN, and the numbers from the packed review, classified again
+  // exactly as the review page would. Without a packed review there are no numbers to show.
   let data: string | undefined;
+  let summary = summarise(game, null, { w: null, b: null });
   if (typeof r.data === "string" && r.data && r.data.length <= MAX_DATA_CHARS) {
     const done = await unpackReview(r.data);
-    if (done && done.positions.length === game.moves.length + 1) data = r.data;
+    if (done && done.positions.length === game.moves.length + 1) {
+      data = r.data;
+      const book = await loadBook().catch(() => null);
+      const review = classifyGame(game, done.positions, book);
+      summary = summarise(game, review, gameAccuracy(review.moves));
+    }
   }
   const at = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 ? x : now);
   return {
@@ -108,63 +114,6 @@ async function readRecord(value: unknown, now: number): Promise<HistoryRecord | 
     lastOpenedAt: at(r.lastOpenedAt),
     summary,
   };
-}
-
-/** The summary of an imported record, taken field by field; anything missing or wrong comes from the parsed game. */
-function readSummary(value: unknown, game: ParsedGame): HistorySummary {
-  const summary: HistorySummary = {
-    white: cap(game.white, MAX_TEXT),
-    black: cap(game.black, MAX_TEXT),
-    ...(game.whiteElo ? { whiteElo: game.whiteElo } : {}),
-    ...(game.blackElo ? { blackElo: game.blackElo } : {}),
-    result: cap(game.result, 12),
-    ...(game.headers.Date ? { playedOn: cap(game.headers.Date, 40) } : {}),
-    ...(game.headers.Site ? { site: cap(game.headers.Site, MAX_TEXT) } : {}),
-    opening: game.opening ? { eco: "", name: cap(game.opening, MAX_TEXT) } : null,
-    plies: game.moves.length,
-    accuracy: { w: null, b: null },
-    counts: {},
-  };
-  if (!value || typeof value !== "object") return summary;
-  const s = value as Record<string, unknown>;
-  const name = (x: unknown) => (typeof x === "string" && x ? cap(x, MAX_TEXT) : undefined);
-  const elo = (x: unknown) => (typeof x === "string" && x && x.length <= 12 ? x : undefined);
-  summary.white = name(s.white) ?? summary.white;
-  summary.black = name(s.black) ?? summary.black;
-  const whiteElo = elo(s.whiteElo);
-  const blackElo = elo(s.blackElo);
-  if (whiteElo) summary.whiteElo = whiteElo;
-  if (blackElo) summary.blackElo = blackElo;
-  summary.result = name(s.result) ?? summary.result;
-  const playedOn = name(s.playedOn);
-  const site = name(s.site);
-  if (playedOn) summary.playedOn = playedOn;
-  if (site) summary.site = site;
-  if (s.opening && typeof s.opening === "object") {
-    const o = s.opening as Record<string, unknown>;
-    const eco = typeof o.eco === "string" && o.eco.length <= 8 ? o.eco : "";
-    const open = name(o.name);
-    summary.opening = open ? { eco, name: open } : null;
-  }
-  if (typeof s.plies === "number" && Number.isInteger(s.plies) && s.plies >= 0 && s.plies <= 10_000) summary.plies = s.plies;
-  if (s.accuracy && typeof s.accuracy === "object") {
-    const a = s.accuracy as Record<string, unknown>;
-    const acc = (x: unknown) => (typeof x === "number" && Number.isFinite(x) && x >= 0 && x <= 100 ? x : null);
-    summary.accuracy = { w: acc(a.w), b: acc(a.b) };
-  }
-  if (s.counts && typeof s.counts === "object") {
-    const counts: HistorySummary["counts"] = {};
-    for (const cls of CLASS_ORDER as MoveClass[]) {
-      const c = (s.counts as Record<string, unknown>)[cls];
-      if (c && typeof c === "object") {
-        const w = (c as Record<string, unknown>).w;
-        const b = (c as Record<string, unknown>).b;
-        if (typeof w === "number" && Number.isInteger(w) && w >= 0 && typeof b === "number" && Number.isInteger(b) && b >= 0) counts[cls] = { w, b };
-      }
-    }
-    summary.counts = counts;
-  }
-  return summary;
 }
 
 /**
