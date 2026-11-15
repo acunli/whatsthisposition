@@ -30,6 +30,9 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
   const ready = finished && finished.depth === depth && run === 0 && finished.positions.length === game.moves.length + 1 ? finished.positions : null;
   const [positions, setPositions] = useState<(PositionAnalysis | null)[]>(() => ready ?? Array(game.moves.length + 1).fill(null));
   const [book, setBook] = useState<OpeningBook | null>(null);
+  // Whether loadBook has answered at all: `book` being null means either "still loading" or
+  // "failed", and a finished review handed over at mount must not be heard of before then.
+  const [bookSettled, setBookSettled] = useState(false);
   const [status, setStatus] = useState<ReviewStatus>(ready ? "done" : "loading");
   const [error, setError] = useState<string | null>(null);
   const [engines, setEngines] = useState(0);
@@ -44,8 +47,15 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
   useEffect(() => {
     let alive = true;
     loadBook().then(
-      (b) => alive && setBook(b),
-      () => undefined, // no book: moves are still classified, just never as "Book"
+      (b) => {
+        if (!alive) return;
+        setBook(b);
+        setBookSettled(true);
+      },
+      () => {
+        // No book: moves are still classified, just never as "Book". Settled all the same.
+        if (alive) setBookSettled(true);
+      },
     );
     return () => {
       alive = false;
@@ -131,5 +141,5 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
   const accuracy = useMemo(() => (status === "done" ? gameAccuracy(review.moves) : null), [status, review]);
   const analysed = positions.filter(Boolean).length;
 
-  return { positions, review, book, accuracy, status, error, engines, verify, progress: status === "done" ? 1 : share, analysed, total: positions.length };
+  return { positions, review, book, bookSettled, accuracy, status, error, engines, verify, progress: status === "done" ? 1 : share, analysed, total: positions.length };
 }

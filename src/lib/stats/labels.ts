@@ -103,6 +103,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/r/*": "Shared reviews",
   "/openings": "Chess openings",
   "/openings/*": "Opening pages",
+  "/history": "Game history",
   other: "Other addresses (404s)",
 };
 
