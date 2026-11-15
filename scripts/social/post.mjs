@@ -1,10 +1,9 @@
-// Posts the newest reviewed games (content/games) to the site's own social accounts, at most
+// Posts the newest reviewed games (content/games) to the site's own Bluesky account, at most
 // SOCIAL_MAX (default 2) per run, the most striking first: a Brilliant move, then a Great one,
-// then the strongest pairing. Each platform runs only when its secrets are set, and checks its
-// own recent posts first, so a game is never posted twice (.github/workflows/social.yml).
+// then the strongest pairing. It runs only when its secrets are set, and checks the account's
+// recent posts first, so a game is never posted twice (.github/workflows/social.yml).
 //
 //   Bluesky:  BLUESKY_HANDLE, BLUESKY_APP_PASSWORD (an app password, not the account's)
-//   Mastodon: MASTODON_INSTANCE (https://mastodon.social), MASTODON_TOKEN (scope write:statuses)
 //
 //   node scripts/social/post.mjs [--dry]   (--dry: print what would be posted)
 import { readdirSync, readFileSync } from "node:fs";
@@ -96,40 +95,8 @@ async function bluesky(list) {
   if (!n) console.log("Bluesky: nothing new to post.");
 }
 
-async function mastodon(list) {
-  const { MASTODON_INSTANCE: base, MASTODON_TOKEN: token } = process.env;
-  if (!base || !token) return console.log("Mastodon: no MASTODON_INSTANCE / MASTODON_TOKEN, skipped.");
-  const api = base.replace(/\/+$/, "");
-  const auth = { Authorization: `Bearer ${token}` };
-  const me = await (await fetch(`${api}/api/v1/accounts/verify_credentials`, { headers: auth })).json();
-  if (!me.id) throw new Error("Mastodon: the token doesn't work (verify_credentials).");
-  const recent = await (await fetch(`${api}/api/v1/accounts/${me.id}/statuses?limit=40`, { headers: auth })).json();
-  const posted = (Array.isArray(recent) ? recent : []).map((s) => s.content ?? "").join("\n");
-  let n = 0;
-  for (const g of list) {
-    if (n >= max) break;
-    if (posted.includes(`/games/${g.slug}`)) continue;
-    const status = `${words(g)}\n\n${link(g, "mastodon")}\n\n#chess`;
-    if (dry) {
-      console.log(`Mastodon would post: ${status}`);
-      n++;
-      continue;
-    }
-    const r = await fetch(`${api}/api/v1/statuses`, { method: "POST", headers: { ...auth, "Content-Type": "application/json", "Idempotency-Key": g.slug }, body: JSON.stringify({ status, language: "en", visibility: "public" }) });
-    if (!r.ok) throw new Error(`Mastodon: HTTP ${r.status} ${await r.text()}`);
-    console.log(`Mastodon: posted ${g.slug}`);
-    n++;
-  }
-  if (!n) console.log("Mastodon: nothing new to post.");
-}
-
 if (!games.length) console.log("No games reviewed in the last three days.");
 else if (dry) {
   // What the next run would post, without logging in anywhere.
   for (const g of games.slice(0, max)) console.log(`${words(g)} #chess\n  ${link(g, "bluesky")}\n`);
-} else {
-  const results = await Promise.allSettled([bluesky(games), mastodon(games)]);
-  const failed = results.filter((r) => r.status === "rejected");
-  for (const f of failed) console.error(f.reason);
-  if (failed.length) process.exit(1);
-}
+} else await bluesky(games);
