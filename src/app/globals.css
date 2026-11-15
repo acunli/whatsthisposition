@@ -5599,6 +5599,21 @@ a.btn {
   color: var(--bone);
 }
 
+/* The performance rating under the accuracy: the same card, a line apart. */
+.rv-perf {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  width: 100%;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-2);
+}
+
+.rv-acc-card .rv-perf b {
+  font-size: 16px;
+}
+
 .rv-acc-b b {
   color: var(--bone-2);
 }
@@ -6410,6 +6425,262 @@ a.btn {
     animation: none;
     -webkit-text-fill-color: var(--dim);
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* The commentary on a position (lib/commentary): the verdict's          */
+/* sentences, the overview and the plans by type                         */
+/* ------------------------------------------------------------------ */
+
+/* Under the verdict: the position in a sentence, then why and what next. */
+.verdict-read {
+  display: grid;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.verdict-read p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bone-2);
+}
+
+.verdict-read .verdict-kind {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--bone);
+}
+
+.read,
+.strat {
+  display: grid;
+  gap: 14px;
+}
+
+.read-block {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--slab);
+  border: 1px solid var(--line);
+}
+
+.read-h {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.read-side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.read-side .to-move {
+  margin-left: auto;
+}
+
+.read-cols {
+  display: grid;
+  gap: 12px;
+}
+
+.read-cols .eyebrow {
+  margin: 0 0 5px;
+}
+
+.read-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+/* A remark: what it is, in bold, and why it matters. The whole row is the control. */
+.read-item {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--night-2);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.read-item[aria-pressed] {
+  cursor: pointer;
+}
+
+.read-item:hover,
+.read-item:focus-visible {
+  background: var(--slab-2);
+}
+
+.read-item-on {
+  border-color: rgb(var(--tc) / 0.6);
+  background: var(--slab-2);
+}
+
+.read-sign {
+  flex: none;
+  width: 12px;
+  font-weight: 800;
+  color: rgb(var(--tc));
+}
+
+.read-words {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.read-words b {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.read-words span {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--bone-2);
+}
+
+.read-none,
+.read-note,
+.read-foot {
+  margin: 0;
+}
+
+/* On the analysis page the engine's lines come after the commentary, on every screen
+   (the phone review gives .elines a place of its own). */
+.desk:not(.rv-desk) > .elines {
+  order: 0;
+}
+
+/* Plans by type */
+.strat-sides .tab {
+  flex: 1 1 0;
+}
+
+.strat-group {
+  display: grid;
+  gap: 8px;
+}
+
+.strat-head {
+  display: grid;
+  gap: 2px;
+}
+
+.strat-head p {
+  margin: 0;
+}
+
+.strat .plan-list {
+  display: grid;
+  gap: 8px;
+}
+
+.strat .pcard-head {
+  cursor: pointer;
+}
+
+/* What the engine says about a plan's timing: a label, not a pill. */
+.strat-badge {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--line-2);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--bone-2);
+  white-space: nowrap;
+}
+
+.strat-badge-now {
+  border-color: rgb(var(--lime) / 0.6);
+  background: rgb(var(--lime) / 0.14);
+  color: rgb(var(--lime));
+}
+
+.strat-badge-prepare {
+  border-color: rgb(var(--gold) / 0.55);
+  background: rgb(var(--gold) / 0.12);
+  color: rgb(var(--gold));
+}
+
+.strat-badge-not-now {
+  border-color: rgb(var(--red) / 0.55);
+  background: rgb(var(--red) / 0.12);
+  color: rgb(var(--red));
+}
+
+.strat-why {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--bone-2);
+}
+
+.strat-steps {
+  margin: 0;
+  padding: 0 0 0 20px;
+  display: grid;
+  gap: 4px;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.strat-steps li {
+  padding-left: 2px;
+}
+
+.strat-steps li::marker {
+  font-weight: 700;
+  color: var(--dim);
+}
+
+.strat-risk {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--bone-2);
+}
+
+.strat-risk b {
+  color: rgb(var(--red));
+}
+
+.strat-more summary {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.strat-more[open] summary {
+  margin-bottom: 10px;
+  color: var(--bone-2);
+}
+
+.strat-more .pmeter {
+  margin-bottom: 10px;
+}
+
+.strat-show {
+  justify-self: start;
 }
 
 /* Plan cards */

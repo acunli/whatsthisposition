@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createEnginePool } from "@/lib/engine/pool";
 import { gameAccuracy } from "@/lib/review/accuracy";
+import { gamePerformance } from "@/lib/review/performance";
 import { loadBook, type OpeningBook } from "@/lib/review/book";
 import type { PositionAnalysis } from "@/lib/review/classify";
 import type { ParsedGame } from "@/lib/review/pgn";
@@ -129,7 +130,8 @@ export function useReview(game: ParsedGame, depth: number, run = 0, finished?: F
 
   const review = useMemo(() => classifyGame(game, positions, book, cache), [game, positions, book, cache]);
   const accuracy = useMemo(() => (status === "done" ? gameAccuracy(review.moves) : null), [status, review]);
+  const performance = useMemo(() => (accuracy ? gamePerformance(game, review.moves, accuracy) : null), [game, review, accuracy]);
   const analysed = positions.filter(Boolean).length;
 
-  return { positions, review, book, accuracy, status, error, engines, verify, progress: status === "done" ? 1 : share, analysed, total: positions.length };
+  return { positions, review, book, accuracy, performance, status, error, engines, verify, progress: status === "done" ? 1 : share, analysed, total: positions.length };
 }

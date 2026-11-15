@@ -1,17 +1,13 @@
 "use client";
 
-import type { Color } from "@/lib/chess/types";
 import type { AnalysisSnapshot } from "@/lib/engine/client";
 import { describeEval, formatEval, type Evaluation } from "@/lib/engine/score";
-import type { Ledger } from "@/lib/facts/ledger";
-import { MATERIAL_ORDER, type MaterialSummary } from "@/lib/facts/material";
 import { SEARCH_PRESETS, type MainStatus } from "./useAnalysis";
 
 interface Props {
-  ledger: Ledger;
-  material: MaterialSummary;
-  turn: Color;
-  orientation: Color;
+  /** The position in one sentence, and the two or three that follow it (lib/commentary); none while inside a line. */
+  headline: string | null;
+  story: string[];
   evaluation: Evaluation | null;
   depth?: number;
   context: string;
@@ -25,46 +21,6 @@ interface Props {
   onStop: () => void;
   onRerun: () => void;
   progress: number;
-}
-
-function SideCard({ c, ledger, material, turn }: { c: Color; ledger: Ledger; material: MaterialSummary; turn: Color }) {
-  const mine = material[c].counts;
-  const theirs = material[c === "w" ? "b" : "w"].counts;
-  const extra = MATERIAL_ORDER.flatMap((t) => Array.from({ length: Math.max(0, mine[t] - theirs[t]) }, () => t));
-  const diff = c === "w" ? material.diff : -material.diff;
-  return (
-    <div className={`side-card side-card-${c}`}>
-      <div className="side-card-head">
-        <span className="side-name">
-          <span className={`side-dot side-${c}`} aria-hidden />
-          {c === "w" ? "White" : "Black"}
-        </span>
-        {turn === c && <span className="to-move">To move</span>}
-      </div>
-      <div className="tallies">
-        <span className="mini-tally t-opportunity" title="Strengths found on the board">
-          <b>{ledger[c].strengths.length}</b> strengths
-        </span>
-        <span className="mini-tally t-danger" title="Weaknesses found on the board">
-          <b>{ledger[c].weaknesses.length}</b> weaknesses
-        </span>
-      </div>
-      <div className="keys">
-        {ledger[c].strengths[0] && <span className="key t-opportunity">+ {ledger[c].strengths[0].label}</span>}
-        {ledger[c].weaknesses[0] && <span className="key t-danger">− {ledger[c].weaknesses[0].label}</span>}
-      </div>
-      {(extra.length > 0 || material.diff === 0) && (
-        <div className="material-line" aria-label={`Material ${diff > 0 ? `+${diff}` : diff}`}>
-          {extra.map((t, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={`/pieces/${c}${t.toUpperCase()}.svg`} alt="" />
-          ))}
-          {diff > 0 && <span className="plus">+{diff}</span>}
-          {material.diff === 0 && <span className="small muted">Material level</span>}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export function Scoreboard(p: Props) {
@@ -85,8 +41,16 @@ export function Scoreboard(p: Props) {
           </div>
           <span className="verdict-num">{e ? formatEval(e) : "…"}</span>
         </div>
+        {p.headline && (
+          <div className="verdict-read">
+            <p className="verdict-kind">{p.headline}</p>
+            {p.story.map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+        )}
         <div className="verdict-sub">
-          <span>{e?.kind === "mate" ? "Forced mate: there's no escape." : "White's view: + favours White · 1.00 ≈ a pawn"}</span>
+          <span>{e?.kind === "mate" ? "Forced mate: there's no escape." : "The number is from White's side: + favours White, 1.00 is about a pawn"}</span>
           {p.depth ? <span className="mono">depth {p.depth}</span> : null}
         </div>
         <div className="engine-line">
@@ -127,8 +91,6 @@ export function Scoreboard(p: Props) {
           <span style={{ width: `${p.progress * 100}%` }} />
         </div>
       </div>
-      <SideCard c="w" ledger={p.ledger} material={p.material} turn={p.turn} />
-      <SideCard c="b" ledger={p.ledger} material={p.material} turn={p.turn} />
     </section>
   );
 }

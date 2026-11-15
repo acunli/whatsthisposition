@@ -9,15 +9,15 @@ import { placementFromFen } from "@/lib/chess/fen";
 import { other, type Color, type Square } from "@/lib/chess/types";
 import type { EngineLine } from "@/lib/engine/client";
 import type { Evaluation } from "@/lib/engine/score";
-import { computeFacts, marksForLenses, mergeMarks, type Fact, type LensId, type Marks } from "@/lib/facts";
-import { buildAdvice } from "@/lib/facts/advice";
+import { buildCommentary } from "@/lib/commentary";
+import { computeFacts, marksForLenses, type Fact, type LensId, type Marks } from "@/lib/facts";
 import { threatFact } from "@/lib/facts/engineFacts";
 import { explainWhyNot } from "@/lib/facts/explain";
 import { boardIdeas } from "@/lib/reason/ideas";
-import { buildLedger, labelOf, polarityOf } from "@/lib/facts/ledger";
-import { materialSummary } from "@/lib/facts/material";
+import { buildLedger, polarityOf } from "@/lib/facts/ledger";
 import { findPlans } from "@/lib/facts/plans";
-import { planCard } from "@/lib/plans/cards";
+import { planCard, type PlanCard } from "@/lib/plans/cards";
+import type { TimedPlan } from "@/lib/plans/timing";
 import { buildTour, type Scene } from "@/lib/facts/tour";
 import { deepScenes } from "@/lib/deep/scenes";
 import { traceSquare } from "@/lib/facts/trace";
@@ -26,9 +26,9 @@ import { buildVariation, fenAtPly, moveAtPly, navigate, type NavAction } from "@
 import { Caption, EvalBar, sideName, type CaptionData } from "./bits";
 import { ComparePanel } from "./ComparePanel";
 import { LayersPanel } from "./LayersPanel";
-import { LedgerPanel } from "./LedgerPanel";
 import { LinesPanel, type LineRef, type WhyState } from "./LinesPanel";
-import { PlansPanel } from "./PlansPanel";
+import { OverviewPanel, type Shown } from "./OverviewPanel";
+import { StrategyPanel } from "./StrategyPanel";
 import { usePlanTimings } from "./usePlanTimings";
 import { QuizPanel } from "./QuizPanel";
 import { ScanIntro } from "./ScanIntro";
@@ -37,7 +37,7 @@ import { StoryPanel } from "./StoryPanel";
 import { SEARCH_PRESETS, useAnalysis } from "./useAnalysis";
 import { VariationBar } from "./VariationBar";
 
-type Tab = "story" | "ledger" | "moves" | "layers" | "plans";
+type Tab = "overview" | "plans" | "story" | "moves" | "layers";
 type MovesMode = "lines" | "compare" | "quiz";
 
 interface Props {
@@ -67,13 +67,15 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
   const a = useAnalysis(fen, settings, multipv);
 
   const [introDone, setIntroDone] = useState(false);
-  const [tab, setTab] = useState<Tab>("story");
+  const [tab, setTab] = useState<Tab>("overview");
   const [movesMode, setMovesMode] = useState<MovesMode>("lines");
   const [lenses, setLenses] = useState<LensId[]>(["threats"]);
   const [savedLenses, setSavedLenses] = useState<LensId[]>(["threats"]);
   const [focus, setFocus] = useState<string | null>(null);
   const [hoverFact, setHoverFact] = useState<Fact | null>(null);
-  const [pinned, setPinned] = useState<Fact | null>(null);
+  // What a remark or a plan shows on the board: hovered, or tapped so it stays.
+  const [shownHover, setShownHover] = useState<Shown | null>(null);
+  const [shownPin, setShownPin] = useState<Shown | null>(null);
   const [sceneIdx, setSceneIdx] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [selected, setSelected] = useState<Square | null>(null);
@@ -83,8 +85,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
   const [hoverPoint, setHoverPoint] = useState<Marks | null>(null);
   const [hoverLine, setHoverLine] = useState<EngineLine | null>(null);
   const [pair, setPair] = useState<[number, number]>([1, 2]);
-  const [planFocus, setPlanFocus] = useState<string | null>(null);
-  const [planHover, setPlanHover] = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
 
   const lines = useMemo(() => a.snapshot?.lines ?? [], [a.snapshot]);
@@ -119,16 +119,14 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     return computeFacts(displayFen, pe?.best ? { firstMoves: [pe.best] } : undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- plyVersion signals cache updates
   }, [atRoot, rootFacts, displayFen, a.plyVersion]);
-  const ledger = useMemo(() => (atRoot ? rootLedger : buildLedger(displayFacts)), [atRoot, rootLedger, displayFacts]);
 
   const bestFirst = useMemo(() => (lines[0] ? buildVariation(fen, lines[0].pv.slice(0, 1)).moves[0] : undefined), [fen, lines]);
-  const advice = useMemo(
-    () =>
-      buildAdvice(ledger, displayFacts.ctx.p, displayTurn, {
-        best: atRoot && done && bestFirst ? { san: bestFirst.san, side: turn } : undefined,
-        engineFirstMoves: atRoot && done ? lines.map((l) => l.pv[0]) : undefined,
-      }),
-    [ledger, displayFacts, displayTurn, atRoot, done, bestFirst, turn, lines],
+
+  // The commentary on the analysed position: its types, each side's likes and dislikes, the plans.
+  // The board's own reading comes at once; the engine's lines add the verdict and which plans it follows.
+  const commentary = useMemo(
+    () => buildCommentary(fen, done && lines.length ? { lines: lines.map((l) => ({ pv: l.pv, eval: l.eval, depth: l.depth })) } : undefined, rootFacts),
+    [fen, done, lines, rootFacts],
   );
 
   // Deep understanding of the best move, started automatically once the search settles.
@@ -141,7 +139,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
 
   // The guided tour: the best move and its ideas first, then the position's findings.
   const scenes: Scene[] = useMemo(() => {
-    const base = buildTour(rootLedger, turn, 6);
+    // After the best move's story, only what is concrete: threats, loose pieces, pins and forks.
+    const base = buildTour(rootLedger, turn, 8).filter((sc) => sc.fact.lens === "threats");
     if (!done || !lines[0]) return base;
     const dm = bestDeep?.status === "done" ? bestDeep.data : bestDeep?.status === "failed" ? null : "pending";
     return [...deepScenes(fen, lines[0], dm), ...base];
@@ -150,11 +149,22 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
 
   const safeScene = Math.min(sceneIdx, Math.max(0, scenes.length - 1));
 
-  const plans = useMemo(() => findPlans(displayFacts.ctx, atRoot ? lines : []), [displayFacts, atRoot, lines]);
-  const planCards = useMemo(() => plans.map((pl) => planCard(displayFen, pl)), [plans, displayFen]);
+  // The side to move's plans that start with one move are checked by the engine; where the board
+  // was measured for that move (lib/plans/cards), the plan carries those details too.
+  const toMovePlans = commentary.sides[turn].plans;
+  const timedPlans = useMemo((): TimedPlan[] => toMovePlans.filter((pl) => pl.keyUci).map((pl) => ({ id: pl.id, side: pl.side, title: pl.title, keyUci: pl.keyUci, keySan: pl.keySan, conditions: [] })), [toMovePlans]);
+  const planDetails = useMemo(() => {
+    const cards = findPlans(rootFacts.ctx, lines).map((pl) => planCard(fen, pl));
+    const out: Record<string, PlanCard> = {};
+    for (const c of ["w", "b"] as Color[])
+      for (const pl of commentary.sides[c].plans) {
+        const card = pl.key ? cards.find((x) => x.side === c && x.keyUci?.startsWith(`${pl.key!.from}${pl.key!.to}`)) : undefined;
+        if (card) out[pl.id] = card;
+      }
+    return out;
+  }, [commentary, rootFacts, lines, fen]);
   const bestLineInput = useMemo(() => (lines[0] ? { pv: lines[0].pv, eval: lines[0].eval, depth: lines[0].depth } : undefined), [lines]);
-  const { timings: planTimings, threat: planThreat } = usePlanTimings(fen, planCards, bestLineInput, done && atRoot && tab === "plans");
-  const material = useMemo(() => materialSummary(displayFacts.ctx.p), [displayFacts]);
+  const { timings: planTimings, threat: planThreat } = usePlanTimings(fen, timedPlans, bestLineInput, done && atRoot && tab === "plans");
 
   const shown = useMemo(() => {
     if (atRoot) return rootEval ? { e: rootEval, depth: lines[0]?.depth } : null;
@@ -177,7 +187,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     setAnimKey((k) => k + 1);
     setSelected(null);
     setFocus(null);
-    setPinned(null);
+    setShownPin(null);
     setPlaying(false);
   }, []);
 
@@ -282,7 +292,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
       else if (e.key === "Escape") {
         setSelected(null);
         setFocus(null);
-        setPinned(null);
+        setShownPin(null);
         setHoverPoint(null);
       } else return;
       e.preventDefault();
@@ -294,6 +304,9 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
   // One spotlight decides what the board shows, most specific first.
   const spot = useMemo((): { marks: Marks; key: string; caption: CaptionData | null } => {
     if (hoverPoint) return { marks: hoverPoint, key: "point", caption: null };
+    // A remark or a plan from the commentary: what the mouse is on, else what was tapped.
+    const remark = (tab === "overview" || tab === "plans") && atRoot ? (shownHover ?? shownPin) : null;
+    if (remark) return { marks: remark.marks, key: `remark-${remark.id}`, caption: { key: remark.id, tone: remark.tone, tag: remark.tone === "opportunity" ? "+" : remark.tone === "danger" ? "−" : "•", kind: remark.kind, text: remark.text } };
     if (hoverFact) return { marks: hoverFact.marks, key: `h-${hoverFact.id}`, caption: factCaption(hoverFact) };
     if (hoverLine && atRoot) {
       const m = emptyMarks();
@@ -341,7 +354,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
         return { marks: s.fact.marks, key: `scene-${s.id}`, caption: s.kicker ? { ...cap, kind: s.kicker, tag: s.id === "deep-move" ? "★" : cap.tag } : cap };
       }
     }
-    if (tab === "ledger" && pinned) return { marks: pinned.marks, key: `pin-${pinned.id}`, caption: factCaption(pinned, labelOf(pinned, displayFacts)) };
     if (tab === "layers") {
       const all = { ...displayFacts, byLens: { ...displayFacts.byLens, threats: atRoot ? [...extraThreats, ...displayFacts.byLens.threats] : displayFacts.byLens.threats } };
       const m = marksForLenses(all, lenses, focus);
@@ -357,25 +369,11 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
             : moveCaption(),
       };
     }
-    if (tab === "plans" && (planHover || planFocus)) {
-      const c = planCards.find((x) => x.id === (planHover ?? planFocus));
-      if (c) {
-        const t = planTimings[c.id];
-        const timing = t && t !== "pending" ? t : null;
-        const m = mergeMarks(c.marks, timing?.marks ?? emptyMarks(), ...c.benefits.slice(0, 1).map((b) => b.marks));
-        const verdict = timing ? { now: "good now", prepare: "prepare first", "not-now": "not now", later: "later" }[timing.verdict] : "checking";
-        return {
-          marks: m,
-          key: `plan-${c.id}-${timing?.verdict ?? ""}`,
-          caption: {
-            key: c.id,
-            tone: timing?.verdict === "not-now" ? "danger" : timing?.verdict === "now" ? "opportunity" : "idea",
-            tag: timing?.verdict === "now" ? "✓" : timing?.verdict === "not-now" ? "✕" : "?",
-            kind: `${sideName(c.side)} · ${c.style} plan · ${verdict}`,
-            text: timing?.text ?? c.title,
-          },
-        };
-      }
+    // Reading the commentary with nothing picked: the engine's move, so the story's words have a picture.
+    if ((tab === "overview" || tab === "plans") && atRoot && done && bestFirst) {
+      const m = emptyMarks();
+      m.arrows.push({ from: bestFirst.from, to: bestFirst.to, tone: "opportunity" });
+      return { marks: m, key: `best-${bestFirst.uci}`, caption: null };
     }
     if (tab === "moves" && movesMode === "compare" && atRoot && lines.length >= 2) {
       const m = emptyMarks();
@@ -387,7 +385,7 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
     }
     return { marks: nextHint(emptyMarks()), key: `plain-${ply}`, caption: moveCaption() };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- deepVersion signals deep-cache updates
-  }, [hoverPoint, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, pinned, displayFacts, extraThreats, lenses, focus, displayFen, planHover, planFocus, planCards, planTimings, movesMode, lines, pair, fen, deepFor, a.deepVersion]);
+  }, [hoverPoint, shownHover, shownPin, hoverFact, hoverLine, atRoot, trace, variation, ply, lastMove, line, tab, scenes, safeScene, displayFacts, extraThreats, lenses, focus, displayFen, done, bestFirst, movesMode, lines, pair, fen, deepFor, a.deepVersion]);
 
   const toggleLens = (id: LensId) => {
     setFocus(null);
@@ -422,11 +420,11 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
   const threatCount = [...rootLedger.w.weaknesses, ...rootLedger.b.weaknesses].filter((e) => THREAT_KINDS.includes(e.fact.kind)).length;
 
   const TABS: [Tab, string, number | null][] = [
-    ["story", "Story", scenes.length],
-    ["ledger", "Strengths & weaknesses", null],
+    ["overview", "Overview", null],
+    ["plans", "Plans", commentary.sides.w.plans.length + commentary.sides.b.plans.length || null],
+    ["story", "Best move", scenes.length || null],
     ["moves", "Moves", lines.length || null],
     ["layers", "Layers", null],
-    ["plans", "Plans", plans.length || null],
   ];
 
   // Line previews (hover a move in an explanation) use the board's orientation.
@@ -437,10 +435,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
       )}
       <main className="arena">
         <Scoreboard
-          ledger={ledger}
-          material={material}
-          turn={displayTurn}
-          orientation={orientation}
+          headline={atRoot ? commentary.headline : null}
+          story={atRoot ? commentary.story : []}
           evaluation={shown?.e ?? null}
           depth={shown?.depth}
           context={context}
@@ -501,14 +497,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
         </section>
 
         <aside className="desk" aria-label="Analysis">
-          <EngineLines
-            fen={displayFen}
-            lines={boardLines}
-            depth={boardLines[0]?.depth ?? null}
-            searching={atRoot ? running : !!live && !live.done}
-            onPlay={playFromBoard}
-            onHover={setHoverPoint}
-          />
           <div className="tabs" role="tablist">
             {TABS.map(([id, label, count]) => (
               <button
@@ -519,6 +507,8 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
                 onClick={() => {
                   setTab(id);
                   setHoverFact(null);
+                  setShownHover(null);
+                  setShownPin(null);
                 }}
               >
                 {label}
@@ -533,9 +523,45 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
                 <b>Stockfish couldn&apos;t run.</b> {a.error}
               </p>
               <p className="small muted" style={{ margin: 0 }}>
-                The story, ledger, layers and plans still work: they come from the board itself. Try Re-run, or a current browser.
+                The overview, plans and layers still work: they come from the board itself. Try Re-run, or a current browser.
               </p>
             </div>
+          )}
+
+          {tab === "overview" && (
+            <OverviewPanel
+              commentary={commentary}
+              turn={turn}
+              settled={done}
+              pinned={shownPin?.id ?? null}
+              onHover={setShownHover}
+              onPin={(x) => {
+                setShownPin(x);
+                setSelected(null);
+              }}
+              offRoot={!atRoot}
+              onBackToRoot={closeLine}
+            />
+          )}
+
+          {tab === "plans" && (
+            <StrategyPanel
+              commentary={commentary}
+              turn={turn}
+              timings={planTimings}
+              details={planDetails}
+              threat={atRoot ? planThreat : null}
+              bestSan={bestFirst?.san ?? null}
+              pinned={shownPin?.id ?? null}
+              onHover={setShownHover}
+              onPin={(x) => {
+                setShownPin(x);
+                setSelected(null);
+              }}
+              onShow={(pv) => playLine(pv, 1)}
+              offRoot={!atRoot}
+              onBackToRoot={closeLine}
+            />
           )}
 
           {tab === "story" && (
@@ -550,20 +576,6 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
               onPlaying={setPlaying}
               offRoot={!atRoot}
               onBackToRoot={closeLine}
-            />
-          )}
-
-          {tab === "ledger" && (
-            <LedgerPanel
-              ledger={ledger}
-              advice={advice}
-              selected={pinned?.id ?? null}
-              onHover={setHoverFact}
-              onSelect={(f) => {
-                setPinned(f);
-                setSelected(null);
-              }}
-              turn={displayTurn}
             />
           )}
 
@@ -627,23 +639,14 @@ export function AnalysisView({ fen, orientation, onOrientation, onEdit }: Props)
             />
           )}
 
-          {tab === "plans" && (
-            <div className="desk-body">
-              <PlansPanel
-                cards={planCards}
-                timings={planTimings}
-                turn={turn}
-                threat={atRoot ? planThreat : null}
-                bestSan={bestFirst?.san ?? null}
-                focus={planFocus}
-                onFocus={setPlanFocus}
-                onHover={setPlanHover}
-                onHoverPoint={setHoverPoint}
-                onShow={(pv) => playLine(pv, 1)}
-              />
-            </div>
-          )}
-
+          <EngineLines
+            fen={displayFen}
+            lines={boardLines}
+            depth={boardLines[0]?.depth ?? null}
+            searching={atRoot ? running : !!live && !live.done}
+            onPlay={playFromBoard}
+            onHover={setHoverPoint}
+          />
           <footer className="desk-foot">
             <button className="linkish" onClick={onEdit}>
               Edit this position

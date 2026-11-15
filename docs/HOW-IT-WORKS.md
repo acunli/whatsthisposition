@@ -123,6 +123,20 @@ Chess.com doesn't publish its accuracy formula, so ours is **fitted to Chess.com
 
 On 46 games that Chess.com had reviewed (fitted on half, tested on the other half), the mean gap to Chess.com's own accuracy is **3.3–4.1 points** with a correlation of 0.89. Lichess's own aggregation gives a 7.5-point gap and a 0.66 correlation on the same games. The tools to refit it are in `scripts/eval/`.
 
+### 3.6 Performance rating
+
+Under each player's accuracy the review says what rating they **played like** in this game (`src/lib/review/performance.ts`). Chess.com describes its own number as "comparing the quality of your moves to what is expected from a player at your rating level", and says it averages out to the player's rating over time. Ours does the same with the game's accuracy:
+
+- **Expected accuracy at each rating** comes from 36,600 rated games that Chess.com reviewed (its public API gives both accuracies, both ratings and the time class): players of every level sampled from the public country lists, plus top players' blitz and bullet games. Accuracy rises fast up to a rating of about 650 and steadily after that, so the curve is two straight pieces, one per time class (rapid at 1200: 72.9; at 2000: 79.2). Daily games use rapid's curve, 1.3 points higher.
+- **The level** of a game is the rating whose expected accuracy equals the game's accuracy.
+- **Performance = rating + 0.35 × (level − rating)**, rounded to 50. A game played exactly as accurately as that rating usually plays gives the rating back.
+
+One game says only so much about a player, which is why it counts for 0.35 and not in full. That weight is a judgement: on the same games, the gap between the two players' performances predicts the result best at about 0.5 and nearly as well from 0.4, and at 0.35 the middle half of games land between roughly 200 below and 300 above the player's rating.
+
+A side with no rating in the PGN is compared with its opponent's rating; when neither has one, with the level of the game itself. Lichess ratings run about 200 points above Chess.com's at club level, so a Lichess game's level is moved onto Lichess's scale first (approximately). A side with fewer than eight scored moves gets no number. `scripts/eval/fit-performance.py` refits the curves from `scripts/eval/fetch-corpus.mjs`'s games.
+
+It is an estimate from accuracy alone, and accuracy depends on the game as well as the player: a short game or a quiet one scores higher than a long fight.
+
 ## 4. How a move is explained
 
 When you select a move, the card first shows a quick explanation, then a deeper one after a second or two. The deeper one comes from the **reasoning engine** (`src/lib/reason`).
@@ -193,12 +207,19 @@ Give it one position (FEN, hand setup, or a screenshot) and it shows why the eng
 - **Board facts** (`src/lib/facts`): attacks and threats, pins, loose and trapped pieces, king safety, pawn structure (isolated, doubled, backward, passed pawns, holes, colour complexes, chains, majorities), space, piece activity and control. Each is a fact with squares and a tone, drawn on the board.
   - **A pin is only reported if it costs something now:** squares the pinned unit can't go to, or an attacked friend it can no longer take back on. A pawn pinned on f7 that couldn't move anyway isn't news.
   - **Piece activity counts pressure, not just room:** safe squares, plus enemy units a piece attacks or pins, plus squares it covers in the enemy half. A bishop pinning a pawn to the king has few safe squares but isn't "passive"; a bishop behind its own pawns has neither, and the text names what is in its way.
-- **Strengths and weaknesses** for both sides, a guided tour that starts with the engine's best move, and layers you can stack.
+- **The commentary** (`src/lib/commentary`) reads those facts the way a player would. It is shown first:
+  - **The kind of position:** the phase (and which endgame: rook, pawn, opposite-coloured bishops, queen and rook…), the centre (closed, open, mobile, under tension, fixed), the pawn structure when it has a name (Carlsbad, locked chains, isolated queen's pawn, hanging pawns, Maroczy bind, Stonewall, Benoni, open Sicilian, symmetrical, majorities on opposite wings), where the kings are (opposite wings, stuck in the centre), and its character (a critical moment where one move stands apart, a tactical position, a race, a manoeuvring game). Each comes with what it means for how the position is played. Structures are recognised from the pawns alone, for either colour: a test checks that every sample position reads the same with the colours swapped.
+  - **What each side likes and doesn't like:** a handful of points, each with why it matters here. A weak pawn counts when it stands on a file the other side's rooks can use; thin king cover counts while enough attackers are on the board; space counts while there are pieces to feel it; in an endgame the king is read as a piece. Material is said in words ("the exchange for a pawn") and counted after an exchange the engine's line is in the middle of, so a piece about to be taken back isn't called a piece up.
+  - **A few sentences** that tie it together: the verdict and what it rests on, and what the side to move is after.
+- **Plans, by type:** attack the king, break in the centre, play on a wing, go after a weakness, improve a piece, trade pieces, pawn play, defend first. A plan says what feature of the position makes it the plan, how it is carried out on this board, and what the other side does about it: the minority attack in a Carlsbad, the lever against the base of a locked chain, a pawn storm when the kings are on opposite wings, blocking and then winning an isolated pawn, the king's walk to the pawns in an endgame.
+  - **The engine decides which are real.** The plans its top lines actually play are marked and come first. For the side to move, a plan's first move is searched on its own with `searchmoves`: good now (within 0.35 of the best move), prepare first, or not now, with the reply that refutes it.
+  - Where a plan starts with one concrete move (a pawn break, castling, a knight route, a rook to a file, a passed pawn), what that move does on the board is measured too (`src/lib/plans/cards.ts`): what speaks for it and against it, and a meter for attack, defence, long-term and risk.
+  - Once the game is decided (a forced mate, or about 4.5 pawns), the losing side's plans stop being listed.
+- **Best move:** a guided tour of the engine's first choice (what it does, what happens if an offer is taken, what it threatens, where it leads), followed by anything concrete on the board: loose pieces, pins, forks.
 - **Moves:** the engine's candidate lines, "Why this move?" (the same reasoning engine as the review), "Why not?", a comparison, and "try it first".
-- **Plans:**
-  - Candidates for both sides: castling, pawn breaks, knight routes to outposts, rooks to files, passed-pawn pushes.
-  - Each is measured on the board: benefits and drawbacks, plus a meter for attack, defence, long-term and risk.
-  - For the side to move, each plan is engine-checked with `searchmoves`. The verdict is good now (within 0.35 of the best move), prepare first, or not now with the reply that refutes it. It also says when the engine itself plays the plan.
+- **Layers** you can stack on the board: threats, king safety, pawn structure, pieces, control, material.
+
+Nothing in the commentary is written per opening or per position, and no language model writes it. Every sentence comes from a rule over the board or the engine's lines, and `src/lib/eval/commentary-report.test.ts` prints the whole commentary for positions from real games so the rules can be read against them.
 
 ## 8. The board
 
@@ -256,6 +277,8 @@ On a held-out set of real game screenshots: **98.5% of squares** right, and 53 o
 - **The engine is the lite single-threaded build,** so reviews reach depth 12–18 in a few seconds per game. Server-side analysis on other sites goes deeper, and very deep combinations can be labelled differently.
 - **Our labels won't always match Chess.com's.** Chess.com uses a stronger server engine and unpublished details; our rules are documented and the same for everyone.
 - **Explanations are template-based English.** They read well on the 213-move Brilliant corpus but can be clumsy on unusual positions. Great ("only move") moves don't yet get the step-by-step treatment.
+- **The position commentary knows the common structures, not all of them.** A position with none of the named pawn structures gets the general read (centre, kings, pieces) without a structure's plans, and plans that take many quiet moves are only engine-checked by their first move.
+- **The performance rating is an estimate from accuracy alone,** fitted on Chess.com games. One game can land several hundred points from the player's rating, and Lichess games rely on an approximate conversion between the two sites' ratings.
 - **The opening book is a subset:** 1.84M strong-player games, not every game ever played.
 - **The board can't be played with the keyboard yet,** and there is no move history across sessions (by design: nothing is stored).
 

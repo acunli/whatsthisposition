@@ -561,14 +561,25 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
                 {opening && <> · {opening}</>}
               </p>
             </div>
-            <div className="rv-acc" aria-label="Accuracy">
-              {(["w", "b"] as Color[]).map((c) => (
-                <div key={c} className={`rv-acc-card rv-acc-${c}`} title="Average accuracy per move, on Chess.com's scale (fitted on real Chess.com reviews; usually within about 3–4 points)">
-                  <span className="eyebrow">{sideName(c)}</span>
-                  <b className="mono">{r.accuracy?.[c] != null ? r.accuracy[c]!.toFixed(1) : "–"}</b>
-                  <span className="small muted">accuracy</span>
-                </div>
-              ))}
+            <div className="rv-acc" aria-label="Accuracy and performance rating">
+              {(["w", "b"] as Color[]).map((c) => {
+                const perf = r.performance?.[c] ?? null;
+                return (
+                  <div key={c} className={`rv-acc-card rv-acc-${c}`}>
+                    <span className="eyebrow">{sideName(c)}</span>
+                    <b className="mono" title="Average accuracy per move, on Chess.com's scale (fitted on real Chess.com reviews; usually within about 3–4 points)">
+                      {r.accuracy?.[c] != null ? r.accuracy[c]!.toFixed(1) : "–"}
+                    </b>
+                    <span className="small muted">accuracy</span>
+                    {perf != null && (
+                      <span className="rv-perf" title="Performance rating: this game's accuracy against what players of this rating usually manage, in rating points. An estimate from one game.">
+                        <b className="mono">{perf}</b>
+                        <span className="small muted">performance</span>
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
           {running && (

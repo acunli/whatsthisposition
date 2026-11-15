@@ -16,6 +16,9 @@ import type { PlanCard } from "./cards";
 
 export type PlanVerdict = "now" | "prepare" | "not-now" | "later";
 
+/** What the timing check needs to know about a plan: whose it is, what it is called and the move that starts it. */
+export type TimedPlan = Pick<PlanCard, "id" | "side" | "title" | "keyUci" | "keySan" | "conditions">;
+
 export interface PlanTiming {
   verdict: PlanVerdict;
   /** One or two sentences: when and why. */
@@ -49,7 +52,7 @@ function inMainLine(fen: string, best: LineInput | undefined, uci: string): { te
   return { text, line: { fen, pv: v.moves.slice(0, i + 1).map((m) => m.uci), label: text } };
 }
 
-export async function planTiming(fen: string, card: PlanCard, best: LineInput | undefined, search: Searcher, depth: number, threat: ThreatInfo | null): Promise<PlanTiming> {
+export async function planTiming(fen: string, card: TimedPlan, best: LineInput | undefined, search: Searcher, depth: number, threat: ThreatInfo | null): Promise<PlanTiming> {
   const turn = fen.split(" ")[1] as Color;
   const side = card.side;
   const name = card.keySan ?? card.title;

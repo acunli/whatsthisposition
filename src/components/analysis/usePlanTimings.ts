@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Searcher } from "@/lib/deep/deep";
 import { getBrowserEngine } from "@/lib/engine/browser";
-import type { PlanCard } from "@/lib/plans/cards";
-import { planTiming, type PlanTiming } from "@/lib/plans/timing";
+import { planTiming, type PlanTiming, type TimedPlan } from "@/lib/plans/timing";
 import { findThreat, type LineInput, type ThreatInfo } from "@/lib/reason/reason";
 
 export type TimingEntry = PlanTiming | "pending";
@@ -12,7 +11,7 @@ export type TimingEntry = PlanTiming | "pending";
 const DEPTH = 13;
 
 /** Engine-checks the side to move's plans once the main search has settled (one search per plan). */
-export function usePlanTimings(fen: string, cards: PlanCard[], best: LineInput | undefined, enabled: boolean): { timings: Record<string, TimingEntry>; threat: ThreatInfo | null } {
+export function usePlanTimings(fen: string, cards: TimedPlan[], best: LineInput | undefined, enabled: boolean): { timings: Record<string, TimingEntry>; threat: ThreatInfo | null } {
   const [timings, setTimings] = useState<Record<string, TimingEntry>>({});
   const [threat, setThreat] = useState<{ fen: string; t: ThreatInfo | null } | null>(null);
   const started = useRef(new Set<string>());
@@ -23,7 +22,7 @@ export function usePlanTimings(fen: string, cards: PlanCard[], best: LineInput |
     const begun = started.current;
     const todo = cards.filter((c) => !begun.has(`${fen}|${c.id}|${bestKey}`));
     if (!todo.length) return;
-    const keyOf = (c: PlanCard) => `${fen}|${c.id}|${bestKey}`;
+    const keyOf = (c: TimedPlan) => `${fen}|${c.id}|${bestKey}`;
     for (const c of todo) begun.add(keyOf(c));
     const finished = new Set<string>();
     let alive = true;
