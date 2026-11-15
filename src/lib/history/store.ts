@@ -47,18 +47,6 @@ const settle = <T>(req: IDBRequest<T>) =>
     req.onerror = () => reject(req.error ?? new Error("IndexedDB failed"));
   });
 
-/** Once the first game is kept, ask the browser to keep the site's data under pressure. */
-let persisted = false;
-const persist = () => {
-  if (persisted) return;
-  persisted = true;
-  try {
-    void navigator.storage?.persist?.();
-  } catch {
-    // No say in the matter: the export file is the real backup.
-  }
-};
-
 /** The records, newest review first. */
 export async function listHistory(): Promise<HistoryRecord[]> {
   try {
@@ -91,7 +79,6 @@ export async function saveHistory(record: HistoryRecord): Promise<boolean> {
     const db = await openDb();
     if (!db) return false;
     await settle(db.transaction("games", "readwrite").objectStore("games").put(record));
-    persist();
     return true;
   } catch {
     return false;

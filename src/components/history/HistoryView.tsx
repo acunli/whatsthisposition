@@ -6,7 +6,6 @@ import { keepReview } from "@/lib/review/kept";
 import { clearHistory, deleteHistory, isHistoryAvailable, listHistory, saveHistory } from "@/lib/history/store";
 import { exportFile, exportFileName, mergeImported, parseImport, type ImportResult } from "@/lib/history/transfer";
 import type { HistoryRecord } from "@/lib/history/types";
-import { CLASS_INFO } from "@/lib/review/classify";
 
 /** Refusing a file too big to even read: the same cap parseImport applies to the text. */
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -187,16 +186,31 @@ export function HistoryView() {
   );
 }
 
+/** The review page's accuracy: one decimal, on the same scale. */
+const accuracyText = (a: number | null | undefined) => (a == null ? null : a.toFixed(1));
+
+/** The date a row shows when the PGN has none: the same shape whatever the browser's locale. */
+const DATE = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+/** What a count of each label reads as, singular and plural. */
+const LABEL_COUNT: Record<"brilliant" | "mistake" | "blunder", [string, string]> = {
+  brilliant: ["brilliant move", "brilliant moves"],
+  mistake: ["mistake", "mistakes"],
+  blunder: ["blunder", "blunders"],
+};
+
 function HistoryRow({ rec, onOpen, onDelete }: { rec: HistoryRecord; onOpen: () => void; onDelete: () => void }) {
   const s = rec.summary;
   const as = rec.as ?? null;
-  const accuracy = (c: "w" | "b") => (s.accuracy[c] == null ? null : Math.round(s.accuracy[c]));
   // A compact count of the labels that matter, for the side the game was viewed from.
   const counts = (["brilliant", "mistake", "blunder"] as const).flatMap((cls) => {
     const n = as ? s.counts[cls]?.[as] ?? 0 : 0;
-    return n ? [`${n} ${CLASS_INFO[cls].label.toLowerCase()}`] : [];
+    return n ? [`${n} ${LABEL_COUNT[cls][n === 1 ? 0 : 1]}`] : [];
   });
-  const date = s.playedOn ?? new Date(rec.reviewedAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  // The PGN's own date when it has a real one (as the review page writes it); otherwise the
+  // day the review was made, in one fixed shape.
+  const pgnDate = s.playedOn?.replace(/\.\?\?/g, "");
+  const date = pgnDate && !pgnDate.includes("?") ? pgnDate : DATE.format(rec.reviewedAt);
 
   return (
     <li className="history-row">
@@ -212,7 +226,7 @@ function HistoryRow({ rec, onOpen, onDelete }: { rec: HistoryRecord; onOpen: () 
         <p className="history-facts">
           {s.opening?.name ? <span className="history-opening">{s.opening.name}</span> : null}
           <span className="history-acc">
-            <span className="history-side">White</span> {accuracy("w") ?? "–"}% · <span className="history-side">Black</span> {accuracy("b") ?? "–"}%
+            <span className="history-side">White</span> {accuracyText(s.accuracy.w) ?? "–"}% · <span className="history-side">Black</span> {accuracyText(s.accuracy.b) ?? "–"}%
           </span>
           {counts.length ? <span className="history-counts">{counts.join(" · ")}</span> : null}
           <span className="history-date">{date}</span>

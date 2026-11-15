@@ -261,7 +261,7 @@ The games a visitor reviews on `/review` are kept in a history (the `games` stor
 - **Our labels won't always match Chess.com's.** Chess.com uses a stronger server engine and unpublished details; our rules are documented and the same for everyone.
 - **Explanations are template-based English.** They read well on the 213-move Brilliant corpus but can be clumsy on unusual positions. Great ("only move") moves don't yet get the step-by-step treatment.
 - **The opening book is a subset:** 1.84M strong-player games, not every game ever played.
-- **The board can't be played with the keyboard yet,** and there is no move history across sessions (by design: nothing is stored).
+- **The board can't be played with the keyboard yet,** and the analysis board keeps no move history across sessions (a game reviewed on `/review` is kept in the browser's history, see §11).
 
 ## 14. Reviewed games
 

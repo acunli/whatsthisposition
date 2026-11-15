@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { EngineLines } from "../EngineLines";
 import { SmoothHeight } from "../SmoothHeight";
 import { PlayBoard } from "../PlayBoard";
@@ -26,6 +27,7 @@ import { countUse } from "@/lib/usage";
 import { useLineAnalysis, type LineRequest } from "./useLineAnalysis";
 import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview, type FinishedReview } from "./useReview";
+import { useReviewed } from "./useReviewed";
 import { ShareReview } from "./ShareReview";
 import { depthIndex } from "@/lib/review/depths";
 
@@ -153,15 +155,7 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
   }, [r.status, r.positions, depthNow, onDone]);
   // The game is heard of once its review is finished (finished here, or it arrived finished),
   // and again when the review is re-run at another depth.
-  const wasReviewed = useRef(r.status === "done");
-  useEffect(() => {
-    if (r.status === "done" && r.accuracy) {
-      if (!wasReviewed.current) onReviewed?.({ depth: depthNow, positions: r.positions }, { review: r.review, accuracy: r.accuracy });
-      wasReviewed.current = true;
-    } else {
-      wasReviewed.current = false;
-    }
-  }, [r.status, r.accuracy, r.review, r.positions, depthNow, onReviewed]);
+  useReviewed(r.status, r.accuracy, r.review, r.positions, depthNow, onReviewed);
   useEffect(() => {
     if (lines.length && !counted.current.line) {
       counted.current.line = true;
@@ -572,6 +566,8 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
               <p className="rv-sub">
                 <span className="mono">{game.result}</span>
                 {opening && <> · {opening}</>}
+                {" · "}
+                <Link href="/history">Your game history</Link>
               </p>
             </div>
             <div className="rv-acc" aria-label="Accuracy">
