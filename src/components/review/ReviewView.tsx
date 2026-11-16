@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { EngineLines } from "../EngineLines";
 import { SmoothHeight } from "../SmoothHeight";
 import { PlayBoard } from "../PlayBoard";
@@ -15,7 +16,7 @@ import { ANNOTATION, CLASS_INFO, CLASS_ORDER, type ClassifiedMove, type MoveClas
 import { explainOpening, explainReviewMove } from "@/lib/review/explain";
 import { placeMoves, positionKey, stepSelection, type SideLine } from "@/lib/review/lines";
 import type { GameMove, ParsedGame } from "@/lib/review/pgn";
-import { classifyLine, lineChecks, quietMoves, tally, type ClassifyCache } from "@/lib/review/review";
+import { classifyLine, lineChecks, quietMoves, tally, type ClassifyCache, type GameReview } from "@/lib/review/review";
 import { buildVariation, fenAtPly, moveAtPly, navigate, type NavAction, type Variation } from "@/lib/variation";
 import { ClassIcon } from "./ClassIcon";
 import { EvalGraph } from "./EvalGraph";
@@ -26,6 +27,7 @@ import { countUse } from "@/lib/usage";
 import { useLineAnalysis, type LineRequest } from "./useLineAnalysis";
 import { useMoveReasoning } from "./useMoveReasoning";
 import { REVIEW_DEPTHS, VERIFY_EXTRA, useReview, type FinishedReview } from "./useReview";
+import { useReviewed } from "./useReviewed";
 import { ShareReview } from "./ShareReview";
 import { depthIndex } from "@/lib/review/depths";
 
@@ -43,6 +45,8 @@ interface Props {
   finished?: FinishedReview;
   /** The engine has finished the review here (again after a re-run at another depth). */
   onDone?: (done: FinishedReview) => void;
+  /** The review is finished (finished here, or handed over finished): heard once per finished review. */
+  onReviewed?: (done: FinishedReview, info: { review: GameReview; accuracy: Record<Color, number | null> }) => void;
 }
 
 /** A line being previewed on the board (an engine line, or one from an explanation). */
@@ -87,7 +91,7 @@ function PlayerRow({ game, color, accuracy, active }: { game: ParsedGame; color:
   );
 }
 
-export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth, finished, onDone }: Props) {
+export function ReviewView({ game, orientation, onOrientation, onDeep, active, depth, finished, onDone, onReviewed }: Props) {
   const [depthIdx, setDepthIdx] = useState(() => depthIndex(depth));
   const [run, setRun] = useState(0);
   const r = useReview(game, REVIEW_DEPTHS[depthIdx].depth, run, finished);
@@ -149,6 +153,9 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
     if (done && !wasDone.current) onDone?.({ depth: depthNow, positions: r.positions });
     wasDone.current = done;
   }, [r.status, r.positions, depthNow, onDone]);
+  // The game is heard of once its review is finished (finished here, or it arrived finished),
+  // and again when the review is re-run at another depth.
+  useReviewed(r.status, r.accuracy, r.review, r.positions, r.bookSettled, depthNow, onReviewed);
   useEffect(() => {
     if (lines.length && !counted.current.line) {
       counted.current.line = true;
@@ -582,6 +589,9 @@ export function ReviewView({ game, orientation, onOrientation, onDeep, active, d
               })}
             </div>
           </div>
+          <p className="rv-history-link">
+            <Link href="/history">Your game history</Link>
+          </p>
           {running && (
             <div className="rv-progress" aria-live="polite">
               <div className={`rv-progress-bar ${verifying ? "rv-progress-verify" : ""}`}>

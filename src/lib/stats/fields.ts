@@ -19,6 +19,7 @@ export const SITE_PAGES = [
   "/chess-move-classifications",
   "/openings",
   "/puzzles",
+  "/history",
 ] as const;
 
 /** Every shared review (/r/<id>) counts as one page: the ids aren't kept. */

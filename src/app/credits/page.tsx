@@ -4,7 +4,7 @@ import { SITE_NAME, SOURCE_URL } from "@/lib/brand";
 
 export const metadata = {
   title: { absolute: `How it works, privacy and credits · ${SITE_NAME}` },
-  description: "How the free chess game review labels and explains every move with Stockfish 19 in your browser, what data it keeps (none of your games), and the open-source projects it builds on.",
+  description: "How the free chess game review labels and explains every move with Stockfish 19 in your browser, what data it keeps (reviewed games stay in your browser until you delete them), and the open-source projects it builds on.",
   alternates: { canonical: "/credits" },
 };
 
@@ -36,7 +36,7 @@ export default function Credits() {
         </p>
         <p>
           Games you import from Chess.com or Lichess are fetched through this site from their free public APIs (a Chess.com game link, from
-          Chess.com&apos;s own game data) and aren&apos;t stored. Opening
+          Chess.com&apos;s own game data) and aren&apos;t stored on this site&apos;s servers. Opening
           names come from the Lichess <a href="https://github.com/lichess-org/chess-openings">chess-openings</a> dataset (CC0). How deep theory
           goes, and what strong players play in each position, comes from 1.84 million games between strong players: over-the-board games from
           the <a href="https://database.lichess.org/#broadcasts">Lichess broadcast database</a> (CC BY-SA 4.0; this site&apos;s book is a
@@ -51,12 +51,14 @@ export default function Credits() {
           Analysis and game review run entirely in your browser. Screenshots and photos are read on your device by a small neural network
           trained on open-source piece sets; they never leave your browser. Only if you choose the optional AI reader (for angled photos of a
           real board) is the cropped picture sent through this site&apos;s server to the configured vision API (the NUS SoCLaaS gateway, or
-          Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device. The game you
-          are reviewing is kept in that browser tab, so reloading the review page shows it again; it is never sent anywhere and is gone
-          when you close the tab. The last Chess.com or Lichess username you looked up, and which of its games you reviewed, are kept in
-          your browser so that coming back lists that player&apos;s latest games straight away; &quot;Not you?&quot; under the list forgets
-          them. The last set of <a href="/puzzles">puzzles made from your games</a>, and how far you got with it, is kept in your browser
-          too, so that you can come back to it; it is never sent anywhere, and &quot;Delete it&quot; on that page removes it.
+          Anthropic&apos;s API), held in memory for that request and discarded. FEN and hand setup never leave your device. Every game you
+          review is saved in your browser&apos;s own storage (IndexedDB), so it is there again when you come back, even after a restart;
+          it is never sent anywhere, and it stays until you delete it on the{" "}
+          <a href="/history">history page</a> or clear this site&apos;s data in your browser. The last Chess.com
+          or Lichess username you looked up, and which of its games you reviewed, are kept in your browser so that coming back lists
+          that player&apos;s latest games straight away; &quot;Not you?&quot; under the list forgets them. The last set of{" "}
+          <a href="/puzzles">puzzles made from your games</a>, and how far you got with it, is kept in your browser too, so that you can
+          come back to it; it is never sent anywhere, and &quot;Delete it&quot; on that page removes it.
         </p>
         <p>
           A game is stored only if you press <b>Share review</b> on it. That makes a public link: the game&apos;s moves and names as its PGN

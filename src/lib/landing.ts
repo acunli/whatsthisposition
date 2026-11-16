@@ -40,7 +40,7 @@ export const LANDING = {
       },
       {
         q: "Do I need to sign in to Chess.com?",
-        a: "No. Finished Chess.com games are public: the site reads your games from Chess.com's free public API, and a linked game from its own page. Nothing is stored.",
+        a: "No. Finished Chess.com games are public: the site reads your games from Chess.com's free public API, and a linked game from its own page. Nothing is stored on our servers.",
       },
       {
         q: "Will my accuracy match Chess.com's?",

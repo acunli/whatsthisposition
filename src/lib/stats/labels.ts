@@ -106,6 +106,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/openings": "Chess openings",
   "/puzzles": "Puzzles from your games",
   "/openings/*": "Opening pages",
+  "/history": "Game history",
   other: "Other addresses (404s)",
 };
 
