@@ -8,6 +8,7 @@ export const EVENT_NAMES: Record<string, string> = {
   review: "Reviews started",
   review_done: "Reviews finished",
   analysis: "Positions analysed",
+  puzzles: "Puzzle sets made",
   photo: "Photos read",
   side_line: "Side lines tried",
   share: "Reviews shared",
@@ -25,6 +26,7 @@ export const SOURCE_NAMES: Record<string, Record<string, string>> = {
   review_done: { fast: "Fast (12)", standard: "Standard (14)", thorough: "Thorough (18)" },
   analysis: { fen: "Pasted FEN", sample: "Sample position", setup: "Set up by hand", photo: "From a photo", review: "From a review", link: "Position link" },
   photo: { device: "Read on the device", cloud: "Cloud reader" },
+  puzzles: { chesscom: "Chess.com games", lichess: "Lichess games", pgn: "Pasted PGN" },
   lookup: { chesscom: "Chess.com username", lichess: "Lichess username", link: "Game link", back: "Their games, on coming back" },
   get_extension: { header: "Top bar", hero: "Home hero", section: "Extension section", closing: "Closing section", footer: "Footer" },
   get_app: { hero: "Install pressed", installed: "Installed" },
@@ -102,6 +104,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/chess-move-classifications": "Move classifications",
   "/r/*": "Shared reviews",
   "/openings": "Chess openings",
+  "/puzzles": "Puzzles from your games",
   "/openings/*": "Opening pages",
   other: "Other addresses (404s)",
 };

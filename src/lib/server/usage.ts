@@ -92,7 +92,7 @@ export const HOUR_SKETCH_DAYS = 35;
 export const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
 
 /** The uses that mean someone did more than open pages (for "engaged" people and the bounce rate). */
-export const ENGAGED_EVENTS: UsageEvent[] = ["lookup", "review", "analysis", "photo", "side_line", "share", "get_extension", "act"];
+export const ENGAGED_EVENTS: UsageEvent[] = ["lookup", "review", "analysis", "puzzles", "photo", "side_line", "share", "get_extension", "act"];
 
 /** Every key the counter uses. */
 export function usageKeys(prefix: string) {

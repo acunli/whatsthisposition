@@ -304,10 +304,13 @@ export function Studio({ variant, children, shared: given }: { variant?: HomeVar
               Add to Chrome
             </AddToChrome>
           )}
+          <Link className="navlink navlink-wide" href="/puzzles">
+            Puzzles
+          </Link>
           <Link className="navlink navlink-wide navlink-how" href="/credits">
             How it works
           </Link>
-          <SiteCredit className="navlink navlink-wide" />
+          <SiteCredit className="navlink navlink-wide navlink-credit" />
           <ThemeToggle />
           <SupportButton />
         </nav>

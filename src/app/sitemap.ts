@@ -13,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/credits`, lastModified, changeFrequency: "monthly", priority: 0.5 },
     { url: `${SITE_URL}/games`, lastModified, changeFrequency: "daily", priority: 0.7 },
     ...allGames().map((g) => ({ url: `${SITE_URL}/games/${g.slug}`, lastModified: new Date(`${g.published}T12:00:00Z`), changeFrequency: "yearly" as const, priority: 0.6 })),
+    { url: `${SITE_URL}/puzzles`, lastModified, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/openings`, lastModified, changeFrequency: "monthly", priority: 0.7 },
     ...openingCatalog().all.map((o) => ({ url: `${SITE_URL}/openings/${o.slug}`, lastModified, changeFrequency: "monthly" as const, priority: 0.5 })),
   ];

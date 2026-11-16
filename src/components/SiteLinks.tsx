@@ -53,6 +53,7 @@ export function SiteFooter() {
             </Link>
           ))}
           <Link href="/games">Top players&apos; games, reviewed</Link>
+          <Link href="/puzzles">Puzzles from your games</Link>
           <Link href="/openings">Chess openings</Link>
         </nav>
         <nav className="footer-links" aria-label="Footer">

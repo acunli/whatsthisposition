@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { IMPORT_ERRORS, IMPORT_SITES, countUse } from "@/lib/usage";
 import { useEffect, useRef, useState } from "react";
 import { parseFen } from "@/lib/chess/fen";
@@ -334,6 +335,12 @@ export function GameImport({ onGame: openGame, initialSource }: Props) {
             );
           })}
         </ul>
+      )}
+
+      {games && games.list.length > 1 && (
+        <p className="small muted glist-more">
+          <Link href="/puzzles">Make puzzles from these games</Link>: what you get wrong most, as positions to practise on.
+        </p>
       )}
 
       {pgnGames && (

@@ -36,6 +36,8 @@ export const USAGE_EVENTS = {
   review: ["chesscom", "lichess", "pgn", "file", "extension", "link"],
   /** A review the engine finished here (not one handed over already done), by its depth. */
   review_done: REVIEW_DEPTHS.map((d) => d.label.toLowerCase()),
+  /** A puzzle set made from a player's own games (/puzzles), by where the games came from. */
+  puzzles: ["chesscom", "lichess", "pgn"],
   /** A position analysis, by how it started. */
   analysis: ["fen", "sample", "setup", "photo", "review", "link"],
   /** A screenshot or photo read into a position, on the device or by the cloud reader. */

@@ -55,7 +55,8 @@ export default function Credits() {
           are reviewing is kept in that browser tab, so reloading the review page shows it again; it is never sent anywhere and is gone
           when you close the tab. The last Chess.com or Lichess username you looked up, and which of its games you reviewed, are kept in
           your browser so that coming back lists that player&apos;s latest games straight away; &quot;Not you?&quot; under the list forgets
-          them.
+          them. The last set of <a href="/puzzles">puzzles made from your games</a>, and how far you got with it, is kept in your browser
+          too, so that you can come back to it; it is never sent anywhere, and &quot;Delete it&quot; on that page removes it.
         </p>
         <p>
           A game is stored only if you press <b>Share review</b> on it. That makes a public link: the game&apos;s moves and names as its PGN

@@ -48,7 +48,7 @@ That is the idea of the whole site: labels you already know, plus reasons a club
 <td width="50%" valign="top">
 
 ### Game review
-Bring a game by **Chess.com or Lichess username**, **game link** or **PGN**, or straight from Chess.com with the [browser extension](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games).
+Bring a game by **Chess.com or Lichess username**, **game link** or **PGN**, or straight from Chess.com with the [browser extension](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka). Every move gets a Chess.com-style label (Brilliant, Great, Best, Excellent, Good, Book, Inaccuracy, Mistake, Miss, Blunder, Forced) from published, documented rules, plus accuracy on Chess.com's scale (within about 3.5 points of Chess.com's own numbers on reviewed games) and a **performance rating**: what rating each side played like in this game.
 
 </td>
 <td width="50%" valign="top">
@@ -89,8 +89,26 @@ Top engine lines **next to the board**, live. **Play moves** by click or drag, a
 
 <img src="docs/images/plans.jpg" alt="Plans for both sides with an engine verdict, a meter and reasons drawn on the board" />
 
-### Position X-ray and plans
-Any position (FEN, hand setup or a **screenshot read on your device**): threats, weaknesses and strengths for both sides drawn on the squares, and plans with an engine verdict: good now, prepare first, or not now (and why).
+### Plans, by type
+Attack the king, break in the centre, play on a wing, go after a weakness, improve a piece, trade, pawn play, defend first. Each plan says what makes it the plan, how it goes on this board and what to watch for; the engine marks the ones it actually plays and whether the first move is good now, needs preparing, or fails (and to what).
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+<img src="docs/images/overview.jpg" alt="The overview of a position: the kind of position, and what each side likes and doesn't like" />
+
+### A position, read like commentary
+Any position (FEN, hand setup or a **screenshot read on your device**): what kind of position it is (the pawn structure by name, the centre, the kings, which endgame), and **what each side likes and doesn't like** about it, each with why it matters here and drawn on the board.
+
+</td>
+<td valign="top">
+
+<img src="docs/images/puzzles.jpg" alt="A puzzle made from a player's own game, with the weaknesses the games showed" />
+
+### Puzzles from your own games
+Tick several of your games. They are reviewed in your browser, your mistakes are sorted into **what you get wrong most** (pieces left hanging, forks walked into, won positions let slip…), and each one with a clear answer becomes a position to solve.
 
 </td>
 </tr>
@@ -143,9 +161,11 @@ Everything heavy runs in the visitor's browser. Stockfish 19 (single-threaded We
 src/app/            pages (the app, landing pages from lib/landing.ts, credits), API routes, metadata
 src/components/     the board (BoardStage, PlayBoard), review, analysis, setup, home, loading veil
 src/lib/engine/     UCI client, browser workers, review pool
-src/lib/review/     PGN, labels, accuracy, opening book, game explanations
+src/lib/review/     PGN, labels, accuracy, performance rating, opening book, game explanations
 src/lib/reason/     move reasoning, line stories, "why it's brilliant"
 src/lib/facts/      board facts: threats, structure, king safety, plans, …
+src/lib/commentary/ a position read like commentary: its types, each side's likes and dislikes, plans by type
+src/lib/puzzles/    puzzles and weaknesses from a player's own games
 src/lib/vision/     on-device photo reader (and the optional cloud reader)
 extension/          the Chess.com browser extension (built from src/lib with esbuild)
 scripts/            engine copy, opening-book builders, evaluation and training tools

@@ -6229,6 +6229,10 @@ a.btn {
   color: var(--bone);
 }
 
+.glist-more {
+  margin: 0;
+}
+
 .glist-tag {
   margin-left: auto;
   padding: 1px 7px;
@@ -6681,6 +6685,290 @@ a.btn {
 
 .strat-show {
   justify-self: start;
+}
+
+/* ------------------------------------------------------------------ */
+/* Puzzles from your own games (/puzzles, lib/puzzles)                    */
+/* ------------------------------------------------------------------ */
+
+.pz-pick {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.pz-pick .h-section,
+.pz-pick .section-lede {
+  margin: 0;
+}
+
+.pz-tabs {
+  justify-self: start;
+}
+
+.pz-back {
+  margin: 0;
+  font-size: 14px;
+}
+
+.pz-who,
+.pz-go {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.pz-select {
+  display: flex;
+  gap: 12px;
+}
+
+.pz-games {
+  max-height: 420px;
+}
+
+/* A game in the list is a label around its checkbox: the whole row picks it. */
+.pz-game {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.pz-game input {
+  flex: none;
+  width: 17px;
+  height: 17px;
+  margin: 2px 0 0;
+  accent-color: rgb(var(--v-brand));
+}
+
+.pz-game > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pz-working {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--slab);
+  border: 1px solid var(--line);
+}
+
+.pz-working p {
+  margin: 0;
+}
+
+.pz-working .rv-progress-bar {
+  width: 100%;
+}
+
+/* The trainer: the board beside the puzzle, the progress and what the games showed. */
+.pz-train {
+  max-width: 1560px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 18px clamp(12px, 2.5vw, 32px) 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 500px);
+  grid-template-areas:
+    "board card"
+    "board side";
+  grid-template-rows: auto 1fr;
+  gap: 14px 32px;
+  align-items: start;
+}
+
+.pz-board {
+  grid-area: board;
+  min-width: 0;
+  width: 100%;
+  max-width: min(100%, calc(100vh - 150px));
+  justify-self: center;
+}
+
+.pz-card {
+  grid-area: card;
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--slab);
+  border: 1px solid var(--line);
+}
+
+.pz-card p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.pz-task .side-dot {
+  display: inline-block;
+  margin-right: 8px;
+  vertical-align: -1px;
+}
+
+.pz-note {
+  padding: 8px 11px;
+  border-radius: 10px;
+  background: var(--night-2);
+  border-left: 4px solid var(--line-2);
+}
+
+.pz-note-good {
+  border-left-color: rgb(var(--lime));
+}
+
+.pz-note-bad {
+  border-left-color: rgb(var(--red));
+}
+
+.pz-after {
+  display: grid;
+  gap: 6px;
+}
+
+.pz-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pz-side {
+  grid-area: side;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.pz-progress,
+.pz-report {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--slab);
+  border: 1px solid var(--line);
+}
+
+.pz-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pz-strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* One square per puzzle: how it went, and which one is on the board. */
+.pz-dot {
+  display: block;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-radius: 5px;
+  border: 1px solid var(--line-2);
+  background: var(--night-2);
+}
+
+.pz-dot-first {
+  background: rgb(var(--lime) / 0.75);
+  border-color: transparent;
+}
+
+.pz-dot-later {
+  background: rgb(var(--gold) / 0.75);
+  border-color: transparent;
+}
+
+.pz-dot-shown {
+  background: rgb(var(--red) / 0.6);
+  border-color: transparent;
+}
+
+.pz-dot[aria-current="true"] {
+  outline: 2px solid var(--bone);
+  outline-offset: 1px;
+}
+
+.pz-score,
+.pz-report-sum {
+  margin: 0;
+}
+
+.pz-weak {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.pz-weak li {
+  display: grid;
+  gap: 5px;
+  justify-items: start;
+}
+
+.pz-weak p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.pz-weak-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  font-size: 14.5px;
+}
+
+/* How much of what was given away this weakness accounts for. */
+.pz-bar {
+  width: 100%;
+  height: 5px;
+  border-radius: 5px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.pz-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: rgb(var(--red) / 0.75);
+}
+
+@media (max-width: 900px) {
+  .pz-train {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "board"
+      "card"
+      "side";
+    grid-template-rows: auto;
+    padding: 10px 10px 40px;
+  }
+
+  .pz-board {
+    max-width: 100%;
+  }
 }
 
 /* Plan cards */
@@ -7359,6 +7647,21 @@ a.btn {
 
 @media (max-width: 960px) {
   .topbar-app .navlink-how {
+    display: none;
+  }
+}
+
+/* The home bar keeps room for Add to Chrome even while it is hidden, so its links give way
+   earlier than the app screens': first "How it works", then the credit (both are in the footer). */
+@media (max-width: 1100px) {
+  .topbar-home .navlink-how {
+    display: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .topbar-home .navlink-credit,
+  .topbar-app .navlink-credit {
     display: none;
   }
 }

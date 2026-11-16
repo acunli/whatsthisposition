@@ -249,3 +249,18 @@ For a few positions from each game (after the plies given), the report searches 
 Read it as a coach would, find the rule behind a wrong or empty sentence (`kinds.ts` for the types, `structures.ts` for the named pawn structures, `points.ts` for likes and dislikes, `plans.ts`), fix it in general terms, and run it again on games not read yet. `commentary.test.ts` holds the clear-cut cases, including that every sample position reads the same with the colours swapped.
 
 Found and fixed this way on 2026-11-15 (Ay7u's games 40–64 of a 3-month fetch): positions in the middle of an exchange were described by the material on the board ("a piece down" one move before the recapture); a decided position still listed slow plans for the losing side; thin king cover was reported with five defenders against two attackers; rooks behind their own pieces in the middlegame were called idle; and a fianchettoed bishop behind its own knight was called the worst piece.
+
+## 10. Puzzles from a player's games
+
+```bash
+EVAL_GAMES=scripts/eval/out/games.json EVAL_PLAYER=Ay7u EVAL_SKIP=0 EVAL_N=8 EVAL_DEPTH=12 \
+  npx vitest run src/lib/eval/puzzle-report.test.ts          # about 8 s a game on one engine
+less scripts/eval/out/puzzle-report.txt
+```
+
+The report reviews the games exactly as `/puzzles` does and prints every Mistake, Miss and Blunder of the player with how it was classified (`allowed:fork`, `missed:mate`, `slip:endgame`…), the puzzle made from it or that none was (no single clear answer), and at the end the weaknesses with their counts, costs and advice, and the training order.
+
+Read it against the games: is the weakness the right one, does the puzzle have one answer, does the sentence say what happens? The rules are in `src/lib/puzzles/build.ts` (what a mistake is) and `profile.ts` (the weaknesses and their words).
+
+Found and fixed this way on 2026-11-16 (Ay7u's games 90–97 of a 3-month fetch): a blunder that lost a bishop two moves later (15.Qa4, 16.Qxa5) was filed as a quiet mistake, because the count of what a line wins stopped at the first quiet stretch; the same move missed three moves running made three puzzles; and a line's summary could stop in the middle of an exchange and say the wrong side won material.
+
