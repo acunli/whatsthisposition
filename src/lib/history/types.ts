@@ -31,6 +31,13 @@ export interface HistoryRecord {
   v: 1;
   /** First 32 hex chars of the SHA-256 over the game's normalised PGN (see record.ts). */
   id: string;
+  /**
+   * The game's substance key: the same hash over the start position, both player names and
+   * the moves (see record.ts), so the same game from two sources that write different
+   * headers still matches. Absent on records written before it existed; the key is then
+   * computed from `pgn` when the record is matched.
+   */
+  key?: string;
   /** The game's normalised PGN (`gamePgn(parseGame(pgn))`). */
   pgn: string;
   /** The side the user viewed the game from. */
