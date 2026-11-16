@@ -212,3 +212,40 @@ The report runs the review exactly as the site does (`runReview` at Standard 14 
 - These tests are skipped unless `EVAL_GAMES` (or `EVAL_PGN`) is set, so `npm test` stays fast.
 - The Node engine can only be started once per process, so run the two tests separately.
 - The photo reader has its own benchmark: `scripts/vision/README.md`.
+
+## 8. Performance rating
+
+The number under each player's accuracy (`src/lib/review/performance.ts`) is fitted on games Chess.com has reviewed, from players of every level:
+
+```bash
+node scripts/eval/fetch-corpus.mjs scripts/eval/out/corpus.jsonl 2400      # ~39,000 reviewed games, about 15 minutes
+python3 scripts/eval/fit-performance.py scripts/eval/out/corpus.jsonl scripts/eval/out/top-*.json [--weight=0.35]
+```
+
+`fetch-corpus.mjs` samples players from the public country lists and keeps the games that carry Chess.com's accuracies (both ratings, time class, result; every 25th game keeps its PGN). `fit-performance.py` prints, per time class, the expected accuracy at each rating as two straight pieces joined at a knee (`EXPECTED`), how well each weight predicts the result when the performance gap is read as a rating gap, and the spread of performance minus rating by rating band for one weight.
+
+**Results on 2026-11-15**, 36,608 rated games of 20 plies or more:
+
+| Time class | Knee | Expected accuracy at 400 / 800 / 1200 / 1600 / 2000 / 2800 |
+| --- | --- | --- |
+| Rapid | 650 | 62.6 / 69.8 / 72.9 / 76.1 / 79.2 / 85.5 |
+| Blitz | 550 | 65.0 / 70.1 / 72.8 / 75.4 / 78.0 / 83.3 |
+| Bullet | 750 | 63.8 / 70.8 / 72.5 / 74.3 / 76.1 / 79.6 |
+
+The result is predicted best at a weight of about 0.50 (log-loss 0.340), nearly as well at 0.40 (0.346) and 0.35 (0.353); ratings alone give 0.624. The shipped weight is 0.35: rapid players around 1200 then land between 224 below and 329 above their rating in the middle half of their games. Chess.com's own performance ratings can't be fetched (logged-in pages only), so the weight can't be fitted to them: a handful of the owner's own numbers would settle it.
+
+Not done yet: checking this site's own accuracy against Chess.com's across rating bands on the corpus's saved PGNs (the accuracy fit in §3 used one account).
+
+## 9. The position commentary
+
+```bash
+EVAL_GAMES=scripts/eval/out/games.json EVAL_SKIP=0 EVAL_N=6 EVAL_PLIES=16,30,46,64,90 EVAL_DEPTH=14 \
+  npx vitest run src/lib/eval/commentary-report.test.ts
+less scripts/eval/out/commentary-report.txt
+```
+
+For a few positions from each game (after the plies given), the report searches the position with three lines, as the analysis page does, and prints the whole commentary (`src/lib/commentary`): the headline and story, the position's types with their meanings, each side's likes and dislikes with their weights, and the plans by type with the engine's note where its lines play them. `EVAL_FENS=file.txt` reports a list of positions instead (one FEN per line, `name | fen` allowed).
+
+Read it as a coach would, find the rule behind a wrong or empty sentence (`kinds.ts` for the types, `structures.ts` for the named pawn structures, `points.ts` for likes and dislikes, `plans.ts`), fix it in general terms, and run it again on games not read yet. `commentary.test.ts` holds the clear-cut cases, including that every sample position reads the same with the colours swapped.
+
+Found and fixed this way on 2026-11-15 (Ay7u's games 40–64 of a 3-month fetch): positions in the middle of an exchange were described by the material on the board ("a piece down" one move before the recapture); a decided position still listed slow plans for the losing side; thin king cover was reported with five defenders against two attackers; rooks behind their own pieces in the middlegame were called idle; and a fianchettoed bishop behind its own knight was called the worst piece.

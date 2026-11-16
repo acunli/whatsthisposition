@@ -1,9 +1,8 @@
 name: Social posts
 
 # After the day's reviewed games are published, post the most striking ones to the site's own
-# Bluesky and Mastodon accounts (scripts/social/post.mjs). Each platform runs only once its
-# secrets are set in the repository (Settings > Secrets and variables > Actions):
-#   BLUESKY_HANDLE, BLUESKY_APP_PASSWORD; MASTODON_INSTANCE, MASTODON_TOKEN.
+# Bluesky account (scripts/social/post.mjs). It runs only once its secrets are set in the
+# repository (Settings > Secrets and variables > Actions): BLUESKY_HANDLE, BLUESKY_APP_PASSWORD.
 on:
   workflow_run:
     workflows: [Reviewed games]
@@ -43,5 +42,3 @@ jobs:
         env:
           BLUESKY_HANDLE: ${{ secrets.BLUESKY_HANDLE }}
           BLUESKY_APP_PASSWORD: ${{ secrets.BLUESKY_APP_PASSWORD }}
-          MASTODON_INSTANCE: ${{ secrets.MASTODON_INSTANCE }}
-          MASTODON_TOKEN: ${{ secrets.MASTODON_TOKEN }}
