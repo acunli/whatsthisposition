@@ -236,6 +236,8 @@ The result is predicted best at a weight of about 0.50 (log-loss 0.340), nearly 
 
 Not done yet: checking this site's own accuracy against Chess.com's across rating bands on the corpus's saved PGNs (the accuracy fit in §3 used one account).
 
+**The /chess-accuracy page** reads the same corpus: `python3 scripts/eval/accuracy-by-rating.py scripts/eval/out/corpus.jsonl scripts/eval/out/top-*.json` writes `src/data/accuracy-by-rating.json` (aggregates only: per time class and 200-point rating band, percentiles 5–95 of Chess.com's accuracy and the medians in won and lost games; bands under 150 player-games are dropped). The page's text and questions are built from that file (`src/lib/accuracy/byRating.ts`), so rerun the script after a new `fetch-corpus.mjs` and the page follows. On 2026-11-17: 35,871 games; rapid medians 60.5 (under 400), 72.4 (1000–1199), 77.3 (1600–1799), 82.5 (2200–2399); blitz 2800+ (top players' games) 86.1.
+
 ## 9. The position commentary
 
 ```bash

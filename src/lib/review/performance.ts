@@ -91,6 +91,14 @@ function poolShift(headers: Record<string, string>, level: number): number {
   return level <= 1500 ? 200 : level >= 2500 ? 0 : (200 * (2500 - level)) / 1000;
 }
 
+/** Performance from a rating and the level a game was played at, rounded to 50 and kept to the shown range. */
+const weigh = (rating: number, level: number) => Math.round(clamp(rating + PERFORMANCE_WEIGHT * (level - rating), SHOWN_RANGE) / 50) * 50;
+
+/** The performance rating of one Chess.com game played at `accuracy` by a player rated `rating`. */
+export function onePerformance(rating: number, accuracy: number, tc: TimeClass): number {
+  return weigh(rating, accuracyLevel(accuracy, tc));
+}
+
 const rated = (elo?: string) => {
   const n = Number(elo);
   return Number.isFinite(n) && n >= 100 && n <= 4000 ? n : null;
@@ -126,7 +134,7 @@ export function performanceRatings(inp: PerformanceInput): Record<Color, number 
     const l = levels[c];
     if (l == null) continue;
     const anchor = ratings[c] ?? ratings[c === "w" ? "b" : "w"] ?? both ?? l;
-    out[c] = Math.round(clamp(anchor + PERFORMANCE_WEIGHT * (l - anchor), SHOWN_RANGE) / 50) * 50;
+    out[c] = weigh(anchor, l);
   }
   return out;
 }

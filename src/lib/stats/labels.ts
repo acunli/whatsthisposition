@@ -102,6 +102,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/chess-position-analyzer": "Position analyzer",
   "/chess-com-extension": "Chess.com extension",
   "/chess-move-classifications": "Move classifications",
+  "/chess-accuracy": "Accuracy by rating",
   "/r/*": "Shared reviews",
   "/openings": "Chess openings",
   "/puzzles": "Puzzles from your games",

@@ -17,6 +17,7 @@ export const SITE_PAGES = [
   "/chess-position-analyzer",
   "/chess-com-extension",
   "/chess-move-classifications",
+  "/chess-accuracy",
   "/openings",
   "/puzzles",
   "/history",

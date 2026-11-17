@@ -8443,3 +8443,205 @@ a.btn {
     justify-content: flex-end;
   }
 }
+
+/* Accuracy by rating (/chess-accuracy): the calculator, its chart and the tables. One hue, validated
+   against the card in each theme (dataviz validate_palette: light #ea5a10 on #fff, dark #e8661c on
+   #141b18). */
+.acc-tool {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  max-width: 1100px;
+  padding: clamp(16px, 2.5vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--slab);
+  --acc-hue: #e8661c;
+}
+
+:root:not([data-theme="dark"]) .acc-tool {
+  --acc-hue: #ea5a10;
+}
+
+.acc-tabs {
+  max-width: 420px;
+}
+
+.acc-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 220px));
+  gap: 14px;
+}
+
+.acc-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--bone-2);
+}
+
+.acc-result {
+  margin: 0;
+  max-width: 46em;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--bone-2);
+}
+
+.acc-result b {
+  color: var(--bone);
+}
+
+.acc-chart {
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+}
+
+.acc-cap {
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.acc-plot {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.acc-plot svg {
+  display: block;
+  overflow: visible;
+}
+
+.acc-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.acc-axis {
+  fill: var(--dim);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-wash {
+  fill: var(--acc-hue);
+  stroke: none;
+}
+
+.acc-wash-80 {
+  opacity: 0.08;
+}
+
+.acc-wash-50 {
+  opacity: 0.18;
+}
+
+.acc-line {
+  fill: none;
+  stroke: var(--acc-hue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.acc-dot {
+  fill: var(--acc-hue);
+  stroke: var(--slab);
+  stroke-width: 2;
+}
+
+.acc-cross {
+  stroke: var(--line-2);
+  stroke-width: 1;
+}
+
+.acc-you {
+  fill: var(--bone);
+  stroke: var(--slab);
+  stroke-width: 2;
+}
+
+.acc-you-label {
+  fill: var(--bone);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.acc-hit {
+  fill: transparent;
+}
+
+.acc-tip {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 2px;
+  min-width: 170px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  background: var(--slab-2);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.acc-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 480px), 1fr));
+  gap: 28px 40px;
+  max-width: 1100px;
+}
+
+.acc-table-wrap {
+  overflow-x: auto;
+}
+
+.acc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-table caption {
+  text-align: left;
+  font-weight: 700;
+  font-size: 17px;
+  padding-bottom: 8px;
+}
+
+.acc-table th,
+.acc-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.acc-table thead th {
+  color: var(--dim);
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.acc-table th[scope="row"],
+.acc-table thead th:first-child {
+  text-align: left;
+}
+
+.acc-table td {
+  color: var(--bone-2);
+}
+
+@media (max-width: 520px) {
+  .acc-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}

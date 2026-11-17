@@ -5,6 +5,7 @@
  * search engines as FAQPage data), and a title and description written for the search result.
  * Keep every answer true to the code, like lib/faq.ts.
  */
+import { ACCURACY_DATA, ACCURACY_TEXT } from "./accuracy/byRating";
 import type { FaqItem } from "./faq";
 
 export interface Landing {
@@ -18,6 +19,8 @@ export interface Landing {
   h1: string;
   lede: string;
   faq: FaqItem[];
+  /** When the page's content last changed (YYYY-MM-DD), for the sitemap; unknown pages give none. */
+  updated?: string;
 }
 
 export const LANDING = {
@@ -191,7 +194,30 @@ export const LANDING = {
       },
     ],
   },
+  accuracy: {
+    path: "/chess-accuracy",
+    title: "Chess accuracy by rating: what is a good accuracy?",
+    description: `What accuracy is good for your rating? Chess.com accuracy by rating from ${ACCURACY_TEXT.games} reviewed games in rapid, blitz and bullet, with a calculator.`,
+    name: "Accuracy by rating",
+    h1: "Chess accuracy by rating",
+    updated: ACCURACY_DATA.updated,
+    lede: `How accurately players of each rating really play: Chess.com's own accuracy numbers from ${ACCURACY_TEXT.games} games it reviewed, in rapid, blitz and bullet. Enter your rating and a game's accuracy to see how it compares.`,
+    faq: [
+      { q: "What is a good accuracy in chess?", a: ACCURACY_TEXT.good },
+      { q: "What accuracy do 1500-rated players have?", a: ACCURACY_TEXT.club },
+      ...(ACCURACY_TEXT.top ? [{ q: "What accuracy do top players have?", a: ACCURACY_TEXT.top }] : []),
+      { q: "Why did I lose with a higher accuracy?", a: ACCURACY_TEXT.lost },
+      {
+        q: "How is chess accuracy calculated?",
+        a: "Each move is compared with the engine's best: the winning chances it gives away lower its score, and the game's accuracy combines all of your moves. Chess.com doesn't publish its exact formula; this site's own game review uses Lichess's published one, put on Chess.com's scale, and usually lands within 3 to 4 points of Chess.com's number.",
+      },
+      {
+        q: "What is a performance rating?",
+        a: "The rating a game was played like: how your accuracy compares with what players of your rating usually reach in that kind of game. One game counts only partly, so a great game lifts it a few hundred points above your rating, not to a grandmaster's.",
+      },
+    ],
+  },
 } satisfies Record<string, Landing>;
 
 /** Every landing page, in the order the footer lists them. */
-export const LANDINGS: Landing[] = [LANDING.chesscom, LANDING.lichess, LANDING.pgn, LANDING.position, LANDING.extension, LANDING.labels];
+export const LANDINGS: Landing[] = [LANDING.chesscom, LANDING.lichess, LANDING.pgn, LANDING.position, LANDING.extension, LANDING.labels, LANDING.accuracy];
