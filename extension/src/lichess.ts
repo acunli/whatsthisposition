@@ -8,7 +8,8 @@
  * How it sees a game end, reading as little of the page as it can. It never reads the moves on
  * the page: Lichess renames its move list's tags now and then, on purpose, to stop cheating
  * tools. It looks only at whether the game is over:
- * - A game's page (`lichess.org/{id}`, `/{id}{you}` while you play, `/{id}/black`) draws the
+ * - A game's page (`lichess.org/game/{id}`, `/game/{id}{you}` while you play, `/game/{id}/black`;
+ *   before October 2026 the same without `/game`, which now redirects there) draws the
  *   board, players and clocks in `.round__app` (with `.round__app__table` once Lichess's script
  *   has drawn it). When the game is over, the result appears under the moves (`.result-wrap`:
  *   "1-0", or nothing for an aborted game) and the buttons for after a game (`.follow-up`). A game
@@ -70,7 +71,7 @@ function bottomColour(): Color {
   const board = document.querySelector(".main-board .cg-wrap") ?? document.querySelector(".cg-wrap");
   if (board?.classList.contains("orientation-black")) return "b";
   if (board?.classList.contains("orientation-white")) return "w";
-  return /^\/[A-Za-z0-9]{8,12}\/black(?:\/|$)/.test(location.pathname) ? "b" : "w";
+  return /^\/(?:game\/)?[A-Za-z0-9]{8,12}\/black(?:\/|$)/.test(location.pathname) ? "b" : "w";
 }
 
 /** The game named by the analysis button a finished game shows (on pages whose address names none). */

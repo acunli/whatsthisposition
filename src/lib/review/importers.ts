@@ -50,9 +50,13 @@ export function validUsername(name: string): boolean {
 /** Lichess pages whose address looks like a game's (eight letters) but isn't one. */
 const LICHESS_PAGES = new Set(["analysis", "practice", "training", "streamer", "features", "insights", "download"]);
 
-/** A Lichess game id from a game link (lichess.org/abcd1234, …/abcd1234/black, …/abcd1234wxyz, …/embed/game/abcd1234). */
+/**
+ * A Lichess game id from a game link: lichess.org/game/abcd1234 (where game pages live since
+ * October 2026), …/game/abcd1234/black, …/game/abcd1234wxyz (a player's own page), the older
+ * lichess.org/abcd1234 forms, and …/embed/game/abcd1234.
+ */
 export function lichessGameId(text: string): string | null {
-  const m = text.trim().match(/^(?:https?:\/\/)?(?:www\.)?lichess\.org\/(?:game\/export\/|embed\/(?:game\/)?)?([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:[/?#].*)?$/);
+  const m = text.trim().match(/^(?:https?:\/\/)?(?:www\.)?lichess\.org\/(?:game\/(?:export\/)?|embed\/(?:game\/)?)?([A-Za-z0-9]{8})(?:[A-Za-z0-9]{4})?(?:[/?#].*)?$/);
   return m && !LICHESS_PAGES.has(m[1]) ? m[1] : null;
 }
 

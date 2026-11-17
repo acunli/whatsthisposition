@@ -23,6 +23,13 @@ describe("game import", () => {
     expect(lichessGameId("lichess.org/7mLyypTVab12/black")).toBe("7mLyypTV");
     expect(lichessGameId("https://lichess.org/@/thibault")).toBeNull();
     expect(lichessGameId("https://lichess.org/embed/game/7mLyypTV?theme=auto")).toBe("7mLyypTV");
+    // Game pages moved under /game/ (the old addresses redirect there).
+    expect(lichessGameId("https://lichess.org/game/7mLyypTV")).toBe("7mLyypTV");
+    expect(lichessGameId("https://lichess.org/game/7mLyypTVab12")).toBe("7mLyypTV");
+    expect(lichessGameId("https://lichess.org/game/7mLyypTV/black")).toBe("7mLyypTV");
+    expect(lichessGameId("https://lichess.org/game/7mLyypTV/black/analysis#12")).toBe("7mLyypTV");
+    expect(lichessGameId("https://lichess.org/games/blitz")).toBeNull();
+    expect(lichessGameId("https://lichess.org/game/export/gif/7mLyypTV.gif")).toBeNull();
     // Lichess pages with eight-letter addresses aren't games.
     expect(lichessGameId("https://lichess.org/analysis/standard/rnbqkbnr")).toBeNull();
     expect(lichessGameId("https://lichess.org/training/abc12")).toBeNull();
