@@ -26,6 +26,11 @@ export interface SearchOptions {
   searchmoves?: string[];
   /** Clear the hash first, so the result doesn't depend on earlier searches (reproducible reviews). */
   fresh?: boolean;
+  /**
+   * Also stop after this many nodes. Single-threaded Stockfish counts nodes the same way every
+   * time, so a capped search is as reproducible as one that reaches its depth.
+   */
+  nodes?: number;
 }
 
 export interface EngineLine {
@@ -175,7 +180,8 @@ export class EngineClient {
     if (this.failed) return;
     job.started = Date.now();
     job.phase = "searching";
-    const limit = opts.movetimeMs ? `movetime ${Math.round(opts.movetimeMs)}` : `depth ${opts.depth ?? 16}`;
+    const nodes = opts.nodes && opts.nodes > 0 ? ` nodes ${Math.round(opts.nodes)}` : "";
+    const limit = (opts.movetimeMs ? `movetime ${Math.round(opts.movetimeMs)}` : `depth ${opts.depth ?? 16}`) + nodes;
     const moves = opts.searchmoves?.length ? ` searchmoves ${opts.searchmoves.join(" ")}` : "";
     this.transport.post(`go ${limit}${moves}`);
     if (job.cancelled) this.transport.post("stop");

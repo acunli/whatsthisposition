@@ -31,6 +31,8 @@ export interface SearchRequest {
   multipv?: number;
   searchmoves?: string[];
   fresh?: boolean;
+  /** Also stop after this many nodes (`reviewNodes`): bounds the rare search that explodes. */
+  nodes?: number;
 }
 
 /** Anything that can run a search: the browser worker, or the Node engine in tests. */

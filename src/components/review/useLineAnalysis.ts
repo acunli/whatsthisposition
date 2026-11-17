@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { EngineLine } from "@/lib/engine/client";
 import { createEnginePool, type EnginePool } from "@/lib/engine/pool";
 import { terminalEval, type PositionAnalysis } from "@/lib/review/classify";
+import { reviewNodes } from "@/lib/review/depths";
 
 /** A position a side line needs searched: two lines at `depth`, or (with `quiet`) the best of those moves only. */
 export interface LineRequest {
@@ -36,7 +37,8 @@ export function useLineAnalysis(enabled: boolean): LineAnalysis {
   const on = useRef(enabled);
   const busy = useRef(false);
   const pool = useRef<EnginePool | null>(null);
-  // Searches that came back empty, so they aren't asked again and again.
+  // Searches already run (empty, or stopped by the node cap short of their depth), so they aren't
+  // asked again and again.
   const tried = useRef(new Set<string>());
 
   useEffect(() => {
@@ -79,11 +81,9 @@ export function useLineAnalysis(enabled: boolean): LineAnalysis {
           continue;
         }
         pool.current ??= createEnginePool(1);
-        const lines = await pool.current.searchers[0]({ fen: r.fen, depth: r.depth, multipv: r.quiet ? 1 : 2, searchmoves: r.quiet, fresh: true });
-        if (!lines.length) {
-          tried.current.add(id);
-          continue;
-        }
+        const lines = await pool.current.searchers[0]({ fen: r.fen, depth: r.depth, multipv: r.quiet ? 1 : 2, searchmoves: r.quiet, fresh: true, nodes: reviewNodes(r.depth) });
+        tried.current.add(id);
+        if (!lines.length) continue;
         store.current = r.quiet
           ? { ...store.current, quiet: new Map(store.current.quiet).set(r.key, lines[0]) }
           : { ...store.current, positions: new Map(store.current.positions).set(r.key, { lines, eval: lines[0].eval, depth: lines[0].depth }) };

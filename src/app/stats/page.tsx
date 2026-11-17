@@ -132,6 +132,10 @@ function Overview({ d, q }: { d: Dashboard; q: Query }) {
   const people = d.people;
   const firstUses = t.returning.new + t.returning.back;
   const reviewStarts = e.review ?? 0;
+  // A game from the browser extension arrives already reviewed (the extension's card ran the
+  // engine), so it never counts as finished here: leave those out of the finish rate.
+  const fromExtension = t.sources.review?.extension ?? 0;
+  const ranHere = reviewStarts - fromExtension;
   const reviewSecs = Object.values(t.reviewTime).reduce((a, r) => a + r.seconds, 0);
   const reviewTimed = Object.values(t.reviewTime).reduce((a, r) => a + r.count, 0);
   const allReviewBuckets = Object.values(t.reviewTime).reduce((acc, r) => acc.map((x, i) => x + r.buckets[i]), Array(REVIEW_SECONDS.length + 1).fill(0) as number[]);
@@ -192,8 +196,14 @@ function Overview({ d, q }: { d: Dashboard; q: Query }) {
             note={`back from an earlier day of the month${d.tracked < people ? ` (of the ${fmt(d.tracked)} people since ${HOURLY_SINCE})` : ""}${firstUses ? `; ${pct(t.returning.back, firstUses)} of people's days were returns` : ""}`}
             spark={spark("back")}
           />
-          <Tile label="Reviews started" value={reviewStarts} before={p.events.review ?? 0} note={`by ${fmt(d.who.review ?? 0)} people`} spark={spark("review")} />
-          <Tile label="Reviews finished" value={e.review_done ?? 0} before={p.events.review_done ?? 0} note={reviewTimed ? `average ${duration(reviewSecs / reviewTimed)}` : `${pct(e.review_done ?? 0, reviewStarts)} of reviews started`} spark={spark("review_done")} />
+          <Tile label="Reviews started" value={reviewStarts} before={p.events.review ?? 0} note={`by ${fmt(d.who.review ?? 0)} people${fromExtension ? `; ${fmt(fromExtension)} came from the extension already reviewed` : ""}`} spark={spark("review")} />
+          <Tile
+            label="Reviews finished"
+            value={e.review_done ?? 0}
+            before={p.events.review_done ?? 0}
+            note={`${pct(e.review_done ?? 0, ranHere)} of the ${fmt(ranHere)} the engine ran here${reviewTimed ? `; average ${duration(reviewSecs / reviewTimed)}` : ""}`}
+            spark={spark("review_done")}
+          />
           <Tile label="Positions analysed" value={e.analysis ?? 0} before={p.events.analysis ?? 0} note={`by ${fmt(d.who.analysis ?? 0)} people`} spark={spark("analysis")} />
           <Tile label="Game lists fetched" value={e.lookup ?? 0} before={p.events.lookup ?? 0} note={`counted from ${HOURLY_SINCE}`} />
           <Tile label="Photos read" value={e.photo ?? 0} before={p.events.photo ?? 0} />
@@ -223,7 +233,11 @@ function Overview({ d, q }: { d: Dashboard; q: Query }) {
         </div>
       </Section>
 
-      <Section id="journey" title="What people go on to do" note="Of the people who visited, how many did each thing (people can skip a step: a pasted PGN needs no game list).">
+      <Section
+        id="journey"
+        title="What people go on to do"
+        note="Of the people who visited, how many did each thing (people can skip a step: a pasted PGN needs no game list). A game opened from the extension arrives already reviewed: it counts as a review started, never as one finished here."
+      >
         <Card>
           <Steps
             steps={[

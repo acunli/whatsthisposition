@@ -26,7 +26,7 @@ beforeAll(async () => {
   const e = await init("lite-single");
   const client = new EngineClient({ post: (c) => e.sendCommand(c), onLine: (cb) => { e.listener = cb; }, onError: () => undefined, terminate: () => undefined });
   await client.ready;
-  search = (r) => client.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves, fresh: r.fresh }).promise.then((s) => s.lines);
+  search = (r) => client.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves, fresh: r.fresh, nodes: r.nodes }).promise.then((s) => s.lines);
 }, 60_000);
 
 async function analyse(fen: string, depth: number): Promise<PositionAnalysis> {

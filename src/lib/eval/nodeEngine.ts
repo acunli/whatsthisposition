@@ -23,7 +23,7 @@ export function nodeSearcher(): Promise<Searcher> {
         terminate: () => undefined,
       });
       await client.ready;
-      return (r) => client.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves, fresh: r.fresh }).promise.then((s) => s.lines);
+      return (r) => client.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves, fresh: r.fresh, nodes: r.nodes }).promise.then((s) => s.lines);
     })();
   }
   return cached;

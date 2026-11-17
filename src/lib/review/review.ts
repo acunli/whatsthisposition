@@ -10,6 +10,7 @@ import { classifyMove, expectedScore, gameRating, needsQuietSearch, terminalEval
 import { isTheory, mainLine, type MasterEntry, type MasterMove, type MastersBook } from "./masters";
 import type { SideLine } from "./lines";
 import type { GameMove, ParsedGame } from "./pgn";
+import { reviewNodes } from "./depths";
 import { detectSacrifice, unsafePieces } from "./safety";
 
 export interface ReviewOptions {
@@ -53,7 +54,7 @@ export async function analysePositions(game: ParsedGame, searchers: Searcher[], 
         let lines;
         try {
           // A fresh hash per position makes the review reproducible whichever engine gets which position.
-          lines = await search({ fen, depth: opts.depth, multipv: 2, fresh: true });
+          lines = await search({ fen, depth: opts.depth, multipv: 2, fresh: true, nodes: reviewNodes(opts.depth) });
         } catch (e) {
           if (opts.signal?.cancelled) return;
           queue.unshift(i);
@@ -100,12 +101,23 @@ export interface RunOptions {
 }
 
 /**
+ * The share of the engines that may take deeper searches while first-pass positions are still
+ * waiting. A deeper search is several times longer than a first-pass one, so starting a few early
+ * keeps the longest one from being the last thing running. Replayed from recorded node counts on
+ * 16 of Ay7u's games (2026-11-17): a quarter is about 6% faster overall with 7 engines and 3% with
+ * 4, the first pass ending up to a tenth later; a half or all of them delays the first pass far
+ * more for no further gain.
+ */
+const EARLY_DEEP_SHARE = 0.25;
+
+/**
  * The whole review on a pool of searchers, as one queue so no engine sits idle: every position
  * at `depth` in game order; as soon as a move's first-pass labels are known, the positions behind
  * tactical labels are searched `verifyDepth` deep (the slowest first, so the last one doesn't hold
- * up the end); and once a sacrifice's positions are final, the best quiet move it is measured
- * against. Which positions get the second pass is decided exactly as by `criticalPositions` and
- * `quietSearchPositions` on the finished passes, so the result doesn't depend on timing.
+ * up the end; a quarter of the engines may start them before the first pass is done); and once a
+ * sacrifice's positions are final, the best quiet move it is measured against. Which positions get
+ * the second pass is decided exactly as by `criticalPositions` and `quietSearchPositions` on the
+ * finished passes, so the result doesn't depend on timing.
  */
 export async function runReview(game: ParsedGame, searchers: Searcher[], opts: RunOptions): Promise<(PositionAnalysis | null)[]> {
   const fens = gamePositions(game);
@@ -192,10 +204,16 @@ export async function runReview(game: ParsedGame, searchers: Searcher[], opts: R
     progress();
   };
 
+  const earlyDeep = Math.round(EARLY_DEEP_SHARE * searchers.length);
   const next = (): { kind: "first" | "deep" | "quiet"; i: number } | null => {
-    if (firstQueue.length) return { kind: "first", i: firstQueue.shift()! };
     let best = -1;
     for (const k of deepWanted) if (!deepStarted.has(k) && first[k] && (best < 0 || cost[k] > cost[best])) best = k;
+    if (firstQueue.length) {
+      let deepRunning = 0;
+      for (const key of started.keys()) if (key.startsWith("deep:")) deepRunning++;
+      if (best >= 0 && deepRunning < earlyDeep) return { kind: "deep", i: best };
+      return { kind: "first", i: firstQueue.shift()! };
+    }
     if (best >= 0) return { kind: "deep", i: best };
     for (const i of quietWanted) if (!quietStarted.has(i)) return { kind: "quiet", i };
     return null;
@@ -230,7 +248,7 @@ export async function runReview(game: ParsedGame, searchers: Searcher[], opts: R
           } else {
             const t0 = Date.now();
             // A fresh hash per search keeps the review reproducible whichever engine gets what.
-            const lines = await search({ fen: fens[i], depth: opts.depth, multipv: 2, fresh: true });
+            const lines = await search({ fen: fens[i], depth: opts.depth, multipv: 2, fresh: true, nodes: reviewNodes(opts.depth) });
             cost[i] = Date.now() - t0;
             if (lines.length) first[i] = { lines, eval: lines[0].eval, depth: lines[0].depth };
           }
@@ -239,13 +257,13 @@ export async function runReview(game: ParsedGame, searchers: Searcher[], opts: R
             set(i, first[i]!);
           }
         } else if (kind === "deep") {
-          const lines = await search({ fen: fens[i], depth: opts.verifyDepth, multipv: 2, fresh: true });
+          const lines = await search({ fen: fens[i], depth: opts.verifyDepth, multipv: 2, fresh: true, nodes: reviewNodes(opts.verifyDepth) });
           if (lines.length) set(i, { lines, eval: lines[0].eval, depth: lines[0].depth, quiet: merged[i]?.quiet });
           deepDone.add(i);
         } else {
           const m = game.moves[i];
           const quiet = quietMoves(m, i > 0 ? game.moves[i - 1] : null);
-          const line = quiet.length ? (await search({ fen: m.fenBefore, depth: opts.verifyDepth, multipv: 1, searchmoves: quiet, fresh: true }))[0] : undefined;
+          const line = quiet.length ? (await search({ fen: m.fenBefore, depth: opts.verifyDepth, multipv: 1, searchmoves: quiet, fresh: true, nodes: reviewNodes(opts.verifyDepth) }))[0] : undefined;
           if (line && merged[i]) set(i, { ...merged[i]!, quiet: line });
           quietDone.add(i);
         }
@@ -312,7 +330,16 @@ export function theoryAt(masters: MastersBook, fen: string, entry: MasterEntry, 
  * first gap (so a partially analysed game gives a correct prefix). Pass the same
  * `cache` while a run fills in to avoid re-classifying the finished prefix.
  */
-export type ClassifyCache = Map<number, { c: ClassifiedMove; prev?: ClassifiedMove; quiet?: PositionAnalysis["quiet"] }>;
+export type ClassifyCache = Map<number, { c: ClassifiedMove; prev?: ClassifiedMove; quiet?: PositionAnalysis["quiet"]; book: string }>;
+
+/**
+ * What `classifyMove` reads of the opponent's move before: which move it was, its label and the
+ * mover's chances before it. Compared by content, not identity: a move re-labelled the same way
+ * after a deeper search must not make every move after it be classified again (that cascade cost
+ * seconds of main-thread time per deeper search, and engines waited for their next job meanwhile).
+ */
+const samePrevious = (a: ClassifiedMove | undefined, b: ClassifiedMove | undefined) =>
+  a === b || (!!a && !!b && a.move === b.move && a.cls === b.cls && a.before === b.before);
 
 export function classifyGame(game: ParsedGame, positions: (PositionAnalysis | null)[], book: OpeningBook | null, cache?: ClassifyCache): GameReview {
   const masters = book?.masters ?? null;
@@ -362,7 +389,9 @@ function classifyRun(
     if (named && stillBook) opening = named;
     const previous = i > 0 ? out[i - 1] : start.previous;
     const hit = cache?.get(i);
-    if (hit && hit.c.evalBefore === before.eval && hit.c.evalAfter === after.eval && hit.prev === previous && hit.quiet === before.quiet && hit.c.move === m) {
+    // Where the move stands in the book (it decides Book, the opening and the theory shown).
+    const bookState = `${+wasBook}${+inBook}|${played?.uci ?? ""}|${inBook && opening ? `${opening.eco}|${opening.name}` : ""}`;
+    if (hit && hit.c.evalBefore === before.eval && hit.c.evalAfter === after.eval && samePrevious(hit.prev, previous) && hit.quiet === before.quiet && hit.c.move === m && hit.book === bookState) {
       out.push(hit.c);
       continue;
     }
@@ -370,7 +399,7 @@ function classifyRun(
     // Book moves, and the move that left the book, carry what masters play here.
     const theory = wasBook && entry && masters ? theoryAt(masters, m.fenBefore, entry, played) : null;
     const c = classifyMove({ move: m, before, after, legalMoves: legal, inBook, previous, opening: inBook ? opening : null, theory, rating });
-    cache?.set(i, { c, prev: previous, quiet: before.quiet });
+    cache?.set(i, { c, prev: previous, quiet: before.quiet, book: bookState });
     out.push(c);
   }
   return { moves: out, state: { stillBook, bookUntil, opening } };
@@ -479,7 +508,7 @@ export async function searchQuietMoves(
       const quiet = quietMoves(m, i > 0 ? game.moves[i - 1] : null);
       if (!quiet.length) continue;
       try {
-        const line = (await search({ fen: m.fenBefore, depth: opts.depth, multipv: 1, searchmoves: quiet, fresh: true }))[0];
+        const line = (await search({ fen: m.fenBefore, depth: opts.depth, multipv: 1, searchmoves: quiet, fresh: true, nodes: reviewNodes(opts.depth) }))[0];
         if (!line) continue;
         out[i] = { ...pa, quiet: line };
         opts.onPosition?.(i, out[i]!);

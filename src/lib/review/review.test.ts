@@ -7,7 +7,8 @@ import { makeBook } from "./book";
 import { classifyMove, decisiveSlope, expectedScore, gameRating, lossClass, moveAccuracy, type ClassifiedMove, type PositionAnalysis } from "./classify";
 import { GAME_OF_THE_CENTURY, OPERA_GAME, SHILLING_TRAP } from "./fixtures/games";
 import { mainLineTokens, parseFirstGame, parseGame, splitGames } from "./pgn";
-import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, runReview, searchQuietMoves } from "./review";
+import { analysePositions, classifyGame, criticalPositions, quietSearchPositions, runReview, searchQuietMoves, type ClassifyCache } from "./review";
+import { reviewNodes } from "./depths";
 import { KASPAROV_TOPALOV } from "./samples";
 import { detectSacrifice, see, unsafePieces } from "./safety";
 import { placementFromFen } from "../chess/fen";
@@ -328,6 +329,24 @@ describe("game review with engine-free analysis", () => {
     expect(acc.w!).toBeGreaterThan(0);
     expect(acc.w!).toBeLessThan(acc.b!);
   });
+
+  it("classifies again only the moves next to a new result, not every move after it", () => {
+    const g = parseGame(SHILLING_TRAP);
+    const evals: Evaluation[] = [20, 30, 25, 30, 25, 40, -150, -160, -1500, -1500, -1500, -1600, -1600, -1700].map(cp);
+    const positions: PositionAnalysis[] = evals.map((e, i) => pa(e, i < g.moves.length ? [g.moves[i].uci] : []));
+    positions.push(pa({ kind: "mate", moves: 0, winner: "b" }));
+    const cache: ClassifyCache = new Map();
+    const before = classifyGame(g, positions, book, cache);
+    // A deeper search of position 9 that agrees with the first one: new objects, same content.
+    const again = positions.slice();
+    again[9] = { ...positions[9], eval: { ...positions[9].eval }, lines: positions[9].lines.map((l) => ({ ...l, eval: { ...l.eval } })) };
+    const after = classifyGame(g, again, book, cache);
+    expect(after.moves.map((m) => m.cls)).toEqual(classifyGame(g, again, book).moves.map((m) => m.cls));
+    // Moves 8 and 9 sit on either side of position 9; the moves after them come from the cache.
+    expect(after.moves[8]).not.toBe(before.moves[8]);
+    expect(after.moves[9]).not.toBe(before.moves[9]);
+    for (let i = 10; i < g.moves.length; i++) expect(after.moves[i]).toBe(before.moves[i]);
+  });
 });
 
 describe("two-pass review", () => {
@@ -417,6 +436,19 @@ describe("single-queue review", () => {
     release(book);
     await run;
     expect(depths.filter((d) => d === 14)).toHaveLength(2);
+  });
+
+  it("caps every search's nodes for its depth", async () => {
+    const asked: { depth: number; nodes?: number }[] = [];
+    const fake = async (r: { fen: string; depth: number; nodes?: number }) => {
+      asked.push({ depth: r.depth, nodes: r.nodes });
+      return lineFor(r);
+    };
+    await runReview(g, [fake, fake], { depth: 14, verifyDepth: 18, book: Promise.resolve(book) });
+    expect(asked.some((a) => a.depth === 18)).toBe(true);
+    for (const a of asked) expect(a.nodes).toBe(reviewNodes(a.depth));
+    expect(reviewNodes(14)).toBe(3_000_000);
+    expect(reviewNodes(18)).toBe(12_000_000);
   });
 
   it("hands a failed engine's work to the others", async () => {

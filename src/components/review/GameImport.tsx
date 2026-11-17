@@ -9,6 +9,7 @@ import { profileLink, type GameSummary, type Site } from "@/lib/review/importers
 import { forgetPlayer, isNewGame, markReviewed, rememberPlayer, rememberedPlayer, reviewedGames } from "@/lib/review/player";
 import { PgnError, parseGame, splitGames, type ParsedGame } from "@/lib/review/pgn";
 import { CLASSIC_GAMES } from "@/lib/review/samples";
+import { warmReview } from "@/lib/review/warm";
 
 export type ImportSource = "chesscom" | "lichess" | "pgn";
 
@@ -121,6 +122,8 @@ export function GameImport({ onGame: openGame, initialSource }: Props) {
         const same = before?.site === site && before.user.toLowerCase() === q.toLowerCase();
         rememberPlayer(site as Site, q);
         setGames({ name: q, owner: q.toLowerCase(), list: data.games, seenAt: same ? before.seenAt : 0, reviewed: reviewedGames(), welcome: !!opts.welcome });
+        // A game from this list is likely next: its review's downloads can start now.
+        warmReview();
       }
     } catch {
       setError("Couldn't reach the server. Check your connection and try again.");

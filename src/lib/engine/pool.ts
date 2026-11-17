@@ -34,7 +34,7 @@ export function createEnginePool(size = poolSize()): EnginePool {
   for (let i = 0; i < size; i++) clients.push(new EngineClient(createWorkerTransport("/engine/stockfish.js")));
   const searchers: Searcher[] = clients.map(
     (engine) => (r) =>
-      engine.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves, fresh: r.fresh }).promise.then((snap) => {
+      engine.analyze({ fen: r.fen, depth: r.depth, multipv: r.multipv ?? 1, searchmoves: r.searchmoves, fresh: r.fresh, nodes: r.nodes }).promise.then((snap) => {
         if (snap.cancelled) throw new Error("cancelled");
         return snap.lines;
       }),

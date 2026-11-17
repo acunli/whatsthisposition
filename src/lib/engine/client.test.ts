@@ -36,4 +36,19 @@ describe("EngineClient", () => {
     expect(snap.lines.map((l) => l.pv[0])).toEqual(["d2d4"]);
     expect(snap.lines[0].depth).toBe(11);
   });
+
+  it("caps a search's nodes when asked, and only then", async () => {
+    const sent: string[] = [];
+    const t = scripted(["info depth 1 multipv 1 score cp 10 pv e2e4", "bestmove e2e4"]);
+    const post = t.post;
+    t.post = (cmd) => {
+      sent.push(cmd);
+      post(cmd);
+    };
+    const client = new EngineClient(t);
+    const fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    await client.analyze({ fen, depth: 14, multipv: 2, nodes: 3_000_000 }).promise;
+    await client.analyze({ fen, depth: 12, multipv: 1 }).promise;
+    expect(sent.filter((c) => c.startsWith("go"))).toEqual(["go depth 14 nodes 3000000", "go depth 12"]);
+  });
 });

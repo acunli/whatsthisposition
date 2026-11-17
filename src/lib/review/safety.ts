@@ -71,15 +71,36 @@ const withTurn = (fen: string, turn: Color) => {
   return parts.join(" ");
 };
 
-function legalCapturers(fen: string, target: Square): Square[] | undefined {
+/**
+ * The legal moves of a position grouped by the square they go to (null when chess.js can't read
+ * the FEN). Generating legal moves is what classification spends almost all its time on, and the
+ * same positions are asked about again and again (every piece of a side, every way of taking, every
+ * candidate move of a sacrifice check), so the last few hundred positions are kept.
+ */
+const movesTo = new Map<string, Map<Square, Square[]> | null>();
+const MOVES_KEPT = 512;
+
+function legalMovesTo(fen: string): Map<Square, Square[]> | null {
+  const hit = movesTo.get(fen);
+  if (hit !== undefined) return hit;
+  let out: Map<Square, Square[]> | null = new Map();
   try {
-    return new Chess(fen)
-      .moves({ verbose: true })
-      .filter((m) => m.to === target)
-      .map((m) => m.from);
+    for (const m of new Chess(fen).moves({ verbose: true })) {
+      const list = out.get(m.to);
+      if (list) list.push(m.from);
+      else out.set(m.to, [m.from]);
+    }
   } catch {
-    return undefined;
+    out = null;
   }
+  if (movesTo.size >= MOVES_KEPT) movesTo.delete(movesTo.keys().next().value!);
+  movesTo.set(fen, out);
+  return out;
+}
+
+function legalCapturers(fen: string, target: Square): Square[] | undefined {
+  const all = legalMovesTo(fen);
+  return all ? (all.get(target)?.slice() ?? []) : undefined;
 }
 
 /**

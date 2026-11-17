@@ -264,3 +264,13 @@ Read it against the games: is the weakness the right one, does the puzzle have o
 
 Found and fixed this way on 2026-11-16 (Ay7u's games 90–97 of a 3-month fetch): a blunder that lost a bishop two moves later (15.Qa4, 16.Qxa5) was filed as a quiet mistake, because the count of what a line wins stopped at the first quiet stretch; the same move missed three moves running made three puzzles; and a line's summary could stop in the middle of an exchange and say the wrong side won material.
 
+
+## 11. Review speed
+
+How long a review takes depends on three things: the engines' work (fixed by the depths), the time engines wait for their next job, and searches that run away. Measure them separately, because wall-clock times on a laptop shift with its temperature and whatever else is running:
+
+- **Engine idle time.** In a browser, wrap `Worker` (Playwright `addInitScript`) and add up, per worker, the time from each `bestmove` to the next `go`. On 2026-11-17 this was 206 ms per search before the labelling fix and 27 ms after (11% and 1.5% of engine time); the main thread's long tasks (a `PerformanceObserver` on `longtask`) went from 98 s to 3 s over six reviews.
+- **Node counts.** Run the review's searches (MultiPV 2, fresh hash) over many positions with a node count per search (`EngineClient` snapshots carry `nodes`). On 1,115 positions of Ay7u's games: depth 14 median 133k, p99 600k; depth 18 median 750k, p99 2.9M, one search of each far beyond (7.5M and 15M, the same king-trapped ending). `reviewNodes` (`src/lib/review/depths.ts`) must stay well above the normal searches; in 16 full reviews (1,346 searches) none reached it.
+- **Scheduling.** Record every search of some reviews (request → lines and nodes), then replay `runReview` with fake searchers that answer after a time proportional to their nodes. That compares queue orders and pool sizes exactly, without engine noise; it is how `EARLY_DEEP_SHARE` and the pool cap were judged (more than 7 engines would save at most a fifth: the longest deeper search becomes the critical path).
+
+Every speed change must leave the review identical: compare the finished review (`sessionStorage["wtp-review"].data`, the packed positions) of the old and new builds on games you haven't used yet.
