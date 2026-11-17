@@ -16,7 +16,9 @@
     "storage"
   ],
   "host_permissions": [
-    "https://www.chess.com/*",
+    "https://www.chess.com/*"
+  ],
+  "optional_host_permissions": [
     "https://lichess.org/*"
   ],
   "background": {
@@ -37,15 +39,6 @@
       ],
       "js": [
         "content.js"
-      ],
-      "run_at": "document_idle"
-    },
-    {
-      "matches": [
-        "https://lichess.org/*"
-      ],
-      "js": [
-        "lichess.js"
       ],
       "run_at": "document_idle"
     }

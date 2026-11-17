@@ -1,9 +1,11 @@
 /**
  * The toolbar button's popup: finds the finished game in the current Chess.com or Lichess tab and,
  * on "Review this game", opens the review card in the corner of that page. It also turns
- * the automatic card (opened by the page script when a game ends) on or off.
+ * the automatic card (opened by the page script when a game ends) on or off, and Lichess (which
+ * the extension may see only once its user allows it here: lichessAccess.ts).
  */
 import type { FindReply, StatusReply } from "./card";
+import { LICHESS, syncLichess } from "./lichessAccess";
 
 const status = document.getElementById("status")!;
 const button = document.getElementById("review") as HTMLButtonElement;
@@ -14,6 +16,22 @@ void chrome.storage.local.get({ auto: true }).then((v) => {
   autoBox.checked = v.auto !== false;
 });
 autoBox.addEventListener("change", () => void chrome.storage.local.set({ auto: autoBox.checked }));
+
+const lichessBox = document.getElementById("lichess") as HTMLInputElement;
+void chrome.permissions.contains(LICHESS).then((on) => {
+  lichessBox.checked = on;
+});
+lichessBox.addEventListener("change", () => {
+  // The browser asks its user first; the request must start right here, in the click.
+  const change = lichessBox.checked ? chrome.permissions.request(LICHESS) : chrome.permissions.remove(LICHESS).then(() => false);
+  void change
+    .catch(() => false)
+    .then(() => syncLichess())
+    .then((on) => {
+      lichessBox.checked = on;
+      if (on) void showWatch();
+    });
+});
 
 /** What the page script is doing in this tab ("Watching this game…"), if it's a Chess.com or Lichess tab. */
 async function showWatch() {

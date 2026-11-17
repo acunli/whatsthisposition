@@ -5,11 +5,14 @@
  * card lives inside Chess.com's or Lichess's page, where the browser may not let it start workers.
  *
  * After an install, update or reload it also adds the page scripts to the Chess.com and Lichess
- * tabs that are already open (reinject.ts).
+ * tabs that are already open (reinject.ts), and it runs the Lichess script only while Lichess is
+ * turned on (lichessAccess.ts).
  */
+import { watchLichessAccess } from "./lichessAccess";
 import { reinjectOnInstall } from "./reinject";
 
 reinjectOnInstall();
+watchLichessAccess();
 
 const ENGINE_PAGE = "engine.html";
 let opening: Promise<void> | null = null;

@@ -79,8 +79,9 @@ export default function Credits() {
           Analytics (the site&apos;s host), which is cookieless too and keeps no personal identifiers.
         </p>
         <p>
-          The browser extension collects nothing. It works only on chess.com and lichess.org, where it looks at the game on the page to
-          know when it ends, and then opens its review card (or when you click its button). On Chess.com it reads the finished game from
+          The browser extension collects nothing. It works only on chess.com and lichess.org (on Lichess only if you turn it on, or click
+          its button there), where it looks at the game on the page to know when it ends, and then opens its review card (or when you
+          click its button). On Chess.com it reads the finished game from
           the page or from Chess.com&apos;s own game data (or, if the page names no game, your public game list from Chess.com&apos;s API);
           on Lichess, from Lichess&apos;s own copy of the finished game (or, if the page names no game, your newest game from your public
           game list). Stockfish reviews it on your computer when you press Analyze; nothing is sent to this site or anyone else. It keeps two things

@@ -1,7 +1,9 @@
 /**
- * Runs on Lichess. When a game ends in front of you (one you play, or watch on its own page),
- * the review card pops up in the bottom-right corner, as on Chess.com (content.ts; the card
- * itself is card.ts). The toolbar button opens the same card for a finished game on request.
+ * Runs on Lichess once its user turns Lichess on in the toolbar popup (lichessAccess.ts), or in
+ * the one tab where the toolbar button is clicked. When a game ends in front of you (one you
+ * play, or watch on its own page), the review card pops up in the bottom-right corner, as on
+ * Chess.com (content.ts; the card itself is card.ts). The toolbar button opens the same card for
+ * a finished game on request.
  *
  * How it sees a game end, reading as little of the page as it can. It never reads the moves on
  * the page: Lichess renames its move list's tags now and then, on purpose, to stop cheating

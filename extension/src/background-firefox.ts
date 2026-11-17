@@ -4,12 +4,15 @@
  * here, and a card's request to open the engine is answered at once.
  *
  * After an install, update or reload it also adds the page scripts to the Chess.com and Lichess
- * tabs that are already open (reinject.ts).
+ * tabs that are already open (reinject.ts), and it runs the Lichess script only while Lichess is
+ * turned on (lichessAccess.ts).
  */
+import { watchLichessAccess } from "./lichessAccess";
 import { reinjectOnInstall } from "./reinject";
 import "./engine";
 
 reinjectOnInstall();
+watchLichessAccess();
 
 chrome.runtime.onMessage.addListener((msg: { type?: string }, _sender, reply) => {
   if (msg?.type === "wtp:engine-open") reply({ ok: true });
