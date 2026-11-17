@@ -1,21 +1,25 @@
 /**
  * The toolbar button's popup: finds the finished game in the current Chess.com or Lichess tab and,
- * on "Review this game", opens the review card in the corner of that page. It also turns
- * the automatic card (opened by the page script when a game ends) on or off, and Lichess (which
- * the extension may see only once its user allows it here: lichessAccess.ts).
+ * on "Review this game", opens the review card in the corner of that page. It also ticks the sites
+ * where the card opens by itself when a game ends: Chess.com (on unless taken off) and Lichess
+ * (which the extension may see only once its user allows it here: lichessAccess.ts). The button
+ * works on both sites either way.
  */
-import type { FindReply, StatusReply } from "./card";
+import { chessComOn, type FindReply, type StatusReply } from "./card";
 import { LICHESS, syncLichess } from "./lichessAccess";
 
 const status = document.getElementById("status")!;
 const button = document.getElementById("review") as HTMLButtonElement;
-const autoBox = document.getElementById("auto") as HTMLInputElement;
+const chessComBox = document.getElementById("chesscom") as HTMLInputElement;
 const watch = document.getElementById("watch")!;
 
-void chrome.storage.local.get({ auto: true }).then((v) => {
-  autoBox.checked = v.auto !== false;
+void chrome.storage.local.get(["chesscom", "auto"]).then((v) => {
+  chessComBox.checked = chessComOn(v);
 });
-autoBox.addEventListener("change", () => void chrome.storage.local.set({ auto: autoBox.checked }));
+chessComBox.addEventListener("change", () => {
+  // The Chess.com tab hears of it (storage.onChanged) and starts or stops watching.
+  void chrome.storage.local.set({ chesscom: chessComBox.checked }).then(() => setTimeout(() => void showWatch(), 100));
+});
 
 const lichessBox = document.getElementById("lichess") as HTMLInputElement;
 void chrome.permissions.contains(LICHESS).then((on) => {
@@ -29,7 +33,7 @@ lichessBox.addEventListener("change", () => {
     .then(() => syncLichess())
     .then((on) => {
       lichessBox.checked = on;
-      if (on) void showWatch();
+      void showWatch();
     });
 });
 
@@ -38,7 +42,8 @@ async function showWatch() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
   try {
-    watch.textContent = ((await chrome.tabs.sendMessage(tab.id, { type: "wtp:status" })) as StatusReply).watching;
+    const r = (await chrome.tabs.sendMessage(tab.id, { type: "wtp:status" })) as StatusReply;
+    watch.textContent = r.on ? r.watching : "";
   } catch {
     // not a Chess.com or Lichess tab, or no page script there yet
   }

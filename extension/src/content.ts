@@ -384,4 +384,4 @@ startWatching({
   opened: () => {
     session.popped = true;
   },
-});
+}, "chesscom");

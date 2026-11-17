@@ -1,11 +1,11 @@
 Free, unlimited chess game review for Chess.com and Lichess. Finish a game and a review card pops up next to the board: Stockfish 19 analyses it on your own computer, with both players’ accuracy and every move labelled, from Brilliant to Blunder. No account, no daily limit, no ads.
 
 HOW IT WORKS
-1. Play a game on Chess.com, or on Lichess once you turn it on (tick “Also on Lichess” under the toolbar button). When it ends, a card opens next to the board.
+1. Play a game on Chess.com, or on Lichess once you turn it on (tick “Lichess” under the toolbar button). When it ends, a card opens next to the board.
 2. Press “Analyze this game” and Stockfish reviews it on your computer, usually in about a minute.
 3. Want the details? “See every move explained” opens the full review on whatsthisposition.com, ready at once: nothing is searched twice.
 
-For a past game, open it and click the what’sthisposition button in the toolbar, then “Review this game”. The same button can turn the automatic card off.
+For a past game, open it and click the what’sthisposition button in the toolbar, then “Review this game”. The same button can turn the automatic card off, for Chess.com or Lichess.
 
 Tip: pin the extension (the puzzle-piece icon, then the pin) so its button is always in the toolbar.
 

@@ -281,4 +281,4 @@ startWatching({
   opened: () => {
     session.popped = true;
   },
-});
+}, "lichess");

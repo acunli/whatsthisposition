@@ -85,7 +85,7 @@ export default function Credits() {
           the page or from Chess.com&apos;s own game data (or, if the page names no game, your public game list from Chess.com&apos;s API);
           on Lichess, from Lichess&apos;s own copy of the finished game (or, if the page names no game, your newest game from your public
           game list). Stockfish reviews it on your computer when you press Analyze; nothing is sent to this site or anyone else. It keeps two things
-          in your browser, never sent anywhere: whether the automatic card is on, and which games&apos; cards have already opened.
+          in your browser, never sent anywhere: whether the card opens by itself on Chess.com, and which games&apos; cards have already opened.
           &ldquo;See every move explained&rdquo; opens this site with the game after the # in the address, a part browsers never send to a
           server, and the site counts that visit as described above.
         </p>

@@ -116,7 +116,7 @@ Tick several of your games. They are reviewed in your browser, your mistakes are
 
 ## On Chess.com and Lichess: the browser extension
 
-Finish a game on Chess.com or Lichess (on Lichess once you tick **Also on Lichess** under its toolbar button) and a card opens in the corner (for an older game, open it and click the extension's toolbar button), and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It analyses nothing until you press Analyze, reviews only finished games and collects nothing. **[Add it to Chrome from the Chrome Web Store](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka)**, or build it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
+Finish a game on Chess.com or Lichess (Chess.com is ticked under its toolbar button to begin with; tick **Lichess** there too) and a card opens in the corner (for an older game, open it and click the extension's toolbar button), and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It analyses nothing until you press Analyze, reviews only finished games and collects nothing. **[Add it to Chrome from the Chrome Web Store](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka)**, or build it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
 
 ## How it compares
 

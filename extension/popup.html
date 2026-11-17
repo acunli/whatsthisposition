@@ -23,28 +23,40 @@
         cursor: default;
         filter: none;
       }
-      .auto {
+      .sites {
+        display: grid;
+        gap: 8px;
+        min-width: 0;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+      .sites legend {
+        margin-bottom: 8px;
+        padding: 0;
+        color: var(--bone-2);
+        font-size: 13px;
+      }
+      .site {
         display: flex;
         gap: 9px;
         align-items: flex-start;
         font-size: 13px;
         cursor: pointer;
       }
-      .auto input {
+      .site input {
         margin: 2px 0 0;
         accent-color: var(--brand);
       }
-      .auto small {
+      .site small,
+      .watch {
         display: block;
         color: var(--dim);
         font-size: 12px;
       }
-      .auto input:not(:checked) ~ span small,
-      .auto.lichess input:checked ~ span small {
+      .site input:checked ~ span small,
+      .watch:empty {
         display: none;
-      }
-      .auto.lichess input:not(:checked) ~ span small {
-        display: block;
       }
     </style>
   </head>
@@ -54,8 +66,12 @@
       <p class="status" id="status" aria-live="polite">Looking for a game on this page…</p>
       <button class="primary" id="review" type="button" disabled>Review this game</button>
       <p class="note">Opens a review card in the corner of the page. Finished games only; Stockfish 19 runs on your computer and nothing is uploaded.</p>
-      <label class="auto"><input type="checkbox" id="auto" checked /><span>Open the card by itself when a game ends<small id="watch"></small></span></label>
-      <label class="auto lichess"><input type="checkbox" id="lichess" /><span>Also on Lichess<small>Your browser asks first, to let the extension see lichess.org.</small></span></label>
+      <fieldset class="sites">
+        <legend>Open the card by itself when a game ends on</legend>
+        <label class="site"><input type="checkbox" id="chesscom" checked /><span>Chess.com</span></label>
+        <label class="site"><input type="checkbox" id="lichess" /><span>Lichess<small>Your browser asks first, to let the extension see lichess.org.</small></span></label>
+        <small class="watch" id="watch"></small>
+      </fieldset>
       <a class="secondary" id="site" href="https://www.whatsthisposition.com" target="_blank" rel="noopener">Open what’sthisposition</a>
     </main>
     <script src="popup.js"></script>

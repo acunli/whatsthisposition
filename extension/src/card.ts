@@ -1,14 +1,25 @@
 /**
  * What the page scripts for both sites share (content.ts on Chess.com, lichess.ts on Lichess):
  * the review card (panel.html in an iframe in the bottom-right corner), the toolbar popup's
- * questions ("wtp:find", "wtp:open", "wtp:status"), the automatic card's on/off switch, the games
- * whose card has opened already, and stopping when a newer copy of the script arrives (after the
- * extension is installed, updated or reloaded, the service worker adds the script to open tabs).
+ * questions ("wtp:find", "wtp:open", "wtp:status"), whether the extension watches this site's games
+ * (the popup's tick for the site), the games whose card has opened already, and stopping when a
+ * newer copy of the script arrives (after the extension is installed, updated or reloaded, the
+ * service worker adds the script to open tabs).
  */
 import type { FinishedGame } from "@/lib/review/finishedGame";
 
 export type FindReply = { ok: true; game: FinishedGame } | { ok: false; message: string };
-export type StatusReply = { auto: boolean; watching: string };
+export type StatusReply = { on: boolean; watching: string };
+
+/** The sites a page script runs on. */
+export type Site = "chesscom" | "lichess";
+
+/**
+ * Whether the card opens by itself on Chess.com: the popup's Chess.com tick, on unless its user
+ * took it off. Before it there was one switch for both sites (`auto`), which still counts until
+ * the tick is first changed.
+ */
+export const chessComOn = (v: { chesscom?: unknown; auto?: unknown }) => (typeof v.chesscom === "boolean" ? v.chesscom : v.auto !== false);
 
 /** A site's page script, as the card sees it. */
 export interface PageWatcher {
@@ -54,7 +65,14 @@ function alive(): boolean {
 }
 
 let watcher: PageWatcher | null = null;
-let auto = true;
+let site: Site = "chesscom";
+/**
+ * Whether this site's games are watched, so the card opens by itself when one ends. Lichess's
+ * tick is the browser's permission for lichess.org (lichessAccess.ts): with it this script runs
+ * there; Chess.com's is a setting, since the extension always may run there. Off, the page is
+ * left alone, though the toolbar button still opens the card for the game on it.
+ */
+let on = true;
 const shown = new Set<string>();
 
 let host: HTMLElement | null = null;
@@ -65,8 +83,8 @@ let failure: string | null = null;
 /** Counts the cards opened, so a game read for an earlier card isn't sent to a later one. */
 let opens = 0;
 
-/** Whether the card opens by itself when a game ends (the popup's switch). */
-export const autoOpen = () => auto;
+/** Whether the card opens by itself when a game ends on this site (the popup's tick for it). */
+export const autoOpen = () => on;
 
 /** True if a card has opened before for any of these keys (a game's id, its moves). */
 export const shownBefore = (keys: string[]) => keys.some((k) => shown.has(k));
@@ -142,7 +160,7 @@ function onMessage(msg: { type?: string }, _sender: unknown, reply: (r: FindRepl
   const w = watcher;
   if (!w) return false;
   if (msg?.type === "wtp:status") {
-    reply({ auto, watching: w.watching() });
+    reply({ on, watching: on ? w.watching() : "" });
     return false;
   }
   if (msg?.type !== "wtp:find" && msg?.type !== "wtp:open") return false;
@@ -157,7 +175,13 @@ function onMessage(msg: { type?: string }, _sender: unknown, reply: (r: FindRepl
 }
 
 function onStorage(changes: Record<string, chrome.storage.StorageChange>, area: string) {
-  if (area === "local" && changes.auto) auto = changes.auto.newValue !== false;
+  if (area !== "local" || site !== "chesscom" || !(changes.chesscom || changes.auto)) return;
+  void chrome.storage.local
+    .get(["chesscom", "auto"])
+    .then((v) => {
+      on = chessComOn(v);
+    })
+    .catch(() => undefined);
 }
 
 // ---- Start, and stop when a newer copy arrives -----------------------------------------------
@@ -167,7 +191,7 @@ let timer = 0;
 function tick() {
   if (!alive()) return stop();
   if (host && !host.isConnected) document.documentElement.appendChild(host); // something took the card out of the page
-  watcher?.tick();
+  if (on) watcher?.tick();
 }
 
 function stop() {
@@ -186,9 +210,10 @@ function stop() {
   log("stopped (a newer copy took over, or the extension was reloaded)");
 }
 
-/** Starts the page script: the card, the popup's questions, and `w` looking at the page. */
-export function startWatching(w: PageWatcher) {
+/** Starts the page script on `s`: the card, the popup's questions, and `w` looking at the page. */
+export function startWatching(w: PageWatcher, s: Site) {
   watcher = w;
+  site = s;
   // A copy from before an update or reload may still be on the page: it stops when it hears this.
   document.dispatchEvent(new Event(TAKEOVER));
   document.getElementById("whatsthisposition-extension")?.remove();
@@ -198,9 +223,9 @@ export function startWatching(w: PageWatcher) {
   chrome.runtime.onMessage.addListener(onMessage);
   chrome.storage.onChanged.addListener(onStorage);
   void chrome.storage.local
-    .get({ auto: true, shown: [] as string[] })
+    .get(["chesscom", "auto", "shown"])
     .then((v) => {
-      auto = v.auto !== false;
+      on = site === "lichess" || chessComOn(v);
       for (const k of (v.shown as string[]) ?? []) shown.add(k);
     })
     .catch(() => undefined)
