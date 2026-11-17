@@ -22,13 +22,10 @@
  */
 import { chessComGameRef, gameFromCallback, type ChessComCallback, type ChessComGame } from "@/lib/review/chesscomGame";
 import { cleanSan, figurineLetter, gameFromPage, MoveListWatch, readResult, type GameResult, type MoveListSighting, type PagePlayer } from "@/lib/review/chesscomPage";
+import { autoOpen, log, openCard, remember, shownBefore, sleep, startWatching, type FindReply } from "./card";
 
 type Ref = { id: number; kind: "live" | "daily" };
-export type FindReply = { ok: true; game: ChessComGame } | { ok: false; message: string };
-export type StatusReply = { auto: boolean; watching: string };
 
-/** How often the page is looked at. */
-const TICK_MS = 500;
 /** Pages where games are played or watched; the card never opens by itself elsewhere. */
 const GAME_PAGES = /^\/(game|play|live)(\/|$)/;
 /** Backstop checks of a game Chess.com says is being played: rarer while its move list can be watched. */
@@ -40,23 +37,6 @@ const RATE_LIMITED_MS = 60_000;
 const FRESH_MS = 10 * 60_000;
 /** How long the card waits for Chess.com's copy of the game (full headers) before using the page's moves. */
 const SERVER_WAIT_MS = 4000;
-/** Games whose card has opened, so a reload doesn't open it again. */
-const SHOWN_MAX = 60;
-
-const PANEL = chrome.runtime.getURL("panel.html");
-const PANEL_ORIGIN = new URL(PANEL).origin;
-const TAKEOVER = "whatsthisposition:takeover";
-
-const CSS = `
-:host { all: initial; }
-.wrap { position: fixed; right: 18px; bottom: 18px; z-index: 2147483000; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; }
-.card { width: 360px; max-width: calc(100vw - 36px); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 50px rgb(0 0 0 / 0.55); background: #0c110f; animation: rise 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-iframe { display: block; width: 100%; height: 230px; border: 0; transition: height 0.24s cubic-bezier(0.4, 0, 0.2, 1); }
-@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
-@media (prefers-reduced-motion: reduce) { .card { animation: none; } iframe { transition: none; } }
-`;
-
-const log = (...args: unknown[]) => console.debug("[what’sthisposition]", ...args);
 
 class HttpError extends Error {
   constructor(readonly status: number) {
@@ -64,17 +44,7 @@ class HttpError extends Error {
   }
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const refKey = (r: Ref) => `${r.kind}/${r.id}`;
-
-/** False once the extension has been reloaded or removed: this copy is cut off and must stop. */
-function alive(): boolean {
-  try {
-    return !!chrome.runtime?.id;
-  } catch {
-    return false;
-  }
-}
 
 // ---- The page ---------------------------------------------------------------------------
 
@@ -230,8 +200,6 @@ const newSession = (): Session => ({ watch: new MoveListWatch(), ref: null, refF
 
 let session = newSession();
 let checking = false;
-let auto = true;
-const shown = new Set<string>();
 
 /** Whether Chess.com's copy is the game on the page: certain from the address, else the move counts must agree. */
 function serverIsThisGame(s: Session, plies: number | null): boolean {
@@ -276,8 +244,6 @@ async function checkServer() {
 }
 
 function tick() {
-  if (!alive()) return stop();
-  if (host && !host.isConnected) document.documentElement.appendChild(host); // something took the card out of the page
   if (!GAME_PAGES.test(location.pathname)) return;
   let s = session;
 
@@ -316,7 +282,7 @@ function tick() {
   }
   if (s.ref && !s.server && !checking && Date.now() >= s.nextCheck) void checkServer();
 
-  if (s.popped || !auto) return;
+  if (s.popped || !autoOpen()) return;
   const plies = list?.sighting.plies ?? null;
   const serverMatches = serverIsThisGame(s, plies);
   const serverEnded = serverMatches && (s.serverLive || fresh(s.server!.endedAt));
@@ -336,18 +302,10 @@ function pop(source: string) {
     const sans = plyNodes(list.el).slice(0, 12).map(sanOf).join(" ");
     keys.push(`page:${list.sighting.plies}:${list.sighting.result}:${sans}`);
   }
-  if (keys.some((k) => shown.has(k))) return log("the game ended; its card has opened before");
+  if (shownBefore(keys)) return log("the game ended; its card has opened before");
   remember(keys);
   log(`the game ended (seen in ${source}): opening the card`);
-  game = null;
-  failure = null;
-  showCard();
-  void resolveGame(s).then((g) => {
-    if (frame === null || s !== session) return;
-    if (g) game = g;
-    else failure = "Couldn't read this game from Chess.com. Open it again, or use the toolbar button.";
-    sendToPanel();
-  });
+  openCard(resolveGame(s).then((g) => (s !== session ? null : (g ?? "Couldn't read this game from Chess.com. Open it again, or use the toolbar button."))));
 }
 
 /** The game for the card: Chess.com's copy (full headers) if it comes quickly, else the page's own moves. */
@@ -369,15 +327,6 @@ async function resolveGame(s: Session): Promise<ChessComGame | null> {
     await sleep(250);
   }
   return page;
-}
-
-function remember(keys: string[]) {
-  for (const k of keys) shown.add(k);
-  try {
-    void chrome.storage.local.set({ shown: [...shown].slice(-SHOWN_MAX) });
-  } catch {
-    /* cut off from the extension: nothing to remember it in */
-  }
 }
 
 function watching(): string {
@@ -428,106 +377,11 @@ async function find(): Promise<FindReply> {
   }
 }
 
-// ---- The card -----------------------------------------------------------------------------
-
-let host: HTMLElement | null = null;
-let frame: HTMLIFrameElement | null = null;
-let panelReady = false;
-let game: ChessComGame | null = null;
-let failure: string | null = null;
-
-function removeUi() {
-  host?.remove();
-  host = null;
-  frame = null;
-  panelReady = false;
-}
-
-/** The card: the panel page in an iframe, which gets the game once it says it's ready. */
-function showCard() {
-  removeUi();
-  host = document.createElement("div");
-  host.id = "whatsthisposition-extension";
-  const root = host.attachShadow({ mode: "open" });
-  root.innerHTML = `<style>${CSS}</style><div class="wrap"><div class="card"><iframe title="what’sthisposition game review" src="${PANEL}"></iframe></div></div>`;
-  document.documentElement.appendChild(host);
-  frame = root.querySelector("iframe");
-}
-
-function sendToPanel() {
-  if (!frame || !panelReady) return;
-  if (game) frame.contentWindow?.postMessage({ type: "wtp:game", game }, PANEL_ORIGIN);
-  else if (failure) frame.contentWindow?.postMessage({ type: "wtp:error", message: failure }, PANEL_ORIGIN);
-}
-
-function onPanelMessage(e: MessageEvent) {
-  if (e.origin !== PANEL_ORIGIN || !frame || e.source !== frame.contentWindow) return;
-  const msg = e.data as { type?: string; height?: number };
-  if (msg?.type === "wtp:ready") {
-    panelReady = true;
-    sendToPanel();
-  } else if (msg?.type === "wtp:size" && typeof msg.height === "number") frame.style.height = `${Math.min(Math.max(msg.height, 120), innerHeight - 36)}px`;
-  else if (msg?.type === "wtp:close") removeUi();
-}
-
-function onMessage(msg: { type?: string }, _sender: unknown, reply: (r: FindReply | StatusReply) => void): boolean {
-  if (msg?.type === "wtp:status") {
-    reply({ auto, watching: watching() });
-    return false;
-  }
-  if (msg?.type !== "wtp:find" && msg?.type !== "wtp:open") return false;
-  void find().then((r) => {
-    if (r.ok && msg.type === "wtp:open") {
-      game = r.game;
-      failure = null;
-      session.popped = true;
-      showCard();
-    }
-    reply(r);
-  });
-  return true; // the reply comes later
-}
-
-function onStorage(changes: Record<string, chrome.storage.StorageChange>, area: string) {
-  if (area === "local" && changes.auto) auto = changes.auto.newValue !== false;
-}
-
-// ---- Start, and stop when a newer copy arrives -----------------------------------------------
-
-let timer = 0;
-
-function stop() {
-  clearInterval(timer);
-  removeEventListener("message", onPanelMessage);
-  document.removeEventListener("visibilitychange", tick);
-  document.removeEventListener(TAKEOVER, stop);
-  try {
-    chrome.runtime.onMessage.removeListener(onMessage);
-    chrome.storage.onChanged.removeListener(onStorage);
-  } catch {
-    /* already cut off from the extension */
-  }
-  removeUi();
-  log("stopped (a newer copy took over, or the extension was reloaded)");
-}
-
-// A copy from before an update or reload may still be on the page: it stops when it hears this.
-document.dispatchEvent(new Event(TAKEOVER));
-document.getElementById("whatsthisposition-extension")?.remove();
-document.addEventListener(TAKEOVER, stop);
-addEventListener("message", onPanelMessage);
-document.addEventListener("visibilitychange", tick);
-chrome.runtime.onMessage.addListener(onMessage);
-chrome.storage.onChanged.addListener(onStorage);
-void chrome.storage.local
-  .get({ auto: true, shown: [] as string[] })
-  .then((v) => {
-    auto = v.auto !== false;
-    for (const k of (v.shown as string[]) ?? []) shown.add(k);
-  })
-  .catch(() => undefined)
-  .finally(() => {
-    timer = window.setInterval(tick, TICK_MS);
-    tick();
-  });
-log("watching for finished games");
+startWatching({
+  tick,
+  find,
+  watching,
+  opened: () => {
+    session.popped = true;
+  },
+});

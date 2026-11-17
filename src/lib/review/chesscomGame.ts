@@ -6,7 +6,7 @@
  */
 import { Chess } from "chess.js";
 import { START_FEN } from "../chess/fen";
-import type { Color } from "../chess/types";
+import type { FinishedGame } from "./finishedGame";
 
 /** Squares a1..h8 are the first 64 characters; the next 12 are promotions (q, n, r, b × three directions). */
 const TCN = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?{~}(^)[_]@#$";
@@ -53,22 +53,10 @@ export interface ChessComCallback {
   players?: Partial<Record<"top" | "bottom", { username?: string; color?: "white" | "black"; rating?: number }>>;
 }
 
-export interface ChessComGame {
+/** A finished Chess.com game; `message` is as Chess.com words it ("Ay7u won by checkmate"). */
+export interface ChessComGame extends FinishedGame {
   id: number;
   kind: "live" | "daily";
-  pgn: string;
-  white: string;
-  black: string;
-  result: string;
-  /** "Ay7u won by checkmate" and the like, as Chess.com words it. */
-  message: string;
-  /** The colour shown at the bottom of the board (on your own game: yours). */
-  bottom: Color;
-  url: string;
-  /** When the game ended (ms since the epoch), if Chess.com says. */
-  endedAt: number | null;
-  /** How many moves (plies) were played. */
-  plies: number;
 }
 
 /** The PGN and summary of a finished standard game, or null if it isn't one. */

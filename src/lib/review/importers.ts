@@ -78,7 +78,7 @@ interface LichessPlayer {
   rating?: number;
 }
 
-interface LichessGame {
+export interface LichessGame {
   id: string;
   variant?: string;
   speed?: string;
@@ -88,6 +88,8 @@ interface LichessGame {
   winner?: "white" | "black";
   players?: { white?: LichessPlayer; black?: LichessPlayer };
   opening?: { name?: string };
+  /** The moves in SAN, separated by spaces. */
+  moves?: string;
   pgn?: string;
 }
 
@@ -208,10 +210,12 @@ export async function lichessUserGames(user: string, fetchImpl: Fetch = fetch, t
     .filter((g): g is GameSummary => !!g);
 }
 
+/** One Lichess game as JSON with its PGN (the site and the extension ask for the same, so both get the same PGN). */
+export const lichessExportUrl = (id: string) => `https://lichess.org/game/export/${id}?pgnInJson=true&opening=true&clocks=true`;
+
 export async function lichessGame(id: string, fetchImpl: Fetch = fetch): Promise<GameSummary> {
   if (!/^[A-Za-z0-9]{8}$/.test(id)) throw new ImportError("That isn't a Lichess game link.");
-  const url = `https://lichess.org/game/export/${id}?pgnInJson=true&opening=true&clocks=true`;
-  const g = fromLichess((await (await get(fetchImpl, url, "application/json")).json()) as LichessGame);
+  const g = fromLichess((await (await get(fetchImpl, lichessExportUrl(id), "application/json")).json()) as LichessGame);
   if (!g) throw new ImportError("That game isn't standard chess, so it can't be reviewed.");
   return g;
 }

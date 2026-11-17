@@ -3,8 +3,8 @@
  * workers itself, and Firefox has no offscreen documents. The engine page's code (engine.ts) runs
  * here, and a card's request to open the engine is answered at once.
  *
- * After an install, update or reload it also adds the page script to the Chess.com tabs that
- * are already open (reinject.ts).
+ * After an install, update or reload it also adds the page scripts to the Chess.com and Lichess
+ * tabs that are already open (reinject.ts).
  */
 import { reinjectOnInstall } from "./reinject";
 import "./engine";

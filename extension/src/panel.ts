@@ -1,6 +1,6 @@
 /**
- * The review card (panel.html), shown in an iframe on Chess.com. It receives the
- * finished game from the content script, runs the same review as the website (Stockfish
+ * The review card (panel.html), shown in an iframe on Chess.com or Lichess. It receives the
+ * finished game from the page script (content.ts, lichess.ts; the card is card.ts), runs the same review as the website (Stockfish
  * 19 in workers on this computer, the same labels and accuracy), shows the accuracy and
  * how many moves of each kind each player made, and links to the full step-by-step
  * review on the website.
@@ -10,7 +10,7 @@ import { gameAccuracy } from "@/lib/review/accuracy";
 import { loadBook } from "@/lib/review/book";
 import { CLASS_INFO, CLASS_ORDER, type MoveClass } from "@/lib/review/classify";
 import { classIconSvg } from "@/lib/review/classGlyphs";
-import type { ChessComGame } from "@/lib/review/chesscomGame";
+import type { FinishedGame } from "@/lib/review/finishedGame";
 import { DEFAULT_REVIEW_DEPTH, REVIEW_DEPTHS, VERIFY_EXTRA } from "@/lib/review/depths";
 import { parseFirstGame, type ParsedGame } from "@/lib/review/pgn";
 import { classifyGame, runReview, tally } from "@/lib/review/review";
@@ -19,11 +19,15 @@ import { EXTENSION_URL, SITE_URL } from "@/lib/brand";
 import { markSvg } from "@/lib/logoPaths";
 import { remoteEnginePool } from "./remoteEngine";
 
-const PARENT = "https://www.chess.com";
+/** The pages the card opens in; the page script names its own (`?host=`), and the card talks only to it. */
+const HOSTS: Record<string, string> = { "https://www.chess.com": "Chess.com", "https://lichess.org": "Lichess" };
+const asked = new URLSearchParams(location.search).get("host") ?? "";
+const PARENT = Object.hasOwn(HOSTS, asked) ? asked : "https://www.chess.com";
+const HOST_NAME = HOSTS[PARENT];
 const TABLE: MoveClass[] = CLASS_ORDER.filter((c) => c !== "forced");
 
 const app = document.getElementById("app")!;
-let game: ChessComGame | null = null;
+let game: FinishedGame | null = null;
 let parsed: ParsedGame | null = null;
 let depthIdx = DEFAULT_REVIEW_DEPTH;
 let running = false;
@@ -71,7 +75,7 @@ function renderProgress(text: string, share: number) {
     app.innerHTML = `${header()}${players()}
       <p class="status" data-status aria-live="polite"></p>
       <div class="bar" aria-hidden="true"><span data-bar></span></div>
-      <p class="note">You can keep using Chess.com; the review runs in the background.</p>`;
+      <p class="note">You can keep using ${HOST_NAME}; the review runs in the background.</p>`;
     bind();
     status = app.querySelector<HTMLElement>("[data-status]")!;
   }
@@ -136,7 +140,7 @@ function renderError(message: string) {
 
 /**
  * Engines for the review: in the hidden engine page first (the card itself sits inside
- * Chess.com's page, where the browser may refuse to start workers), then in the card as
+ * Chess.com's or Lichess's page, where the browser may refuse to start workers), then in the card as
  * a fallback. A pool only counts once its engine has answered a first search.
  */
 async function startEngines(): Promise<EnginePool> {
@@ -205,7 +209,7 @@ async function analyse() {
 
 addEventListener("message", (e: MessageEvent) => {
   if (e.origin !== PARENT || e.source !== parent) return;
-  const msg = e.data as { type?: string; game?: ChessComGame; message?: string };
+  const msg = e.data as { type?: string; game?: FinishedGame; message?: string };
   if (msg?.type === "wtp:error" && typeof msg.message === "string" && !game) {
     // The game couldn't be read: say so, with the website as the way out.
     app.innerHTML = `${header()}<p class="status error">${esc(msg.message)}</p>

@@ -2,10 +2,10 @@
  * The extension's service worker (Chromium browsers; Firefox has background-firefox.ts). It
  * opens the hidden engine page (an offscreen document, engine.html) when a card asks for it, and
  * closes it when no card needs it. Stockfish runs there rather than in the card, because the
- * card lives inside Chess.com's page, where the browser may not let it start workers.
+ * card lives inside Chess.com's or Lichess's page, where the browser may not let it start workers.
  *
- * After an install, update or reload it also adds the page script to the Chess.com tabs that
- * are already open (reinject.ts).
+ * After an install, update or reload it also adds the page scripts to the Chess.com and Lichess
+ * tabs that are already open (reinject.ts).
  */
 import { reinjectOnInstall } from "./reinject";
 
@@ -19,7 +19,7 @@ async function openEngine() {
   const open = await chrome.runtime.getContexts({ contextTypes: [chrome.runtime.ContextType.OFFSCREEN_DOCUMENT], documentUrls: [url] });
   if (open.length) return;
   opening ??= chrome.offscreen
-    .createDocument({ url: ENGINE_PAGE, reasons: [chrome.offscreen.Reason.WORKERS], justification: "Runs Stockfish on this computer to review a finished Chess.com game." })
+    .createDocument({ url: ENGINE_PAGE, reasons: [chrome.offscreen.Reason.WORKERS], justification: "Runs Stockfish on this computer to review a finished chess game." })
     .finally(() => {
       opening = null;
     });

@@ -1,9 +1,9 @@
 /**
- * The toolbar button's popup: finds the finished game in the current Chess.com tab and,
+ * The toolbar button's popup: finds the finished game in the current Chess.com or Lichess tab and,
  * on "Review this game", opens the review card in the corner of that page. It also turns
  * the automatic card (opened by the page script when a game ends) on or off.
  */
-import type { FindReply, StatusReply } from "./content";
+import type { FindReply, StatusReply } from "./card";
 
 const status = document.getElementById("status")!;
 const button = document.getElementById("review") as HTMLButtonElement;
@@ -15,32 +15,38 @@ void chrome.storage.local.get({ auto: true }).then((v) => {
 });
 autoBox.addEventListener("change", () => void chrome.storage.local.set({ auto: autoBox.checked }));
 
-/** What the page script is doing in this tab ("Watching this game…"), if it's a Chess.com tab. */
+/** What the page script is doing in this tab ("Watching this game…"), if it's a Chess.com or Lichess tab. */
 async function showWatch() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return;
   try {
     watch.textContent = ((await chrome.tabs.sendMessage(tab.id, { type: "wtp:status" })) as StatusReply).watching;
   } catch {
-    // not a Chess.com tab, or no page script there yet
+    // not a Chess.com or Lichess tab, or no page script there yet
   }
 }
 type Ask = FindReply | { ok: false; message: string; noPage: true };
 
-const NO_PAGE: Ask = { ok: false, noPage: true, message: "Open one of your games on Chess.com, then click here." };
+const NO_PAGE: Ask = { ok: false, noPage: true, message: "Open one of your games on Chess.com or Lichess, then click here." };
+
+/** Each site's page script (see reinject.ts). */
+const SCRIPTS: [RegExp, string][] = [
+  [/^https:\/\/www\.chess\.com\//, "content.js"],
+  [/^https:\/\/lichess\.org\//, "lichess.js"],
+];
 
 async function ask(type: "wtp:find" | "wtp:open"): Promise<Ask> {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id) return NO_PAGE;
   // The address is visible once the toolbar click grants access to this tab (activeTab).
-  const onChessCom = tab.url === undefined ? null : /^https:\/\/www\.chess\.com\//.test(tab.url);
-  if (onChessCom === false) return NO_PAGE;
+  const script = tab.url === undefined ? undefined : (SCRIPTS.find(([site]) => site.test(tab.url!))?.[1] ?? null);
+  if (script === null) return NO_PAGE;
   try {
     return (await chrome.tabs.sendMessage(tab.id, { type })) as FindReply;
   } catch {
-    if (!onChessCom) return NO_PAGE;
-    // A Chess.com tab opened before the extension was installed or reloaded: add its script, then ask again.
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+    if (!script) return NO_PAGE;
+    // A tab opened before the extension was installed or reloaded: add its script, then ask again.
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: [script] });
     return (await chrome.tabs.sendMessage(tab.id, { type })) as FindReply;
   }
 }

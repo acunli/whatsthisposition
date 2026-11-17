@@ -114,9 +114,9 @@ Tick several of your games. They are reviewed in your browser, your mistakes are
 </tr>
 </table>
 
-## On Chess.com: the browser extension
+## On Chess.com and Lichess: the browser extension
 
-Finish a game on Chess.com and click the extension's toolbar button: a card opens in the corner, and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It does nothing until you click, reviews only finished games and collects nothing. **[Add it to Chrome from the Chrome Web Store](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka)**, or build it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
+Finish a game on Chess.com or Lichess and a card opens in the corner (for an older game, open it and click the extension's toolbar button), and **Analyze** reviews the game on your computer, with both players' accuracy and how many moves of each kind they made. **See every move explained** opens the full review here, carrying the finished review, so nothing is searched twice. It analyses nothing until you press Analyze, reviews only finished games and collects nothing. **[Add it to Chrome from the Chrome Web Store](https://chromewebstore.google.com/detail/bngblpcelnjnhbmaljgelkddkfhjneka)**, or build it from [`extension/`](extension/README.md) (`npm run ext:build`, then "Load unpacked").
 
 ## How it compares
 
@@ -146,7 +146,7 @@ No keys or accounts are needed: review, analysis and the photo reader all work o
 ```bash
 npm test             # unit tests plus real Stockfish runs in Node
 npm run lint && npm run typecheck && npm run build
-npm run ext:build    # the Chess.com extension, in extension/dist
+npm run ext:build    # the browser extension (Chess.com and Lichess), in extension/dist
 ```
 
 **Hosting your own copy:** import the repository on [Vercel](https://vercel.com/new) (the free plan is enough, and no settings are needed), or use the Docker image with the ready-made Compose + Caddy setup on any small server. Costs, limits and adding a domain: [docs/DEPLOY.md](docs/DEPLOY.md).
@@ -167,7 +167,7 @@ src/lib/facts/      board facts: threats, structure, king safety, plans, …
 src/lib/commentary/ a position read like commentary: its types, each side's likes and dislikes, plans by type
 src/lib/puzzles/    puzzles and weaknesses from a player's own games
 src/lib/vision/     on-device photo reader (and the optional cloud reader)
-extension/          the Chess.com browser extension (built from src/lib with esbuild)
+extension/          the browser extension for Chess.com and Lichess (built from src/lib with esbuild)
 scripts/            engine copy, opening-book builders, evaluation and training tools
 docs/               how it works, comparison, deployment, research notes
 ```

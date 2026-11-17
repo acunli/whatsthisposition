@@ -30,8 +30,8 @@ mkdirSync(out, { recursive: true });
 await build({
   absWorkingDir: root,
   entryPoints: firefox
-    ? { content: "extension/src/content.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background-firefox.ts" }
-    : { content: "extension/src/content.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
+    ? { content: "extension/src/content.ts", lichess: "extension/src/lichess.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background-firefox.ts" }
+    : { content: "extension/src/content.ts", lichess: "extension/src/lichess.ts", panel: "extension/src/panel.ts", popup: "extension/src/popup.ts", background: "extension/src/background.ts", engine: "extension/src/engine.ts" },
   outdir: out,
   bundle: true,
   format: "iife",
