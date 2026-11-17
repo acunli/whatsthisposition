@@ -9,7 +9,7 @@ import { StaticBoard } from "@/components/openings/StaticBoard";
 import { SITE_NAME, SITE_URL } from "@/lib/brand";
 import { numbered, openingSummary, pct, type Opening, type Score } from "@/lib/openings/catalog";
 import { allGames } from "@/lib/server/content";
-import { openingCatalog } from "@/lib/server/openings";
+import { inOpening, openingCatalog } from "@/lib/server/openings";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -77,7 +77,8 @@ export default async function OpeningPage({ params }: Props) {
   const shown = new Set([o.slug, o.parent, ...o.children]);
   const more = isRoot ? family.openings.filter((x) => x.slug !== o.slug) : family.openings.filter((x) => !shown.has(x.slug)).slice(0, 12);
   const familyRoot = cat.all.find((x) => x.name === o.family);
-  const games = allGames().filter((g) => g.opening?.name === o.name || (isRoot && g.opening?.name?.startsWith(`${o.family}:`)));
+  // Games in this opening or in a line that branches from it, so a variation's page shows its sub-variations' games too.
+  const games = allGames().filter((g) => inOpening(g.opening?.name, o));
   const moveNo = (ply: number) => `${Math.floor(ply / 2) + 1}${ply % 2 === 0 ? "." : "…"}`;
   const structured = {
     "@context": "https://schema.org",
