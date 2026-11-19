@@ -9,7 +9,7 @@
 // Only pages that changed are sent, as IndexNow asks. Sending the whole sitemap after every
 // deploy (a daily one, sometimes several a day) had the engines recrawl ~2,000 pages each time,
 // all of them cache misses on a fresh deployment: that filled Vercel's ISR reads (857K of the
-// Hobby plan's 1M in 30 days, 2026-11-19). Pages without a lastmod (the openings, the home page)
+// Hobby plan's 1M in 30 days, 2026-11-19). Pages without a lastmod (the home page, /puzzles)
 // are sent only with --all.
 // The key is public by design: public/<key>.txt, holding the key, proves the site is ours.
 import { readdirSync } from "node:fs";

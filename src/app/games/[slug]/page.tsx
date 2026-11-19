@@ -14,7 +14,6 @@ import { eventLine, gameDescription, gameLede, gameTitle } from "@/lib/content/t
 import { CLASS_INFO, type MoveClass } from "@/lib/review/classify";
 import { parseGame } from "@/lib/review/pgn";
 import { allGames, gameBySlug } from "@/lib/server/content";
-import { openingPageFor } from "@/lib/server/openings";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -123,8 +122,6 @@ export default async function GamePage({ params }: Props) {
   const g = gameBySlug((await params).slug);
   if (!g) notFound();
   const url = `${SITE_URL}/games/${g.slug}`;
-  // The game's opening page (or the line it branches from): a link both ways with the opening pages.
-  const openingPage = openingPageFor(g.opening?.name);
   const others = allGames()
     .filter((o) => o.slug !== g.slug)
     .slice(0, 6);
@@ -229,30 +226,18 @@ export default async function GamePage({ params }: Props) {
           />
         )}
 
-        {g.opening && (g.opening.points.length > 0 || openingPage) && (
+        {g.opening && g.opening.points.length > 0 && (
           <Guide
             title="The opening"
             rows={[
               {
                 title: g.opening.name ? `${g.opening.name}${g.opening.eco ? ` (${g.opening.eco})` : ""}` : "Opening theory",
                 body: (
-                  <>
-                    {g.opening.points.length > 0 && (
-                      <ul>
-                        {g.opening.points.map((p) => (
-                          <li key={p}>{p}</li>
-                        ))}
-                      </ul>
-                    )}
-                    {openingPage && (
-                      <p>
-                        <Link href={`/openings/${openingPage.slug}`}>
-                          {openingPage.name === g.opening.name ? `The ${openingPage.name}` : `The ${openingPage.name}, which it branches from`}
-                        </Link>
-                        : its moves, how strong players score with it and what they play next.
-                      </p>
-                    )}
-                  </>
+                  <ul>
+                    {g.opening.points.map((p) => (
+                      <li key={p}>{p}</li>
+                    ))}
+                  </ul>
                 ),
               },
             ]}

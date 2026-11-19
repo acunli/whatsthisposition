@@ -2,7 +2,6 @@ import type { MetadataRoute } from "next";
 import { SITE_URL } from "@/lib/brand";
 import { LANDINGS } from "@/lib/landing";
 import { allGames } from "@/lib/server/content";
-import { openingCatalog } from "@/lib/server/openings";
 
 /**
  * Every indexable page. A last-modified date is given only where it is known: Google trusts
@@ -20,7 +19,5 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/games`, ...(newest ? { lastModified: day(newest) } : {}), changeFrequency: "daily", priority: 0.7 },
     ...games.map((g) => ({ url: `${SITE_URL}/games/${g.slug}`, lastModified: day(g.published), changeFrequency: "yearly" as const, priority: 0.6 })),
     { url: `${SITE_URL}/puzzles`, changeFrequency: "monthly", priority: 0.8 },
-    { url: `${SITE_URL}/openings`, changeFrequency: "monthly", priority: 0.7 },
-    ...openingCatalog().all.map((o) => ({ url: `${SITE_URL}/openings/${o.slug}`, changeFrequency: "monthly" as const, priority: 0.5 })),
   ];
 }

@@ -25,7 +25,10 @@ export const SITE_PAGES = [
 
 /** Every shared review (/r/<id>) counts as one page: the ids aren't kept. */
 export const SHARED_REVIEW_PAGE = "/r/*";
-/** The opening pages (/openings/<name>), counted together: there are about 1,800. */
+/**
+ * The opening pages (/openings/<name>), counted together (there were about 1,800). Removed on
+ * 2026-11-19 (their addresses now redirect home); kept so the counts from before still read.
+ */
 export const OPENING_PAGE = "/openings/*";
 
 /**

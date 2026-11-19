@@ -57,7 +57,14 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: { "/r/**": ["./src/assets/fonts/*.ttf", "./public/pieces/*.svg"], "/games/**": ["./src/assets/fonts/*.ttf", "./public/pieces/*.svg"] },
   turbopack: { root },
   async redirects() {
-    return productionSite ? [{ source: "/:path*", has: [{ type: "host", value: ".*\\.vercel\\.app" }], destination: `${productionSite}/:path*`, permanent: true }] : [];
+    // The opening pages (/openings, 1,831 of them, 2026-11-03 to 11-19) were removed: they brought
+    // almost no visitors while crawlers reading them used up the Vercel plan's ISR reads. Their
+    // addresses go home, answered by the router (no page read), so search engines drop them.
+    const removed = [
+      { source: "/openings", destination: "/", permanent: true },
+      { source: "/openings/:path*", destination: "/", permanent: true },
+    ];
+    return productionSite ? [...removed, { source: "/:path*", has: [{ type: "host", value: ".*\\.vercel\\.app" }], destination: `${productionSite}/:path*`, permanent: true }] : removed;
   },
   async headers() {
     const prod = process.env.NODE_ENV === "production";
