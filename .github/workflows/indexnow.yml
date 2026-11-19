@@ -1,7 +1,8 @@
 name: IndexNow
 
 # After each production deploy (Vercel reports it to GitHub as a deployment), ask Bing and the
-# other IndexNow search engines to recrawl the pages in the sitemap.
+# other IndexNow search engines to recrawl the pages that changed (sitemap lastmod in the last two
+# days: the new reviewed games, /games). Not the whole sitemap: see scripts/indexnow.mjs.
 on: deployment_status
 
 jobs:
