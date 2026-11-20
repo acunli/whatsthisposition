@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { PageTopbar } from "@/components/PageTopbar";
 import { SiteFooter } from "@/components/SiteLinks";
 import { Guide } from "@/components/landing/Guide";
 import { GameLink } from "@/components/games/GameLink";
-import { ClassIcon } from "@/components/review/ClassIcon";
+import { MoveList } from "@/components/games/MoveList";
+import { ClassMark, ClassSprite } from "@/components/review/ClassIcon";
 import { SITE_NAME, SITE_URL } from "@/lib/brand";
 import type { Color } from "@/lib/chess/types";
 import type { GameRecord } from "@/lib/content/games";
@@ -29,14 +30,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = gameTitle(g);
   const description = gameDescription(g);
   const path = `/games/${g.slug}`;
+  const image = { url: gameCard(g.slug), width: 1200, height: 630, alt: CARD_ALT };
   return {
     title: { absolute: `${title} · ${SITE_NAME}` },
     description,
     alternates: { canonical: path },
-    openGraph: { type: "article", url: path, siteName: SITE_NAME, title, description, locale: "en_US", publishedTime: g.published },
-    twitter: { card: "summary_large_image", title, description },
+    openGraph: { type: "article", url: path, siteName: SITE_NAME, title, description, locale: "en_US", publishedTime: g.published, images: [image] },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
   };
 }
+
+/**
+ * The game's preview card: a static file drawn before the build (scripts/build-cards.mjs), not
+ * a route, so showing it, preloading it and link previews cost no Vercel ISR reads.
+ */
+const gameCard = (slug: string) => `/cards/${slug}.png`;
+const CARD_ALT = "The game's key moment on the board, with both players' accuracy and their labelled moves";
 
 /** The labels a page counts per player, best to worst. */
 const COUNTED: MoveClass[] = ["brilliant", "great", "best", "excellent", "good", "book", "inaccuracy", "mistake", "miss", "blunder"];
@@ -76,7 +85,7 @@ function Score({ g }: { g: GameRecord }) {
             <tr key={r.cls}>
               <td className="mono">{r.w}</td>
               <th scope="row">
-                <ClassIcon cls={r.cls} size={16} />
+                <ClassMark cls={r.cls} size={16} />
                 {CLASS_INFO[r.cls].label}
               </th>
               <td className="mono">{r.b}</td>
@@ -89,33 +98,8 @@ function Score({ g }: { g: GameRecord }) {
 }
 
 function Moves({ g }: { g: GameRecord }) {
-  const game = parseGame(g.pgn);
-  const rows: { num: number; w?: number; b?: number }[] = [];
-  game.moves.forEach((m, i) => {
-    if (m.color === "w" || !rows.length) rows.push({ num: m.moveNumber });
-    rows[rows.length - 1][m.color] = i;
-  });
-  const cell = (i?: number) => {
-    if (i === undefined) return <span />;
-    const cls = g.labels[i];
-    return (
-      <span className="game-move" title={CLASS_INFO[cls].label}>
-        <ClassIcon cls={cls} size={14} />
-        {game.moves[i].san}
-      </span>
-    );
-  };
-  return (
-    <ol className="game-moves">
-      {rows.map((r) => (
-        <li key={r.num}>
-          <span className="muted mono">{r.num}.</span>
-          {cell(r.w)}
-          {cell(r.b)}
-        </li>
-      ))}
-    </ol>
-  );
+  const { moves } = parseGame(g.pgn);
+  return <MoveList sans={moves.map((m) => m.san)} labels={g.labels} first={{ num: moves[0]?.moveNumber ?? 1, color: moves[0]?.color ?? "w" }} />;
 }
 
 export default async function GamePage({ params }: Props) {
@@ -135,7 +119,7 @@ export default async function GamePage({ params }: Props) {
         headline: gameTitle(g),
         description: gameDescription(g),
         datePublished: g.published,
-        image: `${url}/opengraph-image`,
+        image: `${SITE_URL}${gameCard(g.slug)}`,
         inLanguage: "en",
         author: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
         publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
@@ -157,6 +141,7 @@ export default async function GamePage({ params }: Props) {
   return (
     <div className="shell">
       <JsonLd data={structured} />
+      <ClassSprite classes={[...g.labels, ...others.map((o) => o.summary.moment?.cls)]} />
       <PageTopbar back="Review your own game" />
       <main>
         <section className="section">
@@ -173,11 +158,11 @@ export default async function GamePage({ params }: Props) {
           </div>
           <div className="game-top">
             {/* eslint-disable-next-line @next/next/no-img-element -- the page's own preview card, already sized */}
-            <img className="game-card" src={`/games/${g.slug}/opengraph-image`} width={1200} height={630} alt={`The board ${g.summary.moment ? `after ${g.summary.moment.name}` : "at the end"}, with both players' accuracy`} />
+            <img className="game-card" src={gameCard(g.slug)} width={1200} height={630} alt={`The board ${g.summary.moment ? `after ${g.summary.moment.name}` : "at the end"}, with both players' accuracy`} />
             <div className="game-side">
               <Score g={g} />
               <div className="game-actions">
-                <Link className="btn btn-primary" href={`/games/${g.slug}/review`}>
+                <Link className="btn btn-primary" href={`/games/${g.slug}/review`} rel="nofollow">
                   Step through every move
                 </Link>
                 <Link className="btn" href="/">

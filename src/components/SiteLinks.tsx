@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { SOURCE_URL } from "@/lib/brand";
 import { LANDINGS } from "@/lib/landing";
 import { AddToChrome } from "./AddToChrome";

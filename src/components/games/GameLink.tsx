@@ -1,10 +1,10 @@
-import Link from "next/link";
-import { ClassIcon } from "@/components/review/ClassIcon";
+import Link from "@/components/Link";
+import { ClassMark } from "@/components/review/ClassIcon";
 import type { Color } from "@/lib/chess/types";
 import { longDate, type GameRecord } from "@/lib/content/games";
 import { eventLine } from "@/lib/content/text";
 
-/** A reviewed game in a list: players, event, date and both accuracies. */
+/** A reviewed game in a list: players, event, date and both accuracies. The page draws the badges once (`ClassSprite`). */
 export function GameLink({ g }: { g: GameRecord }) {
   const s = g.summary;
   const acc = (c: Color) => (s.accuracy[c] != null ? s.accuracy[c]!.toFixed(1) : "–");
@@ -25,7 +25,7 @@ export function GameLink({ g }: { g: GameRecord }) {
           </span>
           {s.moment && (
             <span className="games-moment">
-              <ClassIcon cls={s.moment.cls} size={14} />
+              <ClassMark cls={s.moment.cls} size={14} />
               {s.moment.name}
             </span>
           )}

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { JsonLd } from "@/components/JsonLd";
 import { PageTopbar } from "@/components/PageTopbar";
 import { SiteFooter } from "@/components/SiteLinks";
 import { GameLink } from "@/components/games/GameLink";
+import { ClassSprite } from "@/components/review/ClassIcon";
 import { SITE_NAME, SITE_URL } from "@/lib/brand";
 import { gameTitle } from "@/lib/content/text";
 import { allGames } from "@/lib/server/content";
@@ -39,6 +40,7 @@ export default function Games() {
   return (
     <div className="shell">
       <JsonLd data={structured} />
+      <ClassSprite classes={games.map((g) => g.summary.moment?.cls)} />
       <PageTopbar back="Review your own game" />
       <main>
         <section className="section">

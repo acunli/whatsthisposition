@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { LANDING } from "@/lib/landing";
 import { CLASS_INFO, CLASS_ORDER, type MoveClass } from "@/lib/review/classify";
 import { ClassIcon } from "../review/ClassIcon";

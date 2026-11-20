@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { SITE_NAME } from "@/lib/brand";
 import { Logo } from "./Logo";
 import { SiteCredit, SupportButton } from "./SiteLinks";

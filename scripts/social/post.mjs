@@ -71,7 +71,7 @@ async function bluesky(list) {
       n++;
       continue;
     }
-    const img = await fetch(`${SITE}/games/${g.slug}/opengraph-image`);
+    const img = await fetch(`${SITE}/cards/${g.slug}.png`);
     const thumb = img.ok ? (await call("com.atproto.repo.uploadBlob", Buffer.from(await img.arrayBuffer()), session.accessJwt, "image/png")).blob : undefined;
     await call(
       "com.atproto.repo.createRecord",

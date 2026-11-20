@@ -54,7 +54,7 @@ const nextConfig: NextConfig = {
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   outputFileTracingRoot: root,
   // The review preview cards (src/lib/server/reviewCard.tsx) read the fonts and pieces from disk.
-  outputFileTracingIncludes: { "/r/**": ["./src/assets/fonts/*.ttf", "./public/pieces/*.svg"], "/games/**": ["./src/assets/fonts/*.ttf", "./public/pieces/*.svg"] },
+  outputFileTracingIncludes: { "/r/**": ["./src/assets/fonts/*.ttf", "./public/pieces/*.svg"] },
   turbopack: { root },
   async redirects() {
     // The opening pages (/openings, 1,831 of them, 2026-11-03 to 11-19) were removed: they brought
@@ -63,6 +63,9 @@ const nextConfig: NextConfig = {
     const removed = [
       { source: "/openings", destination: "/", permanent: true },
       { source: "/openings/:path*", destination: "/", permanent: true },
+      // A reviewed game's card was a prerendered route until 2026-11-20; it is a static file now
+      // (scripts/build-cards.mjs), so link previews already made keep their picture.
+      { source: "/games/:slug/opengraph-image", destination: "/cards/:slug.png", permanent: true },
     ];
     return productionSite ? [...removed, { source: "/:path*", has: [{ type: "host", value: ".*\\.vercel\\.app" }], destination: `${productionSite}/:path*`, permanent: true }] : removed;
   },
@@ -74,6 +77,7 @@ const nextConfig: NextConfig = {
       // Static assets: versioned by the pinned packages and the build scripts; cache them.
       { source: "/engine/:file*", headers: cache(86400) },
       { source: "/pieces/:file*", headers: cache(604800) },
+      { source: "/cards/:file*", headers: cache(604800) },
       { source: "/models/:file*", headers: cache(604800) },
       { source: "/data/:file*", headers: cache(86400) },
     ];

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import { IMPORT_ERRORS, IMPORT_SITES, countUse } from "@/lib/usage";
 import { useEffect, useRef, useState } from "react";
 import { parseFen } from "@/lib/chess/fen";

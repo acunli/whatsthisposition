@@ -29,8 +29,8 @@
   },
   "scripts": {
     "postinstall": "node scripts/copy-engine.mjs",
-    "predev": "node scripts/copy-engine.mjs",
-    "prebuild": "node scripts/copy-engine.mjs",
+    "predev": "node scripts/copy-engine.mjs && node scripts/build-cards.mjs",
+    "prebuild": "node scripts/copy-engine.mjs && node scripts/build-cards.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

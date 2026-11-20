@@ -16,6 +16,9 @@ next-env.d.ts
 # Generated from the pinned `stockfish` npm package by scripts/copy-engine.mjs
 public/engine/
 
+# The reviewed games' preview cards, drawn before each build by scripts/build-cards.mjs
+public/cards/
+
 # The built browser extension and its store package (npm run ext:build / ext:zip)
 /extension/dist/
 /extension/dist-firefox/

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import { useEffect } from "react";
 import { errorWhere } from "@/lib/stats/fields";
 import { countUse } from "@/lib/usage";

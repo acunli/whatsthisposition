@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { EngineLines } from "../EngineLines";
 import { SmoothHeight } from "../SmoothHeight";
 import { PlayBoard } from "../PlayBoard";
