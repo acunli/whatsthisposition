@@ -48,7 +48,7 @@ export function splitGames(text: string): string[] {
   return parts.map((p) => p.trim()).filter(Boolean);
 }
 
-function readHeaders(pgn: string): Record<string, string> {
+export function readHeaders(pgn: string): Record<string, string> {
   const headers: Record<string, string> = {};
   for (const m of pgn.matchAll(/^\s*\[(\w+)\s+"((?:[^"\\]|\\.)*)"\s*\]\s*$/gm)) headers[m[1]] = m[2].replace(/\\"/g, '"');
   return headers;
