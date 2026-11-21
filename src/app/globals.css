@@ -4687,6 +4687,81 @@ em {
   }
 }
 
+/* The countries the site is used in: one picture of their flags (public/flags/strip-*.svg, drawn
+   by scripts/build-flags.mjs) repeated as a background that slides left, so the page carries no
+   flags. The rail spans the hero's full width and fades out at both ends. One flag's box is 64 of
+   the picture's 28 units of height (a 42-wide flag and its gap), so the picture is
+   flags × 64 / 28 heights wide; the track slides by exactly that, and the next copy takes its place. */
+.flags {
+  --flag-h: 26px;
+  justify-self: stretch;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  margin: 30px calc(-1 * clamp(16px, 4vw, 56px)) 0;
+}
+
+.flags-note {
+  margin: 0;
+  padding: 0 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  color: var(--dim);
+}
+
+.flags-note b {
+  font-weight: 700;
+  color: var(--bone-2);
+}
+
+.flags-rail {
+  width: 100%;
+  overflow: hidden;
+  animation: fade-in 1.2s ease both;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 16%, #000 84%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 16%, #000 84%, transparent);
+}
+
+.flags-track {
+  --strip: calc(var(--flags) * var(--flag-h) * 64 / 28);
+  width: calc(100% + var(--strip));
+  height: var(--flag-h);
+  background-repeat: repeat-x;
+  background-size: auto var(--flag-h);
+  /* About 40 px a second, whatever the number of flags. */
+  animation: flags-slide calc(var(--flags) * 1.5s) linear infinite;
+  will-change: transform;
+}
+
+.flags-rail:hover .flags-track {
+  animation-play-state: paused;
+}
+
+@keyframes flags-slide {
+  to {
+    transform: translateX(calc(-1 * var(--strip)));
+  }
+}
+
+@media (max-width: 600px) {
+  .flags {
+    --flag-h: 22px;
+    gap: 14px;
+  }
+
+  .flags-rail {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+    mask-image: linear-gradient(to right, transparent, #000 10%, #000 90%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flags-track {
+    animation: none;
+  }
+}
+
 /* The top bar on the home page: its logo and Add to Chrome wait until the hero's have
    scrolled away, so the first screen shows each once. */
 .topbar-home .topbar-brand,

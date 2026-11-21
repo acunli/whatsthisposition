@@ -78,6 +78,8 @@ const nextConfig: NextConfig = {
       { source: "/engine/:file*", headers: cache(86400) },
       { source: "/pieces/:file*", headers: cache(604800) },
       { source: "/cards/:file*", headers: cache(604800) },
+      // The home page's flags (scripts/build-flags.mjs): a new list is a new file name.
+      { source: "/flags/:file*", headers: cache(604800) },
       { source: "/models/:file*", headers: cache(604800) },
       { source: "/data/:file*", headers: cache(86400) },
     ];

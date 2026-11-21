@@ -15,6 +15,7 @@ import { useTheme } from "../ThemeToggle";
 import { Concepts } from "./Concepts";
 import { Extension } from "./Extension";
 import { Faq } from "./Faq";
+import { Flags } from "./Flags";
 import { Labels } from "./Labels";
 import { ReviewedCount } from "./ReviewedCount";
 import { Story } from "./Story";
@@ -308,6 +309,7 @@ export function Home({ onHero, onGame, onPhoto, onFen, onHand, onSample, variant
           {!positionFirst && <p className="hero-note">The Chrome extension reviews your Chess.com games right where you play them.</p>}
           {!variant && <ReviewedCount />}
         </div>
+        {!variant && <Flags />}
       </section>
 
       {positionFirst ? (

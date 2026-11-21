@@ -106,7 +106,8 @@ export default function Credits() {
           Type: Archivo by Omnibus-Type (SIL Open Font License).
           The 3D knight on the home page: from <a href="https://polyhaven.com/a/chess_set">“Chess Set”</a> by Riley Queen on Poly Haven (CC0).
           3D: three.js and React Three Fiber (MIT). Move generation:{" "}
-          <a href="https://github.com/jhlywa/chess.js">chess.js</a> (BSD-2-Clause).
+          <a href="https://github.com/jhlywa/chess.js">chess.js</a> (BSD-2-Clause). Flags on the home page:{" "}
+          <a href="https://gitlab.com/catamphetamine/country-flag-icons">country-flag-icons</a> (MIT).
         </p>
       </main>
       <SiteFooter />
