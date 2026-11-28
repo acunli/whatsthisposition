@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { packReview } from "../review/share";
+import { substanceKeyOf } from "./record";
 import { exportFile, exportFileName, mergeImported, parseImport } from "./transfer";
 import { HISTORY_VERSION } from "./types";
 import type { HistoryRecord } from "./types";
@@ -51,6 +52,7 @@ describe("exporting and importing", () => {
     expect(imported.id).not.toBe(rec.id);
     expect(imported.id).toHaveLength(32);
     expect(imported.pgn).toBe(rec.pgn);
+    expect(imported.key).toBe(await substanceKeyOf(rec.pgn));
     expect(imported.data).toBe(rec.data);
     expect(imported.depth).toBe(14);
     expect(imported.as).toBe("w");
@@ -142,29 +144,64 @@ describe("exporting and importing", () => {
   });
 });
 
+/** A PGN of a different game, so two records in one test are two games. */
+const OTHER = (moves: string) => `[White "Ada"]\n[Black "Ben"]\n[Result "1-0"]\n\n${moves} 1-0\n`;
+
 describe("merging an import into the history", () => {
-  it("adds the new games and never drops the old ones", () => {
-    const existing = [record({ id: "a" }), record({ id: "b" })];
-    const imported = [record({ id: "b" }), record({ id: "c" })];
-    const { merged, changed, added, skipped } = mergeImported(existing, imported);
+  it("adds the new games and never drops the old ones", async () => {
+    const existing = [record({ id: "a", pgn: OTHER("1. e4 e5") }), record({ id: "b", pgn: OTHER("1. d4 d5") })];
+    const imported = [record({ id: "b", pgn: OTHER("1. d4 d5") }), record({ id: "c", pgn: OTHER("1. c4 e5") })];
+    const { merged, changed, added, skipped } = await mergeImported(existing, imported);
     expect(merged.map((r) => r.id)).toEqual(["a", "b", "c"]);
     expect(changed.map((r) => r.id)).toEqual(["c"]);
     expect(added).toBe(1);
     expect(skipped).toBe(1);
   });
 
-  it("keeps the higher depth", () => {
-    const { merged } = mergeImported([record({ id: "a", depth: 18 })], [record({ id: "a", depth: 14 })]);
+  it("keeps the higher depth", async () => {
+    const { merged } = await mergeImported([record({ id: "a", depth: 18 })], [record({ id: "a", depth: 14 })]);
     expect(merged[0].depth).toBe(18);
-    const other = mergeImported([record({ id: "a", depth: 14 })], [record({ id: "a", depth: 18 })]);
+    const other = await mergeImported([record({ id: "a", depth: 14 })], [record({ id: "a", depth: 18 })]);
     expect(other.merged[0].depth).toBe(18);
     expect(other.changed).toHaveLength(1);
   });
 
-  it("at the same depth, prefers the one with a review, then the newer one", () => {
-    const { merged } = mergeImported([record({ id: "a", data: "packed" })], [record({ id: "a", data: undefined, reviewedAt: NOW + 9 })]);
+  it("at the same depth, prefers the one with a review, then the newer one", async () => {
+    const { merged } = await mergeImported([record({ id: "a", data: "packed" })], [record({ id: "a", data: undefined, reviewedAt: NOW + 9 })]);
     expect(merged[0].data).toBe("packed");
-    const newer = mergeImported([record({ id: "a", reviewedAt: NOW })], [record({ id: "a", reviewedAt: NOW + 9 })]);
+    const newer = await mergeImported([record({ id: "a", reviewedAt: NOW })], [record({ id: "a", reviewedAt: NOW + 9 })]);
     expect(newer.merged[0].reviewedAt).toBe(NOW + 9);
+  });
+
+  it("does not re-stamp a record for the same packed review", async () => {
+    const { merged, changed, skipped } = await mergeImported([record({ id: "a", data: "packed" })], [record({ id: "a", data: "packed", reviewedAt: NOW + 9 })]);
+    expect(merged[0].reviewedAt).toBe(NOW);
+    expect(changed).toHaveLength(0);
+    expect(skipped).toBe(1);
+  });
+
+  it("recognises the same game from another source by its substance key", async () => {
+    // The same moves, written with different headers (and so a different id) by two sources.
+    const apiPgn = '[Event "Live Chess"]\n[Site "Chess.com"]\n[Date "2026.11.12"]\n[White "Ada"]\n[Black "Ben"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0\n';
+    const pagePgn = '[Event "Live Chess"]\n[Site "Chess.com"]\n[Date "2026.11.13"]\n[White "Ada"]\n[Black "Ben"]\n[Result "1-0"]\n\n1. e4 e5 2. Nf3 Nc6 1-0\n';
+    const local = record({ id: "local-id", pgn: apiPgn, key: await substanceKeyOf(apiPgn), depth: 12 });
+    const incoming = record({ id: "other-id", pgn: pagePgn, key: await substanceKeyOf(pagePgn), depth: 16, reviewedAt: NOW + 9 });
+    const { merged, changed, added } = await mergeImported([local], [incoming]);
+    expect(merged).toHaveLength(1);
+    // The row keeps the id it already had here, and the deeper review replaces it.
+    expect(merged[0].id).toBe("local-id");
+    expect(merged[0].depth).toBe(16);
+    expect(changed).toHaveLength(1);
+    expect(added).toBe(1);
+  });
+
+  it("recognises a record written before keys existed", async () => {
+    // Only the PGN, no key: it is keyed from the PGN when the import is matched.
+    const local = record({ id: "old-id" });
+    const incoming = record({ id: "new-id", pgn: PGN.replace('[White "Ada"]\n[Black "Ben"]\n[Result "1-0"]', '[White "Ada"]\n[Black "Ben"]\n[Result "1-0"]\n[Site "Elsewhere"]'), depth: 18 });
+    const { merged } = await mergeImported([local], [incoming]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].id).toBe("old-id");
+    expect(merged[0].depth).toBe(18);
   });
 });

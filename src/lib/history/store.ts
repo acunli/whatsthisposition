@@ -5,7 +5,7 @@
  * data refused, the quota gone) resolves to a safe value, so a review is never broken or
  * delayed by the history.
  */
-import { upsert } from "./record";
+import { substanceKeyOf, upsert } from "./record";
 import type { HistoryRecord } from "./types";
 
 const DB = "wtp-history";
@@ -85,9 +85,24 @@ export async function saveHistory(record: HistoryRecord): Promise<boolean> {
   }
 }
 
+/**
+ * The record of the same game, whatever its id: the one with the incoming id if there is
+ * one, otherwise the one whose substance key (record.ts) matches — the same game read from
+ * another source, which writes other headers and so hashes to another id.
+ */
+async function sameGame(incoming: HistoryRecord): Promise<HistoryRecord | null> {
+  const byId = await getHistory(incoming.id);
+  if (byId) return byId;
+  const key = incoming.key ?? (await substanceKeyOf(incoming.pgn));
+  for (const rec of await listHistory()) {
+    if ((rec.key ?? (await substanceKeyOf(rec.pgn))) === key) return rec;
+  }
+  return null;
+}
+
 /** Keeps a new review of a game under the record's rules (record.ts). */
 export async function recordGame(incoming: HistoryRecord, now = Date.now()): Promise<void> {
-  const existing = await getHistory(incoming.id);
+  const existing = await sameGame(incoming);
   await saveHistory(upsert(existing, incoming, now));
 }
 
@@ -124,9 +139,13 @@ export function resetStoreForTests(): void {
   opening = null;
 }
 
-/** Whether the browser lets the site keep a history at all. */
-export function isHistoryAvailable(): boolean {
-  return typeof indexedDB !== "undefined";
+/**
+ * Whether the browser lets the site keep a history at all: asked of the database itself,
+ * not of `indexedDB` being defined — a private window, refused site data or a full quota
+ * has the API and still hands back no database.
+ */
+export async function historyAvailable(): Promise<boolean> {
+  return (await openDb()) !== null;
 }
 
 /** IndexedDB hands back whatever was put in; records only count if they still look like records. */

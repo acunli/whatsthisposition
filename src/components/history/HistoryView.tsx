@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { keepReview } from "@/lib/review/kept";
-import { clearHistory, deleteHistory, isHistoryAvailable, listHistory, saveHistory } from "@/lib/history/store";
+import { clearHistory, deleteHistory, historyAvailable, listHistory, saveHistory } from "@/lib/history/store";
 import { exportFile, exportFileName, mergeImported, parseImport, type ImportResult } from "@/lib/history/transfer";
 import type { HistoryRecord } from "@/lib/history/types";
 
@@ -49,7 +49,9 @@ export function HistoryView() {
   }, []);
 
   useEffect(() => {
-    queueMicrotask(() => setAvailable(isHistoryAvailable()));
+    queueMicrotask(() => {
+      void historyAvailable().then(setAvailable);
+    });
     refresh();
   }, [refresh]);
 
@@ -94,7 +96,7 @@ export function HistoryView() {
         return;
       }
       const existing = await listHistory();
-      const { changed, added, skipped } = mergeImported(existing, back.records);
+      const { changed, added, skipped } = await mergeImported(existing, back.records);
       for (const rec of changed) await saveHistory(rec);
       refresh();
       setNote(`Added ${added}${skipped ? `, skipped ${skipped} already here` : ""}${back.rejected ? `, ${back.rejected} couldn't be read` : ""}.`);

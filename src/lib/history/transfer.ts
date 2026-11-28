@@ -9,7 +9,7 @@ import { unpackReview } from "../review/share";
 import { loadBook } from "../review/book";
 import { classifyGame } from "../review/review";
 import { gameAccuracy } from "../review/accuracy";
-import { gameIdOf, summarise } from "./record";
+import { gameIdOf, incomingWins, substanceKeyOf, summarise } from "./record";
 import type { HistoryRecord } from "./types";
 import { HISTORY_VERSION } from "./types";
 
@@ -106,6 +106,7 @@ async function readRecord(value: unknown, now: number): Promise<HistoryRecord | 
   return {
     v: 1,
     id: await gameIdOf(game),
+    key: await substanceKeyOf(pgn),
     pgn,
     ...(as ? { as } : {}),
     depth,
@@ -117,30 +118,35 @@ async function readRecord(value: unknown, now: number): Promise<HistoryRecord | 
 }
 
 /**
- * Merges an import into what the history already holds: the same game from both sides is
- * kept at the higher depth (a tie goes to the newer review), and nothing that isn't in the
- * file is removed. `changed` lists only the records that have to be written back.
+ * Merges an import into what the history already holds. The same game is recognised by its
+ * id or, when the two sources wrote different headers, by its substance key (record.ts);
+ * which of the two reviews is kept is that file's one rule (`incomingWins`), and nothing
+ * that isn't in the file is removed. `changed` lists only the records that have to be
+ * written back, and a record keeps the id it already had here.
  */
-export function mergeImported(existing: HistoryRecord[], imported: HistoryRecord[]): {
+export async function mergeImported(
+  existing: HistoryRecord[],
+  imported: HistoryRecord[],
+): Promise<{
   merged: HistoryRecord[];
   changed: HistoryRecord[];
   added: number;
   skipped: number;
-} {
+}> {
   const byId = new Map(existing.map((r) => [r.id, r]));
+  const byKey = new Map<string, HistoryRecord>();
+  for (const rec of existing) byKey.set(rec.key ?? (await substanceKeyOf(rec.pgn)), rec);
   const changed: HistoryRecord[] = [];
   let added = 0;
   let skipped = 0;
   for (const rec of imported) {
-    const current = byId.get(rec.id);
-    const incomingWins =
-      !current ||
-      rec.depth > current.depth ||
-      (rec.depth === current.depth &&
-        (rec.data && !current.data ? true : (!rec.data && current.data ? false : rec.reviewedAt > current.reviewedAt)));
-    if (incomingWins) {
-      byId.set(rec.id, rec);
-      changed.push(rec);
+    const key = rec.key ?? (await substanceKeyOf(rec.pgn));
+    const current = byId.get(rec.id) ?? byKey.get(key) ?? null;
+    if (!current || incomingWins(current, rec)) {
+      const kept = current ? { ...rec, id: current.id } : rec;
+      byId.set(kept.id, kept);
+      byKey.set(key, kept);
+      changed.push(kept);
       added++;
     } else {
       skipped++;
